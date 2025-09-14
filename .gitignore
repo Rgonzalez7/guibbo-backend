@@ -1,21 +1,36 @@
-# dependencias
-/node_modules
+node_modules/
+dist/
+build/
+coverage/
+tmp/
+temp/
+.cache/
+logs/
+*.log
 
-# builds
-/dist
-/build
-
-# sistema
-.DS_Store
-Thumbs.db
-
-# env
 .env
 .env.*
-!.env.example
+.env.local
 
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+uploads/
+storage/
+recordings/
+media/
+public/uploads/
+
+models/
+weights/
+*.bin
+*.pt
+*.onnx
+*.ckpt
+*.mp3
+*.wav
+*.mp4
+*.zip
+*.tar
+*.gz
+
+.DS_Store
+.vscode/
+.idea/
