@@ -1,20 +1,25 @@
+# Dockerfile (BackEnd/Dockerfile)
 FROM node:20-alpine
 
 RUN apk add --no-cache bash
 
-WORKDIR /app
+# Trabajamos dentro de /app/server
+WORKDIR /app/server
 
-# Instalar deps con cache
-COPY package*.json ./
+# 1) Copiamos SOLO los package*.json desde server/ para aprovechar caché
+COPY server/package*.json ./
+
+# 2) Instalamos dependencias de prod
 RUN npm install --omit=dev
 
-# Copiar TODO el código
-COPY . .
+# 3) Copiamos el resto del código del servidor
+#    (ajusta si tienes más carpetas necesarias)
+COPY server/. .
 
+# Variables y puerto
 ENV NODE_ENV=production
 ENV PORT=8080
-
 EXPOSE 8080
 
-# Arranca tu servidor
-CMD ["node", "server/index.js"]
+# Arranque
+CMD ["node", "index.js"]
