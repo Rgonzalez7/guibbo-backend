@@ -11,6 +11,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5050;
 
+// --- CORS (frontend prod + local) ---
 const FRONTEND_ORIGIN_ENV = process.env.FRONTEND_ORIGIN || '';
 const ALLOWED_ORIGINS = FRONTEND_ORIGIN_ENV
   .split(',')
@@ -36,7 +37,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('public/uploads'));
 
-// Rutas HTTP (igual que las tenías)
+// --- Rutas HTTP ---
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/sesiones', require('./routes/sessionRoutes'));
 app.use('/api/expedientes', require('./routes/expedienteRoutes'));
@@ -55,22 +56,57 @@ app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/pruebas', require('./routes/pruebasRoutes'));
 app.use('/api/historial', require('./routes/historialRoutes'));
 
+// --- Health & raíz ---
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, env: process.env.NODE_ENV || 'development', uptime: process.uptime() });
+  res.json({
+    ok: true,
+    env: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+  });
 });
 
 app.get('/', (_req, res) => res.send('Servidor funcionando correctamente 🚀'));
 
+// ✅ Índice de API (útil para comprobar en producción)
+app.get('/api', (_req, res) => {
+  res.json({
+    ok: true,
+    name: 'Guibbo API',
+    env: process.env.NODE_ENV || 'development',
+    version: process.env.npm_package_version || '1.0.0',
+    time: new Date().toISOString(),
+    endpoints: [
+      '/api/auth',
+      '/api/pacientes',
+      '/api/sesiones',
+      '/api/expedientes',
+      '/api/feedback',
+      '/api/progreso',
+      '/api/usuarios',
+      '/api/sesiones-intervencion',
+      '/api/cuadro-convergencia',
+      '/api/hipotesis',
+      '/api/diagnostico',
+      '/api/ia',
+      '/api/diarizacion',
+      '/api/consentimiento',
+      '/api/tests',
+      '/api/pruebas',
+      '/api/historial',
+    ],
+  });
+});
+
 const server = http.createServer(app);
 
-// --- Socket.io (si lo usas para otras cosas) ---
+// --- Socket.io ---
 const io = new Server(server, {
-  cors: { origin: ALLOWED_ORIGINS, credentials: true, methods: ['GET','POST'] }
+  cors: { origin: ALLOWED_ORIGINS, credentials: true, methods: ['GET','POST'] },
 });
 
 // (tu lógica de socket.io aquí, sin tocar)
 
-// WS puentes (noServer + upgrade)
+// --- Puentes WS (noServer + upgrade) ---
 const { createDeepgramProxy } = require('./controllers/deepgramLiveProxy');
 const { createSimWSS } = require('./controllers/simFlow');
 
@@ -94,21 +130,23 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  // 👇 MUY IMPORTANTE: deja que socket.io maneje su propio upgrade
+  // 👇 Deja que socket.io maneje su propio upgrade
   if (url.startsWith('/socket.io')) {
-    return; // no toques el socket; otro listener se encargará
+    return;
   }
 
-  // Si no matchea ningún WS path conocido, ahora sí destruye
+  // Si no matchea ningún WS path conocido, cerrar
   socket.destroy();
 });
 
+// --- Boot ---
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB');
     server.listen(port, () => {
       console.log(`🚀 API & WS corriendo en el puerto ${port}`);
       console.log('🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim');
+      console.log('🌐 Orígenes permitidos (CORS):', ALLOWED_ORIGINS.join(', ') || '(ninguno)');
     });
   })
   .catch((err) => {
