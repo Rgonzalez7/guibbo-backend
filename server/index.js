@@ -10,7 +10,7 @@ const path = require("path");
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5050;
+const port = Number(process.env.PORT || 8080);
 
 // --- CORS (frontend prod + local) ---
 const FRONTEND_ORIGIN_ENV = process.env.FRONTEND_ORIGIN || "";
@@ -217,7 +217,7 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log("✅ Conectado a MongoDB");
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       console.log(`🚀 API & WS corriendo en el puerto ${port}`);
       console.log("🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim");
       console.log(
