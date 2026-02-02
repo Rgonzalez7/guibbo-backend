@@ -15,7 +15,7 @@ const InterpretacionSchema = new mongoose.Schema({
 
 const PruebaSchema = new mongoose.Schema({
   usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  pacienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Paciente', required: true },
+  pacienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Paciente', required: false },
   testId: { type: String, required: true },
   estado: { type: String, enum: ['en_progreso', 'guardada', 'finalizada'], required: true },
   roomId: { type: String, default: null },
