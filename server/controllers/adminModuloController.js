@@ -59,6 +59,39 @@ function normalizarTipoModulo(tipoModuloCrudo) {
   return null;
 }
 
+function normalizeTipoConsentimiento(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  if (!v) return "";
+
+  // si el front ya manda uno permitido, lo respetamos
+  if (v === "adulto") return "adulto";
+  if (v === "niño" || v === "nino") return "niño";
+
+  const isMayor =
+    v === "mayor" ||
+    v === "adult" ||
+    v === "adulto" ||
+    v === "mayor de edad" ||
+    v === "mayor_de_edad" ||
+    v.includes("mayor") ||
+    v.includes("adult");
+
+  const isMenor =
+    v === "menor" ||
+    v === "niño" ||
+    v === "nino" ||
+    v === "menor de edad" ||
+    v === "menor_de_edad" ||
+    v.includes("menor") ||
+    v.includes("niñ") ||
+    v.includes("nin");
+
+  if (isMayor) return "adulto";
+  if (isMenor) return "niño";
+
+  return "";
+}
+
 // =====================
 // ✅ Helpers booleans + normalizadores RolePlay
 // =====================
@@ -242,9 +275,17 @@ exports.crearEjercicioInterpretacionFrasesAdmin = async (req, res) => {
 
 exports.crearEjercicioRolePlayAdmin = async (req, res) => {
   try {
-    // Tu backend soporta: 'Role playing persona' | 'Role playing Aula' | 'Role Playing IA'
-    // Este endpoint /role-play lo mapeamos a 'Role Playing IA' por defecto
-    req.body = { ...(req.body || {}), tipoEjercicio: 'Role Playing IA' };
+    const incoming = String(req.body?.tipoEjercicio || '').trim();
+
+    // Si el front ya manda uno válido, respétalo.
+    // Si no manda nada, usa IA como default.
+    const tipo =
+      incoming === 'Role playing persona' || incoming === 'Role Playing IA'
+        ? incoming
+        : 'Role Playing IA';
+
+    req.body = { ...(req.body || {}), tipoEjercicio: tipo };
+
     return exports.crearEjercicioAdmin(req, res);
   } catch (err) {
     console.error('❌ Error wrapper crearEjercicioRolePlayAdmin:', err);
@@ -1352,16 +1393,17 @@ exports.listarEjerciciosAdmin = async (req, res) => {
    CREAR EJERCICIO (ADMIN, SOLO LOCAL)
    =========================== */
 
-   exports.crearEjercicioAdmin = async (req, res) => {
+  exports.crearEjercicioAdmin = async (req, res) => {
     try {
       const { submoduloId } = req.params;
   
       if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-        return res.status(400).json({ message: 'ID de submódulo inválido.' });
+        return res.status(400).json({ message: "ID de submódulo inválido." });
       }
   
-      const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-      if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+      const submodulo = await Submodulo.findById(submoduloId).populate("modulo");
+      if (!submodulo)
+        return res.status(404).json({ message: "Submódulo no encontrado" });
   
       const {
         titulo,
@@ -1376,7 +1418,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         tipoConsentimiento,
         herramientas,
         evaluaciones,
-        pruebasConfig,
+        pruebasConfig: pruebasConfigRolePlay, // ✅ RolePlay config (alias)
   
         // Grabar voz
         caso,
@@ -1387,10 +1429,12 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   
         // Pruebas
         pruebas,
-        pruebasConfig: pruebasConfigPruebas, // (por si viene)
+        pruebasConfig: pruebasConfigPruebas, // ✅ Pruebas config (alias)
+  
         // Proyectivas
         historia,
         imagen,
+  
         // Interp frases
         edad,
         ocupacion,
@@ -1402,11 +1446,13 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       } = req.body || {};
   
       if (!titulo || !String(titulo).trim()) {
-        return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
+        return res
+          .status(400)
+          .json({ message: "El título del ejercicio es obligatorio." });
       }
   
       if (!tipoEjercicio) {
-        return res.status(400).json({ message: 'tipoEjercicio es obligatorio.' });
+        return res.status(400).json({ message: "tipoEjercicio es obligatorio." });
       }
   
       // Crear doc genérico
@@ -1415,15 +1461,17 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         tipoEjercicio,
         tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
         titulo: String(titulo).trim(),
-        tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
+        tiempo: typeof tiempo === "number" ? tiempo : tiempo ? Number(tiempo) : 0,
       });
   
       let detalle = null;
   
       // ===== SWITCH DETALLE POR TIPO =====
-      if (tipoEjercicio === 'Grabar voz') {
+      if (tipoEjercicio === "Grabar voz") {
         if (!caso || !String(caso).trim()) {
-          return res.status(400).json({ message: 'El caso/enunciado es obligatorio para Grabar voz.' });
+          return res.status(400).json({
+            message: "El caso/enunciado es obligatorio para Grabar voz.",
+          });
         }
   
         detalle = await EjercicioGrabarVoz.create({
@@ -1431,55 +1479,73 @@ exports.listarEjerciciosAdmin = async (req, res) => {
           caso: String(caso),
           evaluaciones: normalizeEvaluacionesIA(req.body?.evaluaciones || {}),
         });
-      }
-  
-      else if (tipoEjercicio === 'Interpretación de frases incompletas') {
+      } else if (tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioInterpretacionFrases.create({
           ejercicio: ejercicio._id,
           edad: edad ? Number(edad) : undefined,
-          ocupacion: ocupacion || '',
-          motivo: motivo || '',
-          historiaPersonal: historiaPersonal || '',
-          tipoTest: tipo || 'adulto',
+          ocupacion: ocupacion || "",
+          motivo: motivo || "",
+          historiaPersonal: historiaPersonal || "",
+          tipoTest: tipo || "adulto",
           respuestasFrases: Array.isArray(respuestasFrases) ? respuestasFrases : [],
-          notas: texto || '',
-          intentos: typeof intentos === 'number' ? intentos : intentos ? Number(intentos) : 1,
+          notas: texto || "",
+          intentos:
+            typeof intentos === "number"
+              ? intentos
+              : intentos
+              ? Number(intentos)
+              : 1,
         });
       }
   
-      // ✅ AQUÍ ESTÁ EL FIX IMPORTANTE:
+      // ✅ ROLEPLAY (IA / persona / aula)
       else if (isRolePlayTipo(tipoEjercicio)) {
+        const consentimientoBool = toBool(consentimiento);
+        const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
+  
+        if (consentimientoBool && !tcNorm) {
+          return res.status(400).json({
+            message:
+              "tipoConsentimiento inválido. Valores permitidos: " +
+              (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues ||
+                []
+              ).join(", "),
+          });
+        }
+  
         detalle = await EjercicioRolePlay.create({
           ejercicio: ejercicio._id,
   
-          tipoRole: tipoRole === 'simulada' ? 'simulada' : 'real',
-          trastorno: trastorno || '',
+          tipoRole: tipoRole === "simulada" ? "simulada" : "real",
+          trastorno: trastorno || "",
   
-          consentimiento: toBool(consentimiento),
-          tipoConsentimiento: tipoConsentimiento || '',
+          consentimiento: consentimientoBool,
+          tipoConsentimiento: consentimientoBool ? tcNorm : "",
   
           herramientas: normalizeHerramientasRolePlay(herramientas || {}),
           evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}),
-  
-          // ✅ Guarda la config de pruebas del roleplay (aunque esté apagado, queda consistente)
-          pruebasConfig: normalizePruebasConfigRolePlay(pruebasConfig || {}),
+          pruebasConfig: normalizePruebasConfigRolePlay(
+            pruebasConfigRolePlay || {}
+          ),
         });
-      }
-  
-      else if (tipoEjercicio === 'Criterios de diagnostico') {
+      } else if (tipoEjercicio === "Criterios de diagnostico") {
         detalle = await EjercicioCriteriosDx.create({
           ejercicio: ejercicio._id,
-          caso: caso || '',
-          criterios: criterios || '',
-          intentos: typeof intentos === 'number' ? intentos : intentos ? Number(intentos) : 1,
+          caso: caso || "",
+          criterios: criterios || "",
+          intentos:
+            typeof intentos === "number"
+              ? intentos
+              : intentos
+              ? Number(intentos)
+              : 1,
         });
-      }
-  
-      else if (tipoEjercicio === 'Aplicación de pruebas') {
+      } else if (tipoEjercicio === "Aplicación de pruebas") {
         // compat: pruebasConfig o pruebas
-        const cfg = (pruebasConfigPruebas && typeof pruebasConfigPruebas === 'object')
-          ? pruebasConfigPruebas
-          : (pruebas && typeof pruebas === 'object')
+        const cfg =
+          pruebasConfigPruebas && typeof pruebasConfigPruebas === "object"
+            ? pruebasConfigPruebas
+            : pruebas && typeof pruebas === "object"
             ? pruebas
             : {};
   
@@ -1487,26 +1553,233 @@ exports.listarEjerciciosAdmin = async (req, res) => {
           ejercicio: ejercicio._id,
           pruebasConfig: cfg,
         });
-      }
-  
-      else if (tipoEjercicio === 'Pruebas psicometricas') {
+      } else if (tipoEjercicio === "Pruebas psicometricas") {
         detalle = await EjercicioInterpretacionProyectiva.create({
           ejercicio: ejercicio._id,
-          imagen: imagen || '',
-          historia: historia || '',
-          intentos: typeof intentos === 'number' ? intentos : intentos ? Number(intentos) : 1,
+          imagen: imagen || "",
+          historia: historia || "",
+          intentos:
+            typeof intentos === "number"
+              ? intentos
+              : intentos
+              ? Number(intentos)
+              : 1,
         });
       }
   
       return res.status(201).json({
-        message: 'Ejercicio creado correctamente',
+        message: "Ejercicio creado correctamente",
         ejercicio,
         detalle,
       });
     } catch (err) {
-      console.error('❌ Error creando ejercicio (admin):', err);
+      console.error("❌ Error creando ejercicio (admin):", err);
       return res.status(500).json({
-        message: 'Error al crear ejercicio (admin)',
+        message: "Error al crear ejercicio (admin)",
+        error: err.message,
+      });
+    }
+  };
+  
+/* ===========================
+  ACTUALIZAR EJERCICIO (ADMIN, SOLO LOCAL)
+   =========================== */  
+  
+  exports.actualizarEjercicioAdmin = async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "ID de ejercicio inválido." });
+      }
+  
+      const ejercicio = await Ejercicio.findById(id);
+      if (!ejercicio)
+        return res.status(404).json({ message: "Ejercicio no encontrado" });
+  
+      const {
+        titulo,
+        tiempo,
+        tipoModulo,
+        tipoEjercicio,
+  
+        // RolePlay
+        tipoRole,
+        trastorno,
+        consentimiento,
+        tipoConsentimiento,
+        herramientas,
+        evaluaciones,
+  
+        // ✅ unificado
+        pruebasConfig,
+  
+        // Grabar voz
+        caso,
+  
+        // Criterios Dx
+        criterios,
+        intentos,
+  
+        // Pruebas
+        pruebas,
+  
+        // Proyectivas
+        historia,
+        imagen,
+  
+        // Interp frases
+        edad,
+        ocupacion,
+        motivo,
+        historiaPersonal,
+        tipo,
+        respuestasFrases,
+        texto,
+      } = req.body || {};
+  
+      // ✅ No permitir cambiar el tipo una vez creado (evita romper colecciones detalle)
+      if (
+        tipoEjercicio !== undefined &&
+        String(tipoEjercicio) !== String(ejercicio.tipoEjercicio)
+      ) {
+        return res.status(400).json({
+          message: "No se permite cambiar tipoEjercicio una vez creado.",
+        });
+      }
+  
+      if (titulo !== undefined) ejercicio.titulo = String(titulo);
+      if (tiempo !== undefined)
+        ejercicio.tiempo =
+          typeof tiempo === "number" ? tiempo : Number(tiempo) || 0;
+  
+      // (opcional) si quieres permitir actualizar tipoModulo a nivel ejercicio:
+      if (tipoModulo !== undefined) ejercicio.tipoModulo = tipoModulo;
+  
+      await ejercicio.save();
+  
+      let detalle = null;
+  
+      if (ejercicio.tipoEjercicio === "Grabar voz") {
+        detalle = await EjercicioGrabarVoz.findOne({ ejercicio: id });
+        if (!detalle) detalle = await EjercicioGrabarVoz.create({ ejercicio: id });
+  
+        if (caso !== undefined) detalle.caso = String(caso || "");
+        if (req.body?.evaluaciones !== undefined) {
+          detalle.evaluaciones = normalizeEvaluacionesIA(req.body.evaluaciones || {});
+        }
+        await detalle.save();
+      } else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
+        detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
+        if (!detalle)
+          detalle = await EjercicioInterpretacionFrases.create({ ejercicio: id });
+  
+        if (edad !== undefined) detalle.edad = Number(edad);
+        if (ocupacion !== undefined) detalle.ocupacion = ocupacion || "";
+        if (motivo !== undefined) detalle.motivo = motivo || "";
+        if (historiaPersonal !== undefined)
+          detalle.historiaPersonal = historiaPersonal || "";
+        if (tipo !== undefined) detalle.tipoTest = tipo || "adulto";
+        if (Array.isArray(respuestasFrases)) detalle.respuestasFrases = respuestasFrases;
+        if (texto !== undefined) detalle.notas = texto || "";
+        if (intentos !== undefined)
+          detalle.intentos =
+            typeof intentos === "number" ? intentos : Number(intentos) || 1;
+  
+        await detalle.save();
+      }
+  
+      // ✅ ROLEPLAY
+      else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
+        detalle = await EjercicioRolePlay.findOne({ ejercicio: id });
+        if (!detalle) detalle = await EjercicioRolePlay.create({ ejercicio: id });
+  
+        if (tipoRole !== undefined)
+          detalle.tipoRole = tipoRole === "simulada" ? "simulada" : "real";
+        if (trastorno !== undefined) detalle.trastorno = trastorno || "";
+  
+        if (consentimiento !== undefined) {
+          detalle.consentimiento = toBool(consentimiento);
+        }
+  
+        // ✅ Validación consistente con CREATE
+        if (tipoConsentimiento !== undefined) {
+          const consentimientoBool =
+            consentimiento !== undefined ? toBool(consentimiento) : !!detalle.consentimiento;
+  
+          const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
+  
+          if (consentimientoBool && !tcNorm) {
+            return res.status(400).json({
+              message:
+                "tipoConsentimiento inválido. Valores permitidos: " +
+                (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues ||
+                  []
+                ).join(", "),
+            });
+          }
+  
+          detalle.tipoConsentimiento = consentimientoBool ? tcNorm : "";
+        }
+  
+        if (herramientas !== undefined)
+          detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
+        if (evaluaciones !== undefined)
+          detalle.evaluaciones = normalizeEvaluacionesRolePlay(evaluaciones || {});
+  
+        if (pruebasConfig !== undefined) {
+          detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig || {});
+        }
+  
+        await detalle.save();
+      } else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
+        detalle = await EjercicioCriteriosDx.findOne({ ejercicio: id });
+        if (!detalle) detalle = await EjercicioCriteriosDx.create({ ejercicio: id });
+  
+        if (caso !== undefined) detalle.caso = caso || "";
+        if (criterios !== undefined) detalle.criterios = criterios || "";
+        if (intentos !== undefined)
+          detalle.intentos =
+            typeof intentos === "number" ? intentos : Number(intentos) || 1;
+  
+        await detalle.save();
+      } else if (ejercicio.tipoEjercicio === "Aplicación de pruebas") {
+        detalle = await EjercicioPruebas.findOne({ ejercicio: id });
+        if (!detalle) detalle = await EjercicioPruebas.create({ ejercicio: id });
+  
+        // ✅ FIX: en UPDATE usa "pruebasConfig" (unificado) o "pruebas" como compat
+        const cfg =
+          pruebasConfig && typeof pruebasConfig === "object"
+            ? pruebasConfig
+            : pruebas && typeof pruebas === "object"
+            ? pruebas
+            : {};
+  
+        detalle.pruebasConfig = cfg;
+        await detalle.save();
+      } else if (ejercicio.tipoEjercicio === "Pruebas psicometricas") {
+        detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id });
+        if (!detalle)
+          detalle = await EjercicioInterpretacionProyectiva.create({ ejercicio: id });
+  
+        if (imagen !== undefined) detalle.imagen = imagen || "";
+        if (historia !== undefined) detalle.historia = historia || "";
+        if (intentos !== undefined)
+          detalle.intentos =
+            typeof intentos === "number" ? intentos : Number(intentos) || 1;
+  
+        await detalle.save();
+      }
+  
+      return res.json({
+        message: "Ejercicio actualizado correctamente",
+        ejercicio,
+        detalle,
+      });
+    } catch (err) {
+      console.error("❌ Error actualizando ejercicio (admin):", err);
+      return res.status(500).json({
+        message: "Error al actualizar ejercicio (admin)",
         error: err.message,
       });
     }
@@ -1581,24 +1854,35 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       const {
         titulo,
         tiempo,
-  
-        // roleplay
+        tipoModulo,
+        tipoEjercicio,
+      
+        // RolePlay
         tipoRole,
         trastorno,
         consentimiento,
         tipoConsentimiento,
         herramientas,
         evaluaciones,
+      
+        // ✅ unificado
         pruebasConfig,
-  
-        // otros...
+      
+        // Grabar voz
         caso,
+      
+        // Criterios Dx
         criterios,
         intentos,
+      
+        // Pruebas
         pruebas,
-        pruebasConfig: pruebasConfigPruebas,
+      
+        // Proyectivas
         historia,
         imagen,
+      
+        // Interp frases
         edad,
         ocupacion,
         motivo,
@@ -1641,7 +1925,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         await detalle.save();
       }
   
-      // ✅ FIX IMPORTANTE:
+      // ✅ ROLEPLAY
       else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
         detalle = await EjercicioRolePlay.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioRolePlay.create({ ejercicio: id });
@@ -1649,12 +1933,26 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         if (tipoRole !== undefined) detalle.tipoRole = tipoRole === 'simulada' ? 'simulada' : 'real';
         if (trastorno !== undefined) detalle.trastorno = trastorno || '';
   
-        if (consentimiento !== undefined) detalle.consentimiento = toBool(consentimiento);
-        if (tipoConsentimiento !== undefined) detalle.tipoConsentimiento = tipoConsentimiento || '';
+        if (consentimiento !== undefined) {
+          detalle.consentimiento = toBool(consentimiento);
+        }
+        
+        if (tipoConsentimiento !== undefined) {
+          const consentimientoBool =
+            (consentimiento !== undefined) ? toBool(consentimiento) : !!detalle.consentimiento;
+        
+          const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
+        
+          detalle.tipoConsentimiento = consentimientoBool ? tcNorm : "";
+        }
   
         if (herramientas !== undefined) detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
         if (evaluaciones !== undefined) detalle.evaluaciones = normalizeEvaluacionesRolePlay(evaluaciones || {});
-        if (pruebasConfig !== undefined) detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig || {});
+  
+        // ✅ FIX: usa el renombrado
+        if (pruebasConfig !== undefined) {
+          detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig || {});
+        }
   
         await detalle.save();
       }
@@ -1673,13 +1971,15 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       else if (ejercicio.tipoEjercicio === 'Aplicación de pruebas') {
         detalle = await EjercicioPruebas.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioPruebas.create({ ejercicio: id });
-  
-        const cfg = (pruebasConfigPruebas && typeof pruebasConfigPruebas === 'object')
-          ? pruebasConfigPruebas
-          : (pruebas && typeof pruebas === 'object')
-            ? pruebas
-            : {};
-  
+      
+        // ✅ en UPDATE solo usa "pruebasConfig" (unificado) o "pruebas" como compat
+        const cfg =
+          (pruebasConfig && typeof pruebasConfig === 'object')
+            ? pruebasConfig
+            : (pruebas && typeof pruebas === 'object')
+              ? pruebas
+              : {};
+      
         detalle.pruebasConfig = cfg;
         await detalle.save();
       }
