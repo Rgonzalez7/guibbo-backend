@@ -2,6 +2,7 @@
 const bcrypt = require("bcryptjs");
 const Usuario = require("../models/user");
 const Universidad = require("../models/university");
+const Materia = require("../models/materia");
 
 /**
  * Helper para encontrar la universidad asociada a un admin/director.
@@ -13,19 +14,18 @@ async function findUniversidadForAdmin(adminId) {
   const admin = await Usuario.findById(adminId).lean().catch(() => null);
 
   if (admin) {
-    if (admin.universidad) return admin.universidad;
-    if (admin.universidadId) return admin.universidadId;
-    if (admin.university) return admin.university;
+    if (admin.universidad) return String(admin.universidad);
+    if (admin.universidadId) return String(admin.universidadId);
+    if (admin.university) return String(admin.university);
   }
-
-  // 2) Buscar en la colección de Universidades si este admin/director está asociado
+  
   let uni =
     (await Universidad.findOne({ directores: adminId }).lean().catch(() => null)) ||
     (await Universidad.findOne({ admins: adminId }).lean().catch(() => null)) ||
     (await Universidad.findOne({ administradores: adminId }).lean().catch(() => null));
-
-  if (uni) return uni._id;
-
+  
+  if (uni) return String(uni._id);
+  
   return null;
 }
 
@@ -143,16 +143,75 @@ exports.listarProfesoresAdmin = async (req, res) => {
       });
     }
 
+    // 1) Profesores
     const profesores = await Usuario.find({
       rol: "profesor",
-      universidad: universidadId,
+      universidad: universidadId, // universidadId es string
     })
-      .select("nombre nombres apellidos email rol activo updatedAt createdAt")
+      .select("nombre nombres apellidos email rol activo updatedAt createdAt universidad")
       .sort({ createdAt: -1 })
       .lean();
 
+    const profIds = profesores.map((p) => p._id);
+
+    // 2) Materias de esos profesores (solo en la misma universidad)
+    const materias = await Materia.find({
+      universidad: universidadId,
+      profesor: { $in: profIds },
+    })
+      .select("_id nombre codigo grupo periodoAcademico profesor estudiantes estado createdAt")
+      .lean();
+
+    // 3) Mapear por profesor: materiasCount + estudiantesTotal + materias[]
+    const map = new Map(); // key: profesorId -> { materiasCount, estudiantesTotal, materias: [] }
+
+    for (const m of materias) {
+      const k = String(m.profesor);
+      if (!map.has(k)) {
+        map.set(k, { materiasCount: 0, estudiantesTotal: 0, materias: [] });
+      }
+      const acc = map.get(k);
+
+      const totalEstudiantes = Array.isArray(m.estudiantes) ? m.estudiantes.length : 0;
+
+      acc.materiasCount += 1;
+      acc.estudiantesTotal += totalEstudiantes;
+
+      // lista ligera (para tooltip / detalle rápido)
+      acc.materias.push({
+        _id: m._id,
+        nombre: m.nombre,
+        codigo: m.codigo || "",
+        grupo: m.grupo || "",
+        periodoAcademico: m.periodoAcademico || "",
+        estado: m.estado || "activo",
+        totalEstudiantes,
+      });
+    }
+
+    // 4) Enriquecer profesores
+    const profesoresEnriquecidos = profesores.map((p) => {
+      const extra = map.get(String(p._id)) || {
+        materiasCount: 0,
+        estudiantesTotal: 0,
+        materias: [],
+      };
+      return { ...p, ...extra };
+    });
+
+    // 5) Métricas generales (útil para cards)
+    const materiasImpartidasTotal = materias.length;
+    const estudiantesTotales = materias.reduce((sum, m) => {
+      const c = Array.isArray(m.estudiantes) ? m.estudiantes.length : 0;
+      return sum + c;
+    }, 0);
+
     return res.json({
-      profesores,
+      profesores: profesoresEnriquecidos,
+      metrics: {
+        materiasImpartidasTotal,
+        estudiantesTotales,
+      },
     });
   } catch (err) {
     console.error("❌ Error listando profesores (admin):", err);
