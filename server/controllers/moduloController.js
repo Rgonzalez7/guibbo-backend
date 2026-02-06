@@ -189,6 +189,26 @@ function normalizeHerramientasRolePlay(h = {}, current = null) {
   return next;
 }
 
+function normalizeTipoRole(inputTipoRole, inputTipoEjercicio) {
+  const tr = String(inputTipoRole ?? "").trim().toLowerCase();
+  const te = String(inputTipoEjercicio ?? "").trim().toLowerCase();
+
+  // Si mandan tipoRole bien
+  if (tr === "real") return "real";
+  if (tr === "simulada") return "simulada";
+
+  // Si mandan cosas como "IA", "role playing ia", etc.
+  if (tr.includes("ia") || tr.includes("simulad")) return "simulada";
+  if (tr.includes("persona") || tr.includes("real")) return "real";
+
+  // Fallback: inferir desde tipoEjercicio
+  if (te.includes("role") && te.includes("ia")) return "simulada";
+  if (te.includes("role") && (te.includes("persona") || te.includes("aula"))) return "real";
+
+  // Default final
+  return "real";
+}
+
 /* ===========================
    MÓDULOS
    =========================== */
@@ -643,57 +663,65 @@ exports.actualizarEjercicioInterpretacionFrases = async (req, res) => {
    EJERCICIO ESPECÍFICO: ROLE PLAYING
    =========================== */
 
-exports.crearEjercicioRolePlay = async (req, res) => {
-  try {
-    const { submoduloId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+   exports.crearEjercicioRolePlay = async (req, res) => {
+    try {
+      const { submoduloId } = req.params;
+  
+      if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
+        return res.status(400).json({ message: 'ID de submódulo inválido.' });
+      }
+  
+      const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
+      if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+  
+      const {
+        titulo,
+        tiempo,
+        tipoModulo,
+        tipoRole,            // puede venir "real"/"simulada" o basura
+        tipoEjercicio,       // 👈 a veces esto viene cuando usas crearEjercicioAdmin
+        trastorno,
+        consentimiento,
+        tipoConsentimiento,
+        herramientas,
+        evaluaciones,
+      } = req.body;
+  
+      if (!titulo) return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
+  
+      // ✅ NORMALIZA
+      const tipoRoleNorm = normalizeTipoRole(tipoRole, tipoEjercicio);
+  
+      // ✅ TIPO EJERCICIO CONSISTENTE EN BD
+      const tipoEjercicioFinal =
+        tipoRoleNorm === 'simulada'
+          ? 'Role Playing IA'
+          : 'Role playing persona';
+  
+      const ejercicio = await Ejercicio.create({
+        submodulo: submoduloId,
+        tipoEjercicio: tipoEjercicioFinal,
+        tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+        titulo: String(titulo).trim(),
+        tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
+      });
+  
+      const detalle = await EjercicioRolePlay.create({
+        ejercicio: ejercicio._id,
+        tipoRole: tipoRoleNorm, // ✅ aquí también consistente
+        trastorno: trastorno || '',
+        consentimiento: toBoolRole(consentimiento),
+        tipoConsentimiento: tipoConsentimiento || '',
+        herramientas: normalizeHerramientasRolePlay(herramientas || {}),
+        evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}, null),
+      });
+  
+      res.status(201).json({ message: 'Ejercicio de role playing creado correctamente', ejercicio, detalle });
+    } catch (err) {
+      console.error('❌ Error creando ejercicio Role Play:', err);
+      res.status(500).json({ message: 'Error al crear ejercicio', error: err.message });
     }
-
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
-
-    const {
-      titulo,
-      tiempo,
-      tipoModulo,
-      tipoRole,
-      trastorno,
-      consentimiento,
-      tipoConsentimiento,
-      herramientas,
-      evaluaciones,
-    } = req.body;
-
-    if (!titulo) return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
-
-    const tipoEjercicio = tipoRole === 'simulada' ? 'Role Playing IA' : 'Role playing persona';
-
-    const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
-      tipoEjercicio,
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
-      titulo: String(titulo).trim(),
-      tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
-    });
-
-    const detalle = await EjercicioRolePlay.create({
-      ejercicio: ejercicio._id,
-      tipoRole: tipoRole || 'real',
-      trastorno: trastorno || '',
-      consentimiento: toBoolRole(consentimiento),
-      tipoConsentimiento: tipoConsentimiento || '',
-      herramientas: normalizeHerramientasRolePlay(herramientas || {}),
-      evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}, null),
-    });
-
-    res.status(201).json({ message: 'Ejercicio de role playing creado correctamente', ejercicio, detalle });
-  } catch (err) {
-    console.error('❌ Error creando ejercicio Role Play:', err);
-    res.status(500).json({ message: 'Error al crear ejercicio', error: err.message });
-  }
-};
+  };
 
 exports.actualizarEjercicioRolePlay = async (req, res) => {
   try {
@@ -715,8 +743,14 @@ exports.actualizarEjercicioRolePlay = async (req, res) => {
     if (titulo !== undefined) ejercicio.titulo = String(titulo);
     if (tiempo !== undefined) ejercicio.tiempo = typeof tiempo === 'number' ? tiempo : Number(tiempo) || 0;
 
-    if (tipoRole !== undefined) {
-      ejercicio.tipoEjercicio = tipoRole === 'simulada' ? 'Role Playing IA' : 'Role playing persona';
+    if (tipoRole !== undefined || req.body.tipoEjercicio !== undefined) {
+      const tipoRoleNorm = normalizeTipoRole(tipoRole, req.body.tipoEjercicio);
+    
+      ejercicio.tipoEjercicio =
+        tipoRoleNorm === 'simulada' ? 'Role Playing IA' : 'Role playing persona';
+    
+      // y en el detalle también
+      detalle.tipoRole = tipoRoleNorm;
     }
 
     await ejercicio.save();
@@ -1116,27 +1150,45 @@ exports.eliminarEjercicio = async (req, res) => {
       const { submoduloId } = req.params;
   
       if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-        return res.status(400).json({ message: 'ID de submódulo inválido.' });
+        return res.status(400).json({ message: "ID de submódulo inválido." });
       }
   
-      const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-      if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+      const submodulo = await Submodulo.findById(submoduloId).populate("modulo");
+      if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado" });
   
-      const ejercicios = await Ejercicio.find({ submodulo: submoduloId }).sort({ createdAt: -1 });
+      // ✅ Traer ejercicios como lean para poder “inyectar” fields
+      const ejerciciosRaw = await Ejercicio.find({ submodulo: submoduloId })
+        .sort({ createdAt: -1 })
+        .lean();
+  
+      const ejIds = ejerciciosRaw.map((e) => e._id);
+  
+      // ✅ Traer detalles roleplay para saber si es real o simulada
+      const roleDetails = await EjercicioRolePlay.find({ ejercicio: { $in: ejIds } })
+        .select("ejercicio tipoRole")
+        .lean();
+  
+      const roleMap = new Map(roleDetails.map((d) => [String(d.ejercicio), d.tipoRole]));
+  
+      // ✅ Inyectar tipoRole al ejercicio para que el frontend lo pinte bien
+      const ejercicios = ejerciciosRaw.map((e) => ({
+        ...e,
+        tipoRole: roleMap.get(String(e._id)) || null, // "real" | "simulada" | null
+      }));
   
       const modulo = submodulo.modulo || null;
-      const canEditGlobal = isSuperAdmin(req); // ✅
+      const canEditGlobal = isSuperAdmin(req);
   
       res.json({
         submodulo,
         modulo,
         ejercicios,
         tiposEjercicio: TIPOS_EJERCICIO,
-        canEditGlobal, // ✅
+        canEditGlobal,
       });
     } catch (err) {
-      console.error('❌ Error listando ejercicios (admin):', err);
-      res.status(500).json({ message: 'Error al obtener ejercicios', error: err.message });
+      console.error("❌ Error listando ejercicios (admin):", err);
+      res.status(500).json({ message: "Error al obtener ejercicios", error: err.message });
     }
   };
 
