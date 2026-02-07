@@ -107,6 +107,11 @@ exports.crearMateriaAdmin = async (req, res) => {
       estado: "activo",
     });
 
+    await Usuario.updateOne(
+      { _id: profesor._id, rol: "profesor" },
+      { $set: { activo: true } }
+    );
+
     return res.status(201).json({
       message: "Materia creada correctamente.",
       materia,
@@ -299,6 +304,11 @@ exports.actualizarMateriaAdmin = async (req, res) => {
     if (estado) {
       materia.estado = estado;
     }
+
+    await Usuario.updateOne(
+      { _id: profesor._id, rol: "profesor" },
+      { $set: { activo: true } }
+    );
 
     await materia.save();
 

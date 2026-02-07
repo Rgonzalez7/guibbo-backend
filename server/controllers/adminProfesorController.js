@@ -103,7 +103,7 @@ exports.crearProfesorAdmin = async (req, res) => {
       password: hashedPassword,
       rol: "profesor",
       universidad: universidadId,
-      activo: true,
+      activo: false,
     });
 
     return res.status(201).json({
