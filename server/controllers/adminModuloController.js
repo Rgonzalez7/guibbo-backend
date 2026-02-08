@@ -25,37 +25,46 @@ function getUniversidadIdFromUser(user) {
   return user.universidad || user.universidadId || null;
 }
 
+function stripDiacritics(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getEnumTipoModuloEjercicio() {
+  const ev = Ejercicio?.schema?.path("tipoModulo")?.enumValues;
+  return Array.isArray(ev) ? ev : [];
+}
+
 /**
- * Normaliza tipoModulo que viene del front a un valor permitido por el enum
- * - Soporta TIPOS_MODULO como array o como objeto
- * - Hace comparación case-insensitive
+ * Normaliza tipoModulo a un valor permitido por el enum REAL de Ejercicio.tipoModulo
+ * - case-insensitive
+ * - ignora tildes/diacríticos
  */
 function normalizarTipoModulo(tipoModuloCrudo) {
-  if (!tipoModuloCrudo || !TIPOS_MODULO) return null;
+  if (!tipoModuloCrudo) return null;
+
+  const allowed = getEnumTipoModuloEjercicio();
+  if (!allowed.length) return null;
 
   const raw = String(tipoModuloCrudo).trim();
   if (!raw) return null;
 
-  const allowedValues = Array.isArray(TIPOS_MODULO)
-    ? TIPOS_MODULO
-    : Object.values(TIPOS_MODULO);
+  // match exacto
+  if (allowed.includes(raw)) return raw;
 
-  // Si ya coincide exacto, lo devolvemos
-  if (allowedValues.includes(raw)) {
-    return raw;
+  const rawLower = raw.toLowerCase();
+  const rawNoTilde = stripDiacritics(rawLower);
+
+  // map por lower + sin tildes
+  for (const v of allowed) {
+    const vLower = String(v).toLowerCase();
+    if (vLower === rawLower) return v;
+
+    const vNoTilde = stripDiacritics(vLower);
+    if (vNoTilde === rawNoTilde) return v;
   }
 
-  // Intento case-insensitive
-  const lowerMap = new Map(
-    allowedValues.map((v) => [String(v).toLowerCase(), v])
-  );
-
-  const candidate = lowerMap.get(raw.toLowerCase());
-  if (candidate) {
-    return candidate;
-  }
-
-  // Si no hay match, devolvemos null para poder mandar 400 claro
   return null;
 }
 
@@ -1455,11 +1464,20 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         return res.status(400).json({ message: "tipoEjercicio es obligatorio." });
       }
   
-      // Crear doc genérico
+      const tipoModuloInferido = submodulo?.modulo?.tipoModulo;
+      const tipoModuloSeguro = normalizarTipoModulo(tipoModuloInferido);
+      
+      if (!tipoModuloSeguro) {
+        return res.status(400).json({
+          message: `tipoModulo inválido heredado del módulo: '${tipoModuloInferido}'.`,
+          allowed: Ejercicio.schema.path("tipoModulo").enumValues || [],
+        });
+      }
+
       const ejercicio = await Ejercicio.create({
         submodulo: submoduloId,
         tipoEjercicio,
-        tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+        tipoModulo: tipoModuloSeguro, // ✅ SIEMPRE desde el módulo
         titulo: String(titulo).trim(),
         tiempo: typeof tiempo === "number" ? tiempo : tiempo ? Number(tiempo) : 0,
       });
@@ -1524,9 +1542,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   
           herramientas: normalizeHerramientasRolePlay(herramientas || {}),
           evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}),
-          pruebasConfig: normalizePruebasConfigRolePlay(
-            pruebasConfigRolePlay || {}
-          ),
+          pruebasConfig: { modo: "student_choice", prueba: "" },
         });
       } else if (tipoEjercicio === "Criterios de diagnostico") {
         detalle = await EjercicioCriteriosDx.create({
@@ -1654,7 +1670,13 @@ exports.listarEjerciciosAdmin = async (req, res) => {
           typeof tiempo === "number" ? tiempo : Number(tiempo) || 0;
   
       // (opcional) si quieres permitir actualizar tipoModulo a nivel ejercicio:
-      if (tipoModulo !== undefined) ejercicio.tipoModulo = tipoModulo;
+      if (tipoModulo !== undefined) {
+        const norm = normalizarTipoModulo(tipoModulo);
+        if (!norm) {
+          return res.status(400).json({ message: `tipoModulo inválido: ${tipoModulo}` });
+        }
+        ejercicio.tipoModulo = norm;
+      }
   
       await ejercicio.save();
   
@@ -1727,9 +1749,9 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         if (evaluaciones !== undefined)
           detalle.evaluaciones = normalizeEvaluacionesRolePlay(evaluaciones || {});
   
-        if (pruebasConfig !== undefined) {
-          detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig || {});
-        }
+          if (pruebasConfig !== undefined) {
+            detalle.pruebasConfig = { modo: "student_choice", prueba: "" };
+          }
   
         await detalle.save();
       } else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
