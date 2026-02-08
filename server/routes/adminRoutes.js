@@ -199,36 +199,96 @@ router.delete(
 /* ===========================
    PROFESORES (solo director)
    =========================== */
-router.get("/profesores", requireRole("director"), adminProfesorController.listarProfesoresAdmin);
-router.post("/profesores", requireRole("director"), adminProfesorController.crearProfesorAdmin);
-router.get("/profesores/:id", requireRole("director"), adminProfesorController.obtenerProfesorAdmin);
-router.put("/profesores/:id", requireRole("director"), adminProfesorController.actualizarProfesorAdmin);
-router.delete("/profesores/:id", requireRole("director"), adminProfesorController.eliminarProfesorAdmin);
+router.get(
+  "/profesores",
+  requireRole("director"),
+  adminProfesorController.listarProfesoresAdmin
+);
+router.post(
+  "/profesores",
+  requireRole("director"),
+  adminProfesorController.crearProfesorAdmin
+);
+router.get(
+  "/profesores/:id",
+  requireRole("director"),
+  adminProfesorController.obtenerProfesorAdmin
+);
+router.put(
+  "/profesores/:id",
+  requireRole("director"),
+  adminProfesorController.actualizarProfesorAdmin
+);
+router.delete(
+  "/profesores/:id",
+  requireRole("director"),
+  adminProfesorController.eliminarProfesorAdmin
+);
 
 /* ===========================
    ESTUDIANTES
    - listar: director o profesor (base institucional)
    - CRUD: solo director
    =========================== */
-router.get("/estudiantes", requireRole("director", "profesor"), adminAlumnoController.listarEstudiantesAdmin);
+router.get(
+  "/estudiantes",
+  requireRole("director", "profesor"),
+  adminAlumnoController.listarEstudiantesAdmin
+);
 
-router.post("/estudiantes", requireRole("director"), adminAlumnoController.crearEstudianteAdmin);
-router.get("/estudiantes/:id", requireRole("director"), adminAlumnoController.obtenerEstudianteAdmin);
-router.put("/estudiantes/:id", requireRole("director"), adminAlumnoController.actualizarEstudianteAdmin);
-router.delete("/estudiantes/:id", requireRole("director"), adminAlumnoController.eliminarEstudianteAdmin);
+router.post(
+  "/estudiantes",
+  requireRole("director"),
+  adminAlumnoController.crearEstudianteAdmin
+);
+router.get(
+  "/estudiantes/:id",
+  requireRole("director"),
+  adminAlumnoController.obtenerEstudianteAdmin
+);
+router.put(
+  "/estudiantes/:id",
+  requireRole("director"),
+  adminAlumnoController.actualizarEstudianteAdmin
+);
+router.delete(
+  "/estudiantes/:id",
+  requireRole("director"),
+  adminAlumnoController.eliminarEstudianteAdmin
+);
 
 /* ===========================
    MATERIAS
    - listar/crear/editar/eliminar: solo director
    - obtener materia + estudiantes + agregar estudiantes: director o profesor
    =========================== */
-router.post("/materias", requireRole("director"), adminMateriaController.crearMateriaAdmin);
-router.get("/materias", requireRole("director"), adminMateriaController.listarMateriasAdmin);
+router.post(
+  "/materias",
+  requireRole("director"),
+  adminMateriaController.crearMateriaAdmin
+);
+router.get(
+  "/materias",
+  requireRole("director"),
+  adminMateriaController.listarMateriasAdmin
+);
 
-router.get("/materias/:id", requireRole("director", "profesor"), adminMateriaController.obtenerMateriaAdmin);
+router.get(
+  "/materias/:id",
+  requireRole("director", "profesor"),
+  adminMateriaController.obtenerMateriaAdmin
+);
 
-router.put("/materias/:id", requireRole("director"), adminMateriaController.actualizarMateriaAdmin);
-router.delete("/materias/:id", requireRole("director"), adminMateriaController.eliminarMateriaAdmin);
+router.put(
+  "/materias/:id",
+  requireRole("director"),
+  adminMateriaController.actualizarMateriaAdmin
+);
+router.delete(
+  "/materias/:id",
+  requireRole("director"),
+  adminMateriaController.eliminarMateriaAdmin
+);
 
 router.post(
   "/materias/:id/modulos",
@@ -251,8 +311,40 @@ router.get(
 /* ===========================
    CSV (solo director)
    =========================== */
-router.post("/import/materias", requireRole("director"), importController.importarMaterias);
-router.post("/import/profesores", requireRole("director"), importController.importarProfesores);
-router.post("/import/alumnos", requireRole("director"), importController.importarAlumnos);
+router.post(
+  "/import/materias",
+  requireRole("director"),
+  importController.importarMaterias
+);
+router.post(
+  "/import/profesores",
+  requireRole("director"),
+  importController.importarProfesores
+);
+router.post(
+  "/import/alumnos",
+  requireRole("director"),
+  importController.importarAlumnos
+);
+
+/* ===========================
+   CONTRASEÑAS (solo director)
+   ===========================
+   ✅ Reset admin:
+   - Genera una contraseña genérica nueva
+   - Marca debeCambiarPassword=true
+   - (Opcional) manda correo con esa contraseña o link
+*/
+router.post(
+  "/estudiantes/:id/reset-password",
+  requireRole("director"),
+  adminAlumnoController.resetPasswordEstudianteAdmin
+);
+
+router.post(
+  "/profesores/:id/reset-password",
+  requireRole("director"),
+  adminProfesorController.resetPasswordProfesorAdmin
+);
 
 module.exports = router;

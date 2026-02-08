@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const Usuario = require("../models/user");
 const Universidad = require("../models/university");
 const { deleteStudentCascade } = require("../utils/deleteStudentCascade");
+const { generateGenericPassword } = require("../utils/passwordUtils");
 
 /**
  * Helper: encontrar universidad del usuario (director o profesor)
@@ -38,29 +39,23 @@ async function findUniversidadForAdmin(adminId) {
 
 /**
  * Crear estudiante como admin/director
- * (solo director por rutas)
+ * ✅ Ahora:
+ * - Si NO mandas password => genera genérica
+ * - debeCambiarPassword = true
+ * - devuelve tempPassword para que el admin la copie
  */
 exports.crearEstudianteAdmin = async (req, res) => {
   try {
     const adminId = req.user?.id || req.user?._id;
 
-    const { nombres, apellidos, email, matricula, password, passwordConfirm } = req.body;
+    const { nombres, apellidos, email, matricula, password, passwordConfirm } =
+      req.body;
 
     if (!nombres || !apellidos || !email || !matricula) {
       return res.status(400).json({
         message:
           "Nombre(s), apellido(s), matrícula y correo institucional son obligatorios.",
       });
-    }
-
-    if (!password || !passwordConfirm) {
-      return res.status(400).json({
-        message: "La contraseña y la confirmación de contraseña son obligatorias.",
-      });
-    }
-
-    if (password !== passwordConfirm) {
-      return res.status(400).json({ message: "Las contraseñas no coinciden." });
     }
 
     const existingEmail = await Usuario.findOne({ email }).lean();
@@ -88,7 +83,22 @@ exports.crearEstudianteAdmin = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // ✅ Password: si no viene, generamos una genérica
+    let tempPassword = "";
+    let finalPassword = password;
+
+    if (!finalPassword) {
+      tempPassword = generateGenericPassword(10);
+      finalPassword = tempPassword;
+    } else {
+      // si viene password, validamos si vino confirmación
+      if (passwordConfirm && password !== passwordConfirm) {
+        return res.status(400).json({ message: "Las contraseñas no coinciden." });
+      }
+      tempPassword = finalPassword; // para que admin la copie tal cual
+    }
+
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
     const nombreCompleto = `${nombres} ${apellidos}`.trim();
 
     const estudiante = await Usuario.create({
@@ -101,10 +111,14 @@ exports.crearEstudianteAdmin = async (req, res) => {
       rol: "estudiante",
       universidad: universidadId,
       activo: true,
+
+      // ✅ obligatorio para forzar cambio al primer login
+      debeCambiarPassword: true,
     });
 
     return res.status(201).json({
       message: "Estudiante creado correctamente.",
+      tempPassword,
       estudiante: {
         _id: estudiante._id,
         nombre: estudiante.nombre,
@@ -114,12 +128,74 @@ exports.crearEstudianteAdmin = async (req, res) => {
         matricula: estudiante.matricula,
         rol: estudiante.rol,
         universidad: estudiante.universidad,
+        activo: estudiante.activo,
+        debeCambiarPassword: !!estudiante.debeCambiarPassword,
       },
     });
   } catch (err) {
     console.error("❌ Error creando estudiante (admin):", err);
     return res.status(500).json({
       message: "Ocurrió un error al crear el estudiante.",
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * ✅ Reset password estudiante (admin/director)
+ * - genera nueva genérica
+ * - debeCambiarPassword = true
+ * - devuelve tempPassword
+ */
+exports.resetPasswordEstudianteAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.user?._id;
+    const estudianteId = req.params.id;
+
+    const universidadId = await findUniversidadForAdmin(adminId);
+    if (!universidadId) {
+      return res.status(400).json({
+        message:
+          "El admin no tiene una universidad válida asociada. No se puede resetear la contraseña.",
+      });
+    }
+
+    const estudiante = await Usuario.findOne({
+      _id: estudianteId,
+      rol: "estudiante",
+      universidad: universidadId,
+    });
+
+    if (!estudiante) {
+      return res.status(404).json({
+        message: "Estudiante no encontrado en tu universidad.",
+      });
+    }
+
+    const tempPassword = generateGenericPassword(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    estudiante.password = hashedPassword;
+    estudiante.debeCambiarPassword = true;
+
+    await estudiante.save();
+
+    return res.json({
+      message:
+        "Contraseña reseteada. Comparte la contraseña genérica con el estudiante (deberá cambiarla al iniciar sesión).",
+      tempPassword,
+      estudiante: {
+        _id: estudiante._id,
+        email: estudiante.email,
+        nombre: estudiante.nombre,
+        rol: estudiante.rol,
+        debeCambiarPassword: true,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Error reseteando password estudiante (admin):", err);
+    return res.status(500).json({
+      message: "Ocurrió un error al resetear la contraseña.",
       error: err.message,
     });
   }
@@ -145,7 +221,9 @@ exports.listarEstudiantesAdmin = async (req, res) => {
       rol: "estudiante",
       universidad: universidadId,
     })
-      .select("nombre nombres apellidos email matricula rol activo updatedAt createdAt")
+      .select(
+        "nombre nombres apellidos email matricula rol activo debeCambiarPassword updatedAt createdAt"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
@@ -181,7 +259,9 @@ exports.obtenerEstudianteAdmin = async (req, res) => {
       rol: "estudiante",
       universidad: universidadId,
     })
-      .select("nombre nombres apellidos email matricula rol activo createdAt updatedAt")
+      .select(
+        "nombre nombres apellidos email matricula rol activo debeCambiarPassword createdAt updatedAt"
+      )
       .lean();
 
     if (!estudiante) {
@@ -202,13 +282,16 @@ exports.obtenerEstudianteAdmin = async (req, res) => {
 
 /**
  * Actualizar estudiante (solo director por rutas)
+ * ✅ Mantiene cambio de password opcional (manual)
+ * Nota: NO fuerza debeCambiarPassword aquí (para eso está resetPassword)
  */
 exports.actualizarEstudianteAdmin = async (req, res) => {
   try {
     const adminId = req.user?.id || req.user?._id;
     const estudianteId = req.params.id;
 
-    const { nombres, apellidos, email, matricula, password, passwordConfirm, activo } = req.body;
+    const { nombres, apellidos, email, matricula, password, passwordConfirm, activo } =
+      req.body;
 
     const universidadId = await findUniversidadForAdmin(adminId);
 
@@ -267,6 +350,7 @@ exports.actualizarEstudianteAdmin = async (req, res) => {
       }
       const hashedPassword = await bcrypt.hash(password, 10);
       estudiante.password = hashedPassword;
+      // no tocamos debeCambiarPassword aquí
     }
 
     await estudiante.save();
@@ -282,6 +366,7 @@ exports.actualizarEstudianteAdmin = async (req, res) => {
         matricula: estudiante.matricula,
         rol: estudiante.rol,
         activo: estudiante.activo,
+        debeCambiarPassword: !!estudiante.debeCambiarPassword,
       },
     });
   } catch (err) {

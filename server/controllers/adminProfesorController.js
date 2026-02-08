@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const Usuario = require("../models/user");
 const Universidad = require("../models/university");
 const Materia = require("../models/materia");
+const { generateGenericPassword } = require("../utils/passwordUtils");
 
 /**
  * Helper para encontrar la universidad asociada a un admin/director.
@@ -10,7 +11,6 @@ const Materia = require("../models/materia");
 async function findUniversidadForAdmin(adminId) {
   if (!adminId) return null;
 
-  // 1) Intentar leer el usuario y ver si tiene un campo universidad
   const admin = await Usuario.findById(adminId).lean().catch(() => null);
 
   if (admin) {
@@ -18,58 +18,36 @@ async function findUniversidadForAdmin(adminId) {
     if (admin.universidadId) return String(admin.universidadId);
     if (admin.university) return String(admin.university);
   }
-  
+
   let uni =
     (await Universidad.findOne({ directores: adminId }).lean().catch(() => null)) ||
     (await Universidad.findOne({ admins: adminId }).lean().catch(() => null)) ||
     (await Universidad.findOne({ administradores: adminId }).lean().catch(() => null));
-  
+
   if (uni) return String(uni._id);
-  
+
   return null;
 }
 
 /**
  * Crear profesor como admin/director
- * Body:
- * - nombres
- * - apellidos
- * - email
- * - password
- * - passwordConfirm
+ * ✅ Ahora:
+ * - Si NO mandas password => genera genérica
+ * - debeCambiarPassword = true
+ * - devuelve tempPassword para que el admin la copie
  */
 exports.crearProfesorAdmin = async (req, res) => {
   try {
     const adminId = req.user?.id || req.user?._id;
 
-    const {
-      nombres,
-      apellidos,
-      email,
-      password,
-      passwordConfirm,
-    } = req.body;
+    const { nombres, apellidos, email, password, passwordConfirm } = req.body;
 
-    // Validaciones básicas
     if (!nombres || !apellidos || !email) {
       return res.status(400).json({
         message: "Nombre(s), apellido(s) y correo institucional son obligatorios.",
       });
     }
 
-    if (!password || !passwordConfirm) {
-      return res.status(400).json({
-        message: "La contraseña y la confirmación de contraseña son obligatorias.",
-      });
-    }
-
-    if (password !== passwordConfirm) {
-      return res.status(400).json({
-        message: "Las contraseñas no coinciden.",
-      });
-    }
-
-    // Comprobar si ya existe un usuario con ese correo
     const existing = await Usuario.findOne({ email }).lean();
     if (existing) {
       return res.status(400).json({
@@ -77,9 +55,7 @@ exports.crearProfesorAdmin = async (req, res) => {
       });
     }
 
-    // Encontrar la universidad asociada al admin/director
     const universidadId = await findUniversidadForAdmin(adminId);
-
     if (!universidadId) {
       return res.status(400).json({
         message:
@@ -88,26 +64,42 @@ exports.crearProfesorAdmin = async (req, res) => {
       });
     }
 
-    // Hashear contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // ✅ Password genérica si no viene
+    let tempPassword = "";
+    let finalPassword = password;
 
-    // Nombre completo
+    if (!finalPassword) {
+      tempPassword = generateGenericPassword(10);
+      finalPassword = tempPassword;
+    } else {
+      if (passwordConfirm && password !== passwordConfirm) {
+        return res.status(400).json({ message: "Las contraseñas no coinciden." });
+      }
+      tempPassword = finalPassword;
+    }
+
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
     const nombreCompleto = `${nombres} ${apellidos}`.trim();
 
-    // Crear profesor
     const profesor = await Usuario.create({
-      nombre: nombreCompleto,  // nombre completo
+      nombre: nombreCompleto,
       nombres,
       apellidos,
       email,
       password: hashedPassword,
       rol: "profesor",
       universidad: universidadId,
-      activo: false,
+
+      // ✅ Lo dejo true: tu regla de materias lo bloqueará si no tiene materias
+      activo: true,
+
+      // ✅ forzar cambio
+      debeCambiarPassword: true,
     });
 
     return res.status(201).json({
       message: "Profesor creado correctamente.",
+      tempPassword,
       profesor: {
         _id: profesor._id,
         nombre: profesor.nombre,
@@ -116,12 +108,74 @@ exports.crearProfesorAdmin = async (req, res) => {
         email: profesor.email,
         rol: profesor.rol,
         universidad: profesor.universidad,
+        activo: profesor.activo,
+        debeCambiarPassword: !!profesor.debeCambiarPassword,
       },
     });
   } catch (err) {
     console.error("❌ Error creando profesor (admin):", err);
     return res.status(500).json({
       message: "Ocurrió un error al crear el profesor.",
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * ✅ Reset password profesor (admin/director)
+ * - genera nueva genérica
+ * - debeCambiarPassword = true
+ * - devuelve tempPassword
+ */
+exports.resetPasswordProfesorAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.user?._id;
+    const profesorId = req.params.id;
+
+    const universidadId = await findUniversidadForAdmin(adminId);
+    if (!universidadId) {
+      return res.status(400).json({
+        message:
+          "El admin no tiene una universidad válida asociada. No se puede resetear la contraseña.",
+      });
+    }
+
+    const profesor = await Usuario.findOne({
+      _id: profesorId,
+      rol: "profesor",
+      universidad: universidadId,
+    });
+
+    if (!profesor) {
+      return res.status(404).json({
+        message: "Profesor no encontrado en tu universidad.",
+      });
+    }
+
+    const tempPassword = generateGenericPassword(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    profesor.password = hashedPassword;
+    profesor.debeCambiarPassword = true;
+
+    await profesor.save();
+
+    return res.json({
+      message:
+        "Contraseña reseteada. Comparte la contraseña genérica con el profesor (deberá cambiarla al iniciar sesión).",
+      tempPassword,
+      profesor: {
+        _id: profesor._id,
+        email: profesor.email,
+        nombre: profesor.nombre,
+        rol: profesor.rol,
+        debeCambiarPassword: true,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Error reseteando password profesor (admin):", err);
+    return res.status(500).json({
+      message: "Ocurrió un error al resetear la contraseña.",
       error: err.message,
     });
   }
@@ -143,18 +197,18 @@ exports.listarProfesoresAdmin = async (req, res) => {
       });
     }
 
-    // 1) Profesores
     const profesores = await Usuario.find({
       rol: "profesor",
-      universidad: universidadId, // universidadId es string
+      universidad: universidadId,
     })
-      .select("nombre nombres apellidos email rol activo updatedAt createdAt universidad")
+      .select(
+        "nombre nombres apellidos email rol activo debeCambiarPassword updatedAt createdAt universidad"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
     const profIds = profesores.map((p) => p._id);
 
-    // 2) Materias de esos profesores (solo en la misma universidad)
     const materias = await Materia.find({
       universidad: universidadId,
       profesor: { $in: profIds },
@@ -162,8 +216,7 @@ exports.listarProfesoresAdmin = async (req, res) => {
       .select("_id nombre codigo grupo periodoAcademico profesor estudiantes estado createdAt")
       .lean();
 
-    // 3) Mapear por profesor: materiasCount + estudiantesTotal + materias[]
-    const map = new Map(); // key: profesorId -> { materiasCount, estudiantesTotal, materias: [] }
+    const map = new Map();
 
     for (const m of materias) {
       const k = String(m.profesor);
@@ -177,7 +230,6 @@ exports.listarProfesoresAdmin = async (req, res) => {
       acc.materiasCount += 1;
       acc.estudiantesTotal += totalEstudiantes;
 
-      // lista ligera (para tooltip / detalle rápido)
       acc.materias.push({
         _id: m._id,
         nombre: m.nombre,
@@ -189,7 +241,6 @@ exports.listarProfesoresAdmin = async (req, res) => {
       });
     }
 
-    // 4) Enriquecer profesores
     const profesoresEnriquecidos = profesores.map((p) => {
       const extra = map.get(String(p._id)) || {
         materiasCount: 0,
@@ -199,7 +250,6 @@ exports.listarProfesoresAdmin = async (req, res) => {
       return { ...p, ...extra };
     });
 
-    // 5) Métricas generales (útil para cards)
     const materiasImpartidasTotal = materias.length;
     const estudiantesTotales = materias.reduce((sum, m) => {
       const c = Array.isArray(m.estudiantes) ? m.estudiantes.length : 0;
@@ -244,7 +294,7 @@ exports.obtenerProfesorAdmin = async (req, res) => {
       rol: "profesor",
       universidad: universidadId,
     })
-      .select("nombre nombres apellidos email rol activo createdAt updatedAt")
+      .select("nombre nombres apellidos email rol activo debeCambiarPassword createdAt updatedAt")
       .lean();
 
     if (!profesor) {
@@ -264,21 +314,15 @@ exports.obtenerProfesorAdmin = async (req, res) => {
 };
 
 /**
- * Actualizar profesor (sin departamento)
+ * Actualizar profesor
+ * ✅ cambio de contraseña opcional (manual), NO fuerza debeCambiarPassword
  */
 exports.actualizarProfesorAdmin = async (req, res) => {
   try {
     const adminId = req.user?.id || req.user?._id;
     const profesorId = req.params.id;
 
-    const {
-      nombres,
-      apellidos,
-      email,
-      password,
-      passwordConfirm,
-      activo,
-    } = req.body;
+    const { nombres, apellidos, email, password, passwordConfirm, activo } = req.body;
 
     const universidadId = await findUniversidadForAdmin(adminId);
 
@@ -303,8 +347,7 @@ exports.actualizarProfesorAdmin = async (req, res) => {
 
     if (!nombres || !apellidos || !email) {
       return res.status(400).json({
-        message:
-          "Nombre(s), apellido(s) y correo institucional son obligatorios.",
+        message: "Nombre(s), apellido(s) y correo institucional son obligatorios.",
       });
     }
 
@@ -315,12 +358,10 @@ exports.actualizarProfesorAdmin = async (req, res) => {
     profesor.nombre = nombreCompleto;
     profesor.email = email;
 
-    // activo opcional
     if (typeof activo !== "undefined") {
       profesor.activo = !!activo;
     }
 
-    // cambio de contraseña opcional
     if (password || passwordConfirm) {
       if (password !== passwordConfirm) {
         return res.status(400).json({
@@ -329,6 +370,7 @@ exports.actualizarProfesorAdmin = async (req, res) => {
       }
       const hashedPassword = await bcrypt.hash(password, 10);
       profesor.password = hashedPassword;
+      // no tocamos debeCambiarPassword aquí
     }
 
     await profesor.save();
@@ -343,6 +385,7 @@ exports.actualizarProfesorAdmin = async (req, res) => {
         email: profesor.email,
         rol: profesor.rol,
         activo: profesor.activo,
+        debeCambiarPassword: !!profesor.debeCambiarPassword,
       },
     });
   } catch (err) {
@@ -383,9 +426,7 @@ exports.eliminarProfesorAdmin = async (req, res) => {
       });
     }
 
-    return res.json({
-      message: "Profesor eliminado correctamente.",
-    });
+    return res.json({ message: "Profesor eliminado correctamente." });
   } catch (err) {
     console.error("❌ Error eliminando profesor (admin):", err);
     return res.status(500).json({

@@ -47,6 +47,11 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    debeCambiarPassword: { 
+      type: Boolean, 
+      default: false 
+    },
+
     foto: {
       type: String,
       default: '',
