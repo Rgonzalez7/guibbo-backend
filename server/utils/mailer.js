@@ -26,53 +26,80 @@ Este enlace expira en 20 minutos. Si no solicitaste este cambio, ignora este cor
   const logoUrl = process.env.BRAND_LOGO_URL || "";
   const appUrl = process.env.BRAND_APP_URL || process.env.FRONTEND_URL || "";
 
-  // ✅ Email HTML “bulletproof” (tablas + inline)
   const html = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="supported-color-schemes" content="dark light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <title>${subject}</title>
   </head>
 
-  <body style="margin:0; padding:0; background-color:#020617;">
+  <!-- ✅ Fondo BLANCO -->
+  <body style="margin:0; padding:0; background-color:#ffffff;">
     <!-- Preheader (oculto) -->
     <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
       Restablece tu contraseña de Guibbo. Este enlace expira en 20 minutos.
     </div>
 
+    <!-- ✅ Fondo BLANCO -->
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-      style="background-color:#020617; padding:32px 12px; font-family:Arial, Helvetica, sans-serif;">
+      style="background-color:#ffffff; padding:32px 12px; font-family:Arial, Helvetica, sans-serif;">
       <tr>
         <td align="center">
           <!-- Container -->
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
             style="width:600px; max-width:600px;">
-            
+
             <!-- Header -->
             <tr>
               <td align="center" style="padding:8px 0 18px 0;">
                 ${
                   logoUrl
-                    ? `<a href="${escapeHtml(appUrl)}" style="text-decoration:none;">
-                         <img src="${escapeHtml(logoUrl)}" width="44" height="44" alt="Guibbo"
-                           style="display:block; border:0; outline:none; text-decoration:none; border-radius:12px;" />
-                       </a>`
-                    : `<div style="font-size:18px; font-weight:700; color:#EAF2FA;">Guibbo</div>`
+                    ? `
+                      <a href="${escapeHtml(appUrl)}" style="text-decoration:none; display:inline-block;">
+                        <!-- ✅ Caja para evitar estiramientos -->
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                          <tr>
+                            <td align="center" style="padding:0;">
+                              <!-- ✅ Sin width/height fijos + height:auto -->
+                              <img
+                                src="${escapeHtml(logoUrl)}"
+                                alt="Guibbo"
+                                style="
+                                  display:block;
+                                  border:0;
+                                  outline:none;
+                                  text-decoration:none;
+
+                                  /* NO se deforma */
+                                  max-width:160px;
+                                  width:100%;
+                                  height:auto;
+
+                                  /* opcional si tu logo es cuadrado/rectangular */
+                                  border-radius:12px;
+                                "
+                              />
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    `
+                    : `<div style="font-size:18px; font-weight:700; color:#0B1220;">Guibbo</div>`
                 }
               </td>
             </tr>
 
-            <!-- Card -->
+            <!-- Card (igual a tu estilo dark) -->
             <tr>
               <td style="
                 background-color:#0B1220;
                 border:1px solid rgba(255,255,255,0.10);
                 border-radius:20px;
                 padding:26px 24px;
-                box-shadow:0 24px 60px rgba(0,0,0,0.55);
+                box-shadow:0 24px 60px rgba(0,0,0,0.20);
               ">
                 <div style="font-size:20px; font-weight:700; color:#EAF2FA; margin:0 0 8px 0;">
                   Restablecer contraseña
@@ -115,7 +142,7 @@ Este enlace expira en 20 minutos. Si no solicitaste este cambio, ignora este cor
               </td>
             </tr>
 
-            <!-- Footer -->
+            <!-- Footer (en blanco, texto gris) -->
             <tr>
               <td align="center" style="padding:14px 8px 0 8px;">
                 <div style="font-size:11px; line-height:1.6; color:#64748B;">
