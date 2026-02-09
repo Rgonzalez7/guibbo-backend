@@ -1,15 +1,22 @@
-const express = require('express');
+// server/routes/iaRoutes.js
+const express = require("express");
 const router = express.Router();
-const Session = require('../models/session');
+const Session = require("../models/session");
+const verifyToken = require("../middlewares/verifyToken");
 
-// Simulación de análisis IA
-router.post('/analizar/:id', async (req, res) => {
+const { generarConsejoDiario } = require("../controllers/consejoDiarioController");
+
+// ✅ Consejo diario con IA (máx 3 por día - lo controla el controller)
+router.post("/consejo-diario", verifyToken, generarConsejoDiario);
+
+// ✅ (Opcional) protege también el análisis IA
+router.post("/analizar/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { enfoque } = req.body;
 
     const sesion = await Session.findById(id);
-    if (!sesion) return res.status(404).json({ message: 'Sesión no encontrada' });
+    if (!sesion) return res.status(404).json({ message: "Sesión no encontrada" });
 
     const resultado = `
 ✅ Fortalezas:
@@ -25,17 +32,13 @@ router.post('/analizar/:id', async (req, res) => {
 🌱 Sugerencia: “Gracias por confiar en mí. ¿Qué te gustaría trabajar hoy?”
 `.trim();
 
-    sesion.analisisIA = {
-      enfoque,
-      resultado,
-      fechaAnalisis: new Date()
-    };
-
+    sesion.analisisIA = { enfoque, resultado, fechaAnalisis: new Date() };
     await sesion.save();
-    res.json({ message: 'Análisis generado', analisis: sesion.analisisIA });
+
+    res.json({ message: "Análisis generado", analisis: sesion.analisisIA });
   } catch (err) {
-    console.error('❌ Error en análisis IA:', err);
-    res.status(500).json({ message: 'Error interno del servidor' });
+    console.error("❌ Error en análisis IA:", err);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 });
 

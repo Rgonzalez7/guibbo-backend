@@ -25,7 +25,17 @@ if (ALLOWED_ORIGINS.length === 0) {
 
 const corsOptions = {
   origin(origin, cb) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+
+    const allowed =
+      ALLOWED_ORIGINS.includes(origin) ||
+      /^http:\/\/localhost:\d+$/.test(origin) ||
+      /^http:\/\/127\.0\.0\.1:\d+$/.test(origin);
+
+    if (allowed) return cb(null, true);
+
+    console.log("❌ CORS bloqueado. Origin recibido:", origin);
+    console.log("✅ ALLOWED_ORIGINS:", ALLOWED_ORIGINS);
     return cb(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -35,21 +45,23 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 app.use(express.json());
 
-// ✅ IMPORTS DE RUTAS (ANTES de app.use)
+// ✅ IMPORTS DE RUTAS (UNA SOLA VEZ CADA UNA)
 const authRoutes = require("./routes/authRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const expedienteRoutes = require("./routes/expedienteRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const progresoRoutes = require("./routes/progresoRoutes");
-const userRoutes = require("./routes/userRoutes"); // ✅ SOLO UNA VEZ
+const userRoutes = require("./routes/userRoutes");
 const pacienteRoutes = require("./routes/pacienteRoutes");
 const sesionesIntervencionRoutes = require("./routes/sesionesIntervencionRoutes");
 const cuadroConvergenciaRoutes = require("./routes/cuadroConvergenciaRoutes");
 const hipotesisRoutes = require("./routes/hipotesisRoutes");
 const diagnosticoFinalRoutes = require("./routes/diagnosticoFinalRoutes");
-const iaRoutes = require("./routes/iaRoutes");
+const iaRoutes = require("./routes/iaRoutes"); // ✅ SOLO UNA VEZ
 const diarizacionRoutes = require("./routes/diarizacionRoutes");
 const consentimientoRoutes = require("./routes/consentimientoRoutes");
 const pruebasRoutes = require("./routes/pruebasRoutes");
@@ -60,9 +72,10 @@ const adminRoutes = require("./routes/adminRoutes");
 const estudianteRoutes = require("./routes/estudianteRoutes");
 const profesorRoutes = require("./routes/profesorRoutes");
 
-
-// ✅ ESTA es la única ruta de tests que vamos a usar:
 const testsRoutes = require("./routes/testsRoutes");
+
+// ✅ MONTA iaRoutes UNA SOLA VEZ, PERO CON 2 PREFIJOS
+app.use(["/api/ia", "/ia"], iaRoutes);
 
 // --- Rutas HTTP ---
 app.use("/api/auth", authRoutes);
@@ -70,8 +83,6 @@ app.use("/api/sesiones", sessionRoutes);
 app.use("/api/expedientes", expedienteRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/progreso", progresoRoutes);
-
-// ✅ Usuarios (estándar)
 app.use("/api/usuarios", userRoutes);
 
 app.use("/api/pacientes", pacienteRoutes);
@@ -79,20 +90,18 @@ app.use("/api/sesiones-intervencion", sesionesIntervencionRoutes);
 app.use("/api/cuadro-convergencia", cuadroConvergenciaRoutes);
 app.use("/api/hipotesis", hipotesisRoutes);
 app.use("/api/diagnostico", diagnosticoFinalRoutes);
-app.use("/api/ia", iaRoutes);
+
 app.use("/api/diarizacion", diarizacionRoutes);
 app.use("/api/consentimiento", consentimientoRoutes);
 
-// ✅ Tests catalog + seguimiento (PUBLICO + privado con JWT)
 app.use("/api/tests", testsRoutes);
-
 app.use("/api/pruebas", pruebasRoutes);
 app.use("/api/historial", historialRoutes);
 
 // 🔹 súper usuario
 app.use("/api/super", superRoutes);
 
-// 🔹 admin carrera (director)
+// 🔹 admin carrera
 app.use("/api/admin", adminRoutes);
 
 // 🔹 estudiante
@@ -103,11 +112,7 @@ app.use("/api/profesor", profesorRoutes);
 
 /**
  * ✅ Servir uploads
- * OJO: tu multer guarda en "public/uploads"
- * así que hay que servir esa carpeta.
- *
- * URL final: /uploads/archivo.png
- * FS path: server/public/uploads/archivo.png
+ * URL: /uploads/archivo.png
  */
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
@@ -129,28 +134,6 @@ app.get("/api", (_req, res) => {
     env: process.env.NODE_ENV || "development",
     version: process.env.npm_package_version || "1.0.0",
     time: new Date().toISOString(),
-    endpoints: [
-      "/api/auth",
-      "/api/pacientes",
-      "/api/sesiones",
-      "/api/expedientes",
-      "/api/feedback",
-      "/api/progreso",
-      "/api/usuarios",
-      "/api/sesiones-intervencion",
-      "/api/cuadro-convergencia",
-      "/api/hipotesis",
-      "/api/diagnostico",
-      "/api/ia",
-      "/api/diarizacion",
-      "/api/consentimiento",
-      "/api/tests",
-      "/api/pruebas",
-      "/api/historial",
-      "/api/super",
-      "/api/admin",
-      "/api/estudiante",
-    ],
   });
 });
 
@@ -161,14 +144,11 @@ const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, credentials: true, methods: ["GET", "POST"] },
 });
 
-// ✅ CRÍTICO: expone io para controllers (req.app.get("io"))
 app.set("io", io);
-// (opcional compat)
 app.locals.io = io;
 
-// ✅ Rooms para seguimiento en vivo (join-room)
 io.on("connection", (socket) => {
-  socket.on("join-room", ({ roomId, rol } = {}) => {
+  socket.on("join-room", ({ roomId } = {}) => {
     if (!roomId) return;
     socket.join(roomId);
     socket.emit("room-joined", { roomId });
@@ -178,8 +158,6 @@ io.on("connection", (socket) => {
     if (!roomId) return;
     socket.leave(roomId);
   });
-
-  socket.on("disconnect", () => {});
 });
 
 // --- Puentes WS ---
@@ -206,7 +184,6 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
 
-  // ✅ socket.io maneja su propio upgrade
   if (url.startsWith("/socket.io")) return;
 
   socket.destroy();
@@ -224,7 +201,6 @@ mongoose
         "🌐 Orígenes permitidos (CORS):",
         ALLOWED_ORIGINS.join(", ") || "(ninguno)"
       );
-      console.log("🧪 Tests catalog:", `http://localhost:${port}/api/tests/catalog`);
       console.log("🧩 Socket.io listo ✅");
     });
   })
