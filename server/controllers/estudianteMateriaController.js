@@ -452,6 +452,213 @@ function marcarInicioSiNoExiste(inst, now = nowDate()) {
   if (!inst.startedAt) inst.startedAt = now;
 }
 
+function clampNum(n, min = 0, max = Infinity) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
+
+function normRecState(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (s === "recording") return "recording";
+  if (s === "stopped") return "stopped";
+  return "idle";
+}
+
+/**
+ * Regla segura:
+ * - accumulated nunca baja (solo sube)
+ * - resetUsed: solo puede pasar false -> true (nunca vuelve a false)
+ * - resetAutoLocked: solo false -> true
+ * - startedAt: si viene inválido, null
+ */
+function normalizeRuntimeScope(incoming = {}, current = {}) {
+  const inObj = incoming && typeof incoming === "object" ? incoming : {};
+  const curObj = current && typeof current === "object" ? current : {};
+
+  const next = { ...curObj };
+
+  // recState
+  const inRec = normRecState(inObj.recState);
+  if (inRec) next.recState = inRec;
+
+  // startedAt
+  // - si viene null => lo aceptamos
+  // - si viene algo parseable => lo aceptamos
+  // - si viene basura => null
+  if (Object.prototype.hasOwnProperty.call(inObj, "startedAt")) {
+    const v = inObj.startedAt;
+    if (!v) next.startedAt = null;
+    else {
+      const d = new Date(v);
+      next.startedAt = Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+
+  // accumulated (monótono)
+  if (Object.prototype.hasOwnProperty.call(inObj, "accumulated")) {
+    const inAcc = clampNum(inObj.accumulated, 0, 60 * 60); // 0..3600 (si tu máximo es 60min)
+    const curAcc = clampNum(curObj.accumulated, 0, 60 * 60);
+    next.accumulated = Math.max(curAcc, inAcc);
+  } else {
+    next.accumulated = clampNum(curObj.accumulated, 0, 60 * 60);
+  }
+
+  // resetUsed (solo false->true)
+  if (curObj.resetUsed === true) next.resetUsed = true;
+  else if (Object.prototype.hasOwnProperty.call(inObj, "resetUsed")) next.resetUsed = Boolean(inObj.resetUsed);
+  else next.resetUsed = Boolean(curObj.resetUsed);
+
+  // resetAutoLocked (solo false->true)
+  if (curObj.resetAutoLocked === true) next.resetAutoLocked = true;
+  else if (Object.prototype.hasOwnProperty.call(inObj, "resetAutoLocked")) next.resetAutoLocked = Boolean(inObj.resetAutoLocked);
+  else next.resetAutoLocked = Boolean(curObj.resetAutoLocked);
+
+  next.updatedAt = Date.now();
+  return next;
+}
+
+/**
+ * Normaliza runtime completo { sesion, pruebas }
+ */
+function normalizeRoleplayRuntime(incoming = {}, current = {}) {
+  const inObj = incoming && typeof incoming === "object" ? incoming : {};
+  const curObj = current && typeof current === "object" ? current : {};
+
+  return {
+    sesion: normalizeRuntimeScope(inObj.sesion || {}, curObj.sesion || {}),
+    pruebas: normalizeRuntimeScope(inObj.pruebas || {}, curObj.pruebas || {}),
+  };
+}
+
+/* =========================================================
+   ✅ Helpers RUNTIME (PEGAR 1 VEZ arriba de los endpoints)
+   ========================================================= */
+
+   function getRoleplayRuntimeFromRespuestas(respuestas = {}) {
+    const rp = respuestas?.rolePlaying;
+  
+    // 1) path canónico esperado
+    const r1 = rp?.runtime;
+    if (r1 && typeof r1 === "object") return r1;
+  
+    // 2) lo que tienes en BD (payload.rolePlaying.runtime)
+    const r2 = rp?.payload?.rolePlaying?.runtime;
+    if (r2 && typeof r2 === "object") return r2;
+  
+    // 3) otros duplicados comunes que veo en tu JSON
+    const r3 = rp?.sessionData?.rolePlaying?.runtime;
+    if (r3 && typeof r3 === "object") return r3;
+  
+    const r4 = rp?.data?.rolePlaying?.runtime;
+    if (r4 && typeof r4 === "object") return r4;
+  
+    return null;
+  }
+  
+  function setRoleplayRuntimeCanonical(respuestas = {}, runtimeFull) {
+    if (!runtimeFull || typeof runtimeFull !== "object") return respuestas;
+  
+    const out = respuestas && typeof respuestas === "object" ? respuestas : {};
+    const rp = out.rolePlaying && typeof out.rolePlaying === "object" ? out.rolePlaying : {};
+    out.rolePlaying = rp;
+  
+    // ✅ CANÓNICO (para el backend)
+    rp.runtime = runtimeFull;
+  
+    // ✅ si existen estos contenedores, mantenlos sincronizados para no romper tu UI actual
+    if (rp.payload && typeof rp.payload === "object") {
+      rp.payload.rolePlaying = rp.payload.rolePlaying && typeof rp.payload.rolePlaying === "object"
+        ? rp.payload.rolePlaying
+        : {};
+      rp.payload.rolePlaying.runtime = runtimeFull;
+    }
+  
+    if (rp.sessionData && typeof rp.sessionData === "object") {
+      rp.sessionData.rolePlaying = rp.sessionData.rolePlaying && typeof rp.sessionData.rolePlaying === "object"
+        ? rp.sessionData.rolePlaying
+        : {};
+      rp.sessionData.rolePlaying.runtime = runtimeFull;
+    }
+  
+    if (rp.data && typeof rp.data === "object") {
+      rp.data.rolePlaying = rp.data.rolePlaying && typeof rp.data.rolePlaying === "object"
+        ? rp.data.rolePlaying
+        : {};
+      rp.data.rolePlaying.runtime = runtimeFull;
+    }
+  
+    return out;
+  }
+
+  function get(obj, path) {
+    try {
+      return path.split(".").reduce((acc, k) => (acc ? acc[k] : undefined), obj);
+    } catch {
+      return undefined;
+    }
+  }
+  
+  /**
+   * ✅ Extrae runtime roleplay aunque venga en distintos shapes:
+   * - respuestas.rolePlaying.runtime
+   * - respuestas.rolePlaying.payload.rolePlaying.runtime   (TU BD REAL)
+   * - respuestas.rolePlaying.sessionData.rolePlaying.runtime
+   * - respuestas.rolePlaying.data.rolePlaying.runtime
+   */
+  function extractRoleplayRuntime(respuestas) {
+    return (
+      get(respuestas, "rolePlaying.runtime") ||
+      get(respuestas, "rolePlaying.payload.rolePlaying.runtime") ||
+      get(respuestas, "rolePlaying.sessionData.rolePlaying.runtime") ||
+      get(respuestas, "rolePlaying.data.rolePlaying.runtime") ||
+      null
+    );
+  }
+  
+  /**
+   * ✅ Espejea el runtime normalizado a:
+   * - respuestas.rolePlaying.runtime (canónico)
+   * - y si existen payload/sessionData/data, también los actualiza para que el FE lo vea igual.
+   */
+  function mirrorRoleplayRuntime(respuestas, safeRuntime) {
+    if (!respuestas || typeof respuestas !== "object") return respuestas;
+  
+    respuestas.rolePlaying = respuestas.rolePlaying && typeof respuestas.rolePlaying === "object"
+      ? respuestas.rolePlaying
+      : {};
+  
+    // canónico
+    respuestas.rolePlaying.runtime = safeRuntime;
+  
+    // espejo (tu shape actual)
+    if (respuestas.rolePlaying.payload && typeof respuestas.rolePlaying.payload === "object") {
+      respuestas.rolePlaying.payload.rolePlaying =
+        respuestas.rolePlaying.payload.rolePlaying && typeof respuestas.rolePlaying.payload.rolePlaying === "object"
+          ? respuestas.rolePlaying.payload.rolePlaying
+          : {};
+      respuestas.rolePlaying.payload.rolePlaying.runtime = safeRuntime;
+    }
+  
+    if (respuestas.rolePlaying.sessionData && typeof respuestas.rolePlaying.sessionData === "object") {
+      respuestas.rolePlaying.sessionData.rolePlaying =
+        respuestas.rolePlaying.sessionData.rolePlaying && typeof respuestas.rolePlaying.sessionData.rolePlaying === "object"
+          ? respuestas.rolePlaying.sessionData.rolePlaying
+          : {};
+      respuestas.rolePlaying.sessionData.rolePlaying.runtime = safeRuntime;
+    }
+  
+    if (respuestas.rolePlaying.data && typeof respuestas.rolePlaying.data === "object") {
+      respuestas.rolePlaying.data.rolePlaying =
+        respuestas.rolePlaying.data.rolePlaying && typeof respuestas.rolePlaying.data.rolePlaying === "object"
+          ? respuestas.rolePlaying.data.rolePlaying
+          : {};
+      respuestas.rolePlaying.data.rolePlaying.runtime = safeRuntime;
+    }
+  
+    return respuestas;
+  }
+
 /* =========================================================
    GET /estudiante/materias
    Lista materias donde el estudiante está inscrito
@@ -734,112 +941,130 @@ exports.obtenerContenidoMateria = async (req, res) => {
 };
 
 /* =========================================================
-   GET /estudiante/materias/:materiaId/ejercicios/:ejercicioId
-   ✅ Devuelve ctx completo para la pantalla detalle del ejercicio:
-   { materia, modulo, submodulo, ejercicio, detalle }
-   ✅ AHORA: también mergea RolePlay dentro de ejercicio.rolePlaying
+   ✅ 1) GET /estudiante/materias/:materiaId/ejercicios/:ejercicioId
+   buscarEjercicioEnMateria (ACTUALIZADO)
+   - Devuelve ctx completo + detalle por tipo
+   - ✅ Ahora SIEMPRE incluye ejercicioInstancia / instanciaId / moduloInstanciaId
    ========================================================= */
-exports.buscarEjercicioEnMateria = async (req, res) => {
-  try {
-    const estudianteId = req.user?.id || req.user?._id;
-    const { materiaId, ejercicioId } = req.params;
-
-    if (!estudianteId) {
-      return res.status(401).json({ message: "No autenticado." });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(materiaId)) {
-      return res.status(400).json({ message: "ID de materia inválido." });
-    }
-    if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
-      return res.status(400).json({ message: "ID de ejercicio inválido." });
-    }
-
-    // 1) validar inscripción
-    const materia = await Materia.findOne({
-      _id: materiaId,
-      estudiantes: estudianteId,
-    })
-      .select("nombre codigo grupo periodoAcademico universidad modulosGlobales modulosLocales")
-      .lean();
-
-    if (!materia) {
-      return res.status(404).json({
-        message: "Materia no encontrada o no estás inscrito.",
-      });
-    }
-
-    // 2) traer ejercicio + submodulo + modulo
-    const ejercicio = await Ejercicio.findById(ejercicioId)
-      .populate({
-        path: "submodulo",
-        populate: { path: "modulo" },
+   exports.buscarEjercicioEnMateria = async (req, res) => {
+    try {
+      const estudianteId = req.user?.id || req.user?._id;
+      const { materiaId, ejercicioId } = req.params;
+  
+      if (!estudianteId) {
+        return res.status(401).json({ message: "No autenticado." });
+      }
+  
+      if (!mongoose.Types.ObjectId.isValid(materiaId)) {
+        return res.status(400).json({ message: "ID de materia inválido." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
+        return res.status(400).json({ message: "ID de ejercicio inválido." });
+      }
+  
+      // 1) validar inscripción
+      const materia = await Materia.findOne({
+        _id: materiaId,
+        estudiantes: estudianteId,
       })
-      .lean();
-
-    if (!ejercicio) {
-      return res.status(404).json({ message: "Ejercicio no encontrado." });
-    }
-
-    const submodulo = ejercicio.submodulo || null;
-    const modulo = submodulo?.modulo || null;
-
-    if (!modulo?._id) {
-      return res.status(404).json({ message: "No se encontró el módulo del ejercicio." });
-    }
-
-    // 3) validar que el módulo pertenece a la materia
-    const modulosIds = [
-      ...(materia.modulosGlobales || []),
-      ...(materia.modulosLocales || []),
-    ].map(String);
-
-    if (!modulosIds.includes(String(modulo._id))) {
-      return res.status(404).json({
-        message: "El ejercicio no pertenece a esta materia.",
+        .select("nombre codigo grupo periodoAcademico universidad modulosGlobales modulosLocales")
+        .lean();
+  
+      if (!materia) {
+        return res.status(404).json({
+          message: "Materia no encontrada o no estás inscrito.",
+        });
+      }
+  
+      // 2) traer ejercicio + submodulo + modulo
+      const ejercicio = await Ejercicio.findById(ejercicioId)
+        .populate({
+          path: "submodulo",
+          populate: { path: "modulo" },
+        })
+        .lean();
+  
+      if (!ejercicio) {
+        return res.status(404).json({ message: "Ejercicio no encontrado." });
+      }
+  
+      const submodulo = ejercicio.submodulo || null;
+      const modulo = submodulo?.modulo || null;
+  
+      if (!modulo?._id) {
+        return res.status(404).json({ message: "No se encontró el módulo del ejercicio." });
+      }
+  
+      // 3) validar que el módulo pertenece a la materia
+      const modulosIds = [
+        ...(materia.modulosGlobales || []),
+        ...(materia.modulosLocales || []),
+      ].map(String);
+  
+      if (!modulosIds.includes(String(modulo._id))) {
+        return res.status(404).json({
+          message: "El ejercicio no pertenece a esta materia.",
+        });
+      }
+  
+      // 4) traer detalle según tipo
+      const detalle = await obtenerDetalleEjercicioPorTipo(ejercicio);
+  
+      // ✅ Merge para normalizar consumo en frontend
+      const tipo = ejercicio.tipoEjercicio;
+      let ejercicioMerged = { ...ejercicio };
+  
+      // grabar voz => ejercicio.caso + ejercicio.evaluaciones
+      if (tipo === "Grabar voz" && detalle) {
+        ejercicioMerged = {
+          ...ejercicioMerged,
+          caso: detalle.caso,
+          evaluaciones: detalle.evaluaciones,
+        };
+      }
+  
+      // role play => ejercicio.rolePlaying
+      if (isRolePlayTipo(tipo) && detalle) {
+        ejercicioMerged = {
+          ...ejercicioMerged,
+          rolePlaying: detalle,
+        };
+      }
+  
+      // ✅ 5) Obtener contexto + ModuloInstancia correcto
+      const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
+      if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
+  
+      // ✅ 6) Traer la EjercicioInstancia real (para instanciaId estable)
+      const inst = await EjercicioInstancia.findOne({
+        estudiante: estudianteId,
+        moduloInstancia: ctx.modInst._id,
+        ejercicio: ejercicioId,
+      })
+        .select("_id estado startedAt tiempoAcumuladoSeg completedAt updatedAt createdAt")
+        .lean();
+  
+      return res.json({
+        materia,
+        modulo,
+        submodulo,
+        ejercicio: ejercicioMerged,
+        detalle,
+  
+        // ✅ CLAVE para frontend (runtimeKey/draftKey estables)
+        ejercicioInstancia: inst || null,
+        instancia: inst || null, // compat
+        instanciaId: inst?._id || null,
+        moduloInstanciaId: ctx.modInst?._id || null,
+      });
+    } catch (err) {
+      console.error("❌ Error buscarEjercicioEnMateria:", err);
+      return res.status(500).json({
+        message: "Error al obtener el ejercicio de la materia.",
+        error: err.message,
       });
     }
-
-    // 4) traer detalle según tipo
-    const detalle = await obtenerDetalleEjercicioPorTipo(ejercicio);
-
-    // ✅ Merge para normalizar consumo en frontend
-    const tipo = ejercicio.tipoEjercicio;
-
-    let ejercicioMerged = { ...ejercicio };
-
-    // grabar voz => ejercicio.caso + ejercicio.evaluaciones
-    if (tipo === "Grabar voz" && detalle) {
-      ejercicioMerged = {
-        ...ejercicioMerged,
-        caso: detalle.caso,
-        evaluaciones: detalle.evaluaciones,
-      };
-    }
-
-    // role play => ejercicio.rolePlaying
-    if (isRolePlayTipo(tipo) && detalle) {
-      ejercicioMerged = {
-        ...ejercicioMerged,
-        rolePlaying: detalle,
-      };
-    }
-
-    return res.json({
-      materia,
-      modulo,
-      submodulo,
-      ejercicio: ejercicioMerged,
-      detalle,
-    });
-  } catch (err) {
-    console.error("❌ Error buscarEjercicioEnMateria:", err);
-    return res.status(500).json({
-      message: "Error al obtener el ejercicio de la materia.",
-      error: err.message,
-    });
-  }
-};
+  };
 
 /* =========================================================
    GET /estudiante/dashboard
@@ -1075,9 +1300,11 @@ exports.dashboardResumen = async (req, res) => {
 };
 
 /* =========================================================
-   POST /estudiante/ejercicios/:ejercicioId/abrir
+   ✅ 2) POST /estudiante/ejercicios/:ejercicioId/abrir
+   abrirEjercicio (ACTUALIZADO)
    - si está pendiente => pasa a en_progreso
-   - si está bloqueado => error
+   - si está bloqueado => 403
+   - ✅ Ahora devuelve instanciaId + ejercicioInstancia
    ========================================================= */
    exports.abrirEjercicio = async (req, res) => {
     try {
@@ -1094,10 +1321,7 @@ exports.dashboardResumen = async (req, res) => {
       }
   
       const ejercicio = await Ejercicio.findById(ejercicioId)
-        .populate({
-          path: "submodulo",
-          populate: { path: "modulo" },
-        })
+        .populate({ path: "submodulo", populate: { path: "modulo" } })
         .lean();
   
       if (!ejercicio) return res.status(404).json({ message: "Ejercicio no encontrado." });
@@ -1116,6 +1340,7 @@ exports.dashboardResumen = async (req, res) => {
         submoduloId,
       });
   
+      // regla de desbloqueo por orden
       const lista = await Ejercicio.find({ submodulo: submoduloId })
         .select("_id createdAt")
         .sort({ createdAt: 1 })
@@ -1124,19 +1349,15 @@ exports.dashboardResumen = async (req, res) => {
       const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
       if (idx < 0) return res.status(404).json({ message: "Ejercicio no pertenece al submódulo." });
   
-      // regla de desbloqueo por orden
       if (idx > 0) {
         const prevId = lista[idx - 1]?._id;
-  
         const prevInst = await EjercicioInstancia.findOne({
           estudiante: estudianteId,
           moduloInstancia: modInst._id,
           ejercicio: prevId,
         }).select("estado");
   
-        const prevEstado = normEstadoInstancia(prevInst?.estado);
-  
-        if (prevEstado !== "completado") {
+        if (normEstadoInstancia(prevInst?.estado) !== "completado") {
           await EjercicioInstancia.findOneAndUpdate(
             { estudiante: estudianteId, moduloInstancia: modInst._id, ejercicio: ejercicioId },
             { $set: { estado: "bloqueado" } },
@@ -1153,42 +1374,31 @@ exports.dashboardResumen = async (req, res) => {
         ejercicio: ejercicioId,
       });
   
-      if (inst) {
-        const estado = normEstadoInstancia(inst.estado);
-  
-        // no reabrir completado
-        if (estado === "completado") {
-          return res.status(409).json({
-            message: "Este ejercicio ya fue completado. Accede al resultado.",
-            code: "EJERCICIO_COMPLETADO",
-            redirectUrl: `/estudiante/ejercicio/${ejercicioId}/resultado?materiaId=${materiaId}`,
-          });
-        }
+      if (inst && normEstadoInstancia(inst.estado) === "completado") {
+        return res.status(409).json({
+          message: "Este ejercicio ya fue completado. Accede al resultado.",
+          code: "EJERCICIO_COMPLETADO",
+          redirectUrl: `/estudiante/ejercicio/${ejercicioId}/resultado?materiaId=${materiaId}`,
+        });
       }
   
       const now = nowDate();
   
-      // crear o pasar a en_progreso
       if (!inst) {
         inst = await EjercicioInstancia.create({
           estudiante: estudianteId,
           moduloInstancia: modInst._id,
           ejercicio: ejercicioId,
           estado: "en_progreso",
-          startedAt: now, // ✅ TIEMPO REAL: comienza aquí
+          startedAt: now,
         });
       } else {
-        const estado = normEstadoInstancia(inst.estado);
+        const st = normEstadoInstancia(inst.estado);
   
-        if (estado === "bloqueado") {
-          return res.status(403).json({ message: "Ejercicio bloqueado." });
-        }
+        if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
   
-        if (estado === "pendiente") {
-          inst.estado = "en_progreso";
-        }
+        if (st === "pendiente") inst.estado = "en_progreso";
   
-        // ✅ TIEMPO REAL: si entra a en_progreso, asegura startedAt
         if (inst.estado === "en_progreso") {
           marcarInicioSiNoExiste(inst, now);
         }
@@ -1196,7 +1406,6 @@ exports.dashboardResumen = async (req, res) => {
         await inst.save();
       }
   
-      // submódulo en progreso
       await SubmoduloInstancia.findOneAndUpdate(
         { estudiante: estudianteId, materia: materiaId, submodulo: submoduloId },
         { $set: { estado: "en_progreso", modulo: moduloId } },
@@ -1302,16 +1511,19 @@ exports.dashboardResumen = async (req, res) => {
     }
   };
 
-  /* =========================================================
-   GET /estudiante/ejercicios/:ejercicioId/borrador?materiaId=...
+/* =========================================================
+   ✅ 3) GET /estudiante/ejercicios/:ejercicioId/borrador?materiaId=...
+   obtenerBorradorEjercicio (ACTUALIZADO)
    - Devuelve respuestas guardadas en EjercicioInstancia.respuestas
+   - ✅ También devuelve runtime roleplay + serverNow
+   - ✅ Ahora devuelve instanciaId explícito (y ejercicioInstancia mínimo)
    ========================================================= */
-  exports.obtenerBorradorEjercicio = async (req, res) => {
+   exports.obtenerBorradorEjercicio = async (req, res) => {
     try {
       const estudianteId = req.user?.id || req.user?._id;
       const { ejercicioId } = req.params;
       const materiaId = req.query?.materiaId;
-
+  
       if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
       if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
         return res.status(400).json({ message: "ID de ejercicio inválido." });
@@ -1319,25 +1531,33 @@ exports.dashboardResumen = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(materiaId)) {
         return res.status(400).json({ message: "materiaId inválido." });
       }
-
+  
       const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
       if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
-
+  
       const inst = await EjercicioInstancia.findOne({
         estudiante: estudianteId,
         moduloInstancia: ctx.modInst._id,
         ejercicio: ejercicioId,
       }).lean();
-
+  
+      const respuestas = inst?.respuestas || {};
+      const runtime = extractRoleplayRuntime(respuestas); // ✅ FIX
+  
       return res.json({
         ok: true,
         estado: inst?.estado || "bloqueado",
-        respuestas: inst?.respuestas || {},
+        respuestas,
+        runtimeRoleplay: runtime, // ✅ ahora sí
+        serverNow: new Date().toISOString(),
+  
         calificacion: inst?.calificacion ?? null,
         feedback: inst?.feedback || "",
+  
         analisisIA: inst?.analisisIA || null,
-        analisisIAGeneradoAt: inst?.analisisIAGeneradoAt || null,
-        analisisIAEnfoque: inst?.analisisIAEnfoque || "",
+        analisisGeneradoAt: inst?.analisisGeneradoAt || null,
+        analisisFuente: inst?.analisisFuente || "unknown",
+  
         intentosUsados: inst?.intentosUsados || 0,
         updatedAt: inst?.updatedAt || null,
         createdAt: inst?.createdAt || null,
@@ -1357,6 +1577,7 @@ exports.dashboardResumen = async (req, res) => {
    - Guarda progreso (respuestas) sin finalizar.
    - Si estaba pendiente => pasa a en_progreso.
    - Si está bloqueado => 403.
+   - ✅ Normaliza/persiste runtime roleplay (elapsed/remaining/resetUsed)
    ========================================================= */
    exports.guardarBorradorEjercicio = async (req, res) => {
     try {
@@ -1393,8 +1614,7 @@ exports.dashboardResumen = async (req, res) => {
           ejercicio: prevId,
         }).select("estado");
   
-        const prevEstado = normEstadoInstancia(prevInst?.estado);
-        if (prevEstado !== "completado") {
+        if (normEstadoInstancia(prevInst?.estado) !== "completado") {
           return res.status(403).json({ message: "Ejercicio bloqueado." });
         }
       }
@@ -1407,35 +1627,60 @@ exports.dashboardResumen = async (req, res) => {
         ejercicio: ejercicioId,
       });
   
+      // =========================
+      // CREATE
+      // =========================
       if (!inst) {
-        inst = await EjercicioInstancia.create({
+        const payload = {
           estudiante: estudianteId,
           moduloInstancia: ctx.modInst._id,
           ejercicio: ejercicioId,
           estado: "en_progreso",
-          startedAt: now, // ✅ TIEMPO REAL: comienza aquí
+          startedAt: now,
           respuestas: respuestas || {},
-        });
-      } else {
-        const st = normEstadoInstancia(inst.estado);
-        if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
-        if (st === "completado") {
-          return res.status(409).json({ message: "Ejercicio ya completado." });
+        };
+  
+        // ✅ FIX: runtime puede venir anidado
+        const incomingRuntime = extractRoleplayRuntime(payload.respuestas);
+  
+        if (incomingRuntime) {
+          const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, {});
+          mirrorRoleplayRuntime(payload.respuestas, safeRuntime);
         }
   
-        if (st === "pendiente") inst.estado = "en_progreso";
-  
-        // ✅ TIEMPO REAL: si está/queda en progreso, asegura startedAt
-        if (inst.estado === "en_progreso") {
-          marcarInicioSiNoExiste(inst, now);
-        }
-  
-        const prevResp = inst.respuestas || {};
-        inst.respuestas = replace ? (respuestas || {}) : deepMergeNoArrays(prevResp, respuestas || {});
-        await inst.save();
+        await EjercicioInstancia.create(payload);
+        return res.json({ ok: true, created: true });
       }
   
-      return res.json({ ok: true });
+      // =========================
+      // UPDATE
+      // =========================
+      const st = normEstadoInstancia(inst.estado);
+      if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
+      if (st === "completado") return res.status(409).json({ message: "Ejercicio ya completado." });
+  
+      if (st === "pendiente") inst.estado = "en_progreso";
+  
+      if (inst.estado === "en_progreso") {
+        marcarInicioSiNoExiste(inst, now);
+      }
+  
+      const prevResp = inst.respuestas || {};
+      const nextResp = replace ? (respuestas || {}) : deepMergeNoArrays(prevResp, respuestas || {});
+  
+      // ✅ FIX: runtime puede venir anidado en nextResp
+      const prevRuntime = extractRoleplayRuntime(prevResp) || {};
+      const incomingRuntime = extractRoleplayRuntime(nextResp);
+  
+      if (incomingRuntime) {
+        const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, prevRuntime);
+        mirrorRoleplayRuntime(nextResp, safeRuntime);
+      }
+  
+      inst.respuestas = nextResp;
+      await inst.save();
+  
+      return res.json({ ok: true, created: false });
     } catch (err) {
       console.error("❌ Error guardarBorradorEjercicio:", err);
       return res.status(500).json({

@@ -168,7 +168,7 @@ module.exports = {
         },
         { 
             key: "i17", 
-            texto: "ienso que nadie me va a extrañar cuando me haya ido.", 
+            texto: "Pienso que nadie me va a extrañar cuando me haya ido.", 
             opciones: [
                 {valor: 0, label: "Nunca"},
                 {valor: 1, label: "A veces"},

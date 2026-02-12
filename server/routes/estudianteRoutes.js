@@ -21,7 +21,7 @@ router.post("/ejercicios/:ejercicioId/finalizar", estudianteMateriaController.fi
 router.get("/ejercicios/:ejercicioId/borrador", estudianteMateriaController.obtenerBorradorEjercicio);
 router.post("/ejercicios/:ejercicioId/borrador", estudianteMateriaController.guardarBorradorEjercicio);
 
-// ✅ vista evaluación/resultado (para cuando el estudiante ya NO entra al ejercicio)
+// ✅ vista evaluación/resultado
 router.get("/ejercicios/:ejercicioId/resultado", estudianteMateriaController.obtenerResultadoEjercicio);
 
 router.get(
@@ -29,9 +29,6 @@ router.get(
   estudianteMateriaController.obtenerEntrelazadosSubmodulo
 );
 
-router.post(
-  "/ejercicios/:ejercicioId/analisis-ia",
-  estudianteMateriaController.guardarAnalisisIAEjercicio
-);
+router.post("/ejercicios/:ejercicioId/analisis-ia", estudianteMateriaController.guardarAnalisisIAEjercicio);
 
 module.exports = router;
