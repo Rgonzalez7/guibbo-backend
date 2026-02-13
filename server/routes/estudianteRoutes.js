@@ -31,4 +31,6 @@ router.get(
 
 router.post("/ejercicios/:ejercicioId/analisis-ia", estudianteMateriaController.guardarAnalisisIAEjercicio);
 
+router.get("/instancias/:instanciaId/resultado", estudianteMateriaController.obtenerResultadoPorInstanciaId);
+
 module.exports = router;

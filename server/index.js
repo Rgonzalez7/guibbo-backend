@@ -47,7 +47,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use(express.json());
+// ✅ Body size (para transcripciones + payloads grandes)
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // ✅ IMPORTS DE RUTAS (UNA SOLA VEZ CADA UNA)
 const authRoutes = require("./routes/authRoutes");
@@ -115,6 +117,17 @@ app.use("/api/profesor", profesorRoutes);
  * URL: /uploads/archivo.png
  */
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+
+// ✅ Handler claro para payload demasiado grande
+app.use((err, _req, res, next) => {
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({
+      ok: false,
+      message: "Payload demasiado grande (413). Reduce transcripción o aumenta limit.",
+    });
+  }
+  return next(err);
+});
 
 // --- Health & raíz ---
 app.get("/health", (_req, res) => {
