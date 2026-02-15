@@ -543,6 +543,105 @@ function mirrorRoleplayRuntime(respuestas, safeRuntime) {
   return respuestas;
 }
 
+function ensureArray(v) {
+  return Array.isArray(v) ? v : [];
+}
+
+function makeLocalId() {
+  return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+/**
+ * ✅ Normaliza pruebas a formato nuevo:
+ * - Si ya viene rolePlaying.pruebas[] => OK
+ * - Si viene formato viejo (pruebaTestId, pruebasRespuestas, pruebaTranscripcion, etc.)
+ *   lo convierte a pruebas[0] para compatibilidad.
+ */
+function normalizeRoleplayPruebas(respuestas = {}) {
+  if (!respuestas || typeof respuestas !== "object") return respuestas;
+
+  const rp =
+    respuestas.rolePlaying && typeof respuestas.rolePlaying === "object"
+      ? respuestas.rolePlaying
+      : {};
+
+  // ya es nuevo
+  if (Array.isArray(rp.pruebas)) return respuestas;
+
+  // detectar formato viejo (tu FE actual)
+  const oldTestId =
+    respuestas?.pruebaTestId ||
+    rp?.pruebaTestId ||
+    rp?.payload?.pruebaTestId ||
+    "";
+
+  const oldAll = respuestas?.pruebasRespuestas || rp?.pruebasRespuestas || {};
+  const oldResp = oldTestId ? (oldAll?.[oldTestId] || {}) : {};
+
+  const oldNombre = respuestas?.pruebaNombre || rp?.pruebaNombre || "";
+  const oldCategoria = respuestas?.pruebaCategoria || rp?.pruebaCategoria || "";
+  const oldPaciente = respuestas?.pruebaPacienteNombre || rp?.pruebaPacienteNombre || "Paciente";
+
+  const oldTrans = respuestas?.pruebaTranscripcion || rp?.pruebaTranscripcion || "";
+  const oldInterim = respuestas?.pruebaTranscripcionInterim || rp?.pruebaTranscripcionInterim || "";
+
+  const oldDiarStatus = respuestas?.pruebaDiarizacionStatus || rp?.pruebaDiarizacionStatus || "idle";
+  const oldDiarError = respuestas?.pruebaDiarizacionError || rp?.pruebaDiarizacionError || "";
+  const oldDiarTurnos = ensureArray(respuestas?.pruebaDiarizacionTurnos || rp?.pruebaDiarizacionTurnos);
+
+  // si no hay nada viejo, crea lista vacía
+  const pruebas = oldTestId
+    ? [
+        {
+          id: makeLocalId(),
+          testId: String(oldTestId),
+          nombre: String(oldNombre || ""),
+          categoria: String(oldCategoria || ""),
+          pacienteNombre: String(oldPaciente || "Paciente"),
+          respuestas: oldResp && typeof oldResp === "object" ? oldResp : {},
+          transcripcion: String(oldTrans || ""),
+          transcripcionInterim: String(oldInterim || ""),
+          diarizacionStatus: String(oldDiarStatus || "idle"),
+          diarizacionError: String(oldDiarError || ""),
+          diarizacionTurnos: oldDiarTurnos,
+        },
+      ]
+    : [];
+
+  // set nuevo
+  const next = { ...respuestas };
+  next.rolePlaying =
+    next.rolePlaying && typeof next.rolePlaying === "object" ? next.rolePlaying : {};
+  next.rolePlaying.pruebas = pruebas;
+
+  // opcional: limpiar campos viejos para no duplicar (yo recomiendo SÍ limpiarlos)
+  delete next.pruebaTestId;
+  delete next.pruebasRespuestas;
+  delete next.pruebaNombre;
+  delete next.pruebaCategoria;
+  delete next.pruebaPacienteNombre;
+  delete next.pruebaTranscripcion;
+  delete next.pruebaTranscripcionInterim;
+  delete next.pruebaDiarizacionStatus;
+  delete next.pruebaDiarizacionError;
+  delete next.pruebaDiarizacionTurnos;
+
+  if (next.rolePlaying) {
+    delete next.rolePlaying.pruebaTestId;
+    delete next.rolePlaying.pruebasRespuestas;
+    delete next.rolePlaying.pruebaNombre;
+    delete next.rolePlaying.pruebaCategoria;
+    delete next.rolePlaying.pruebaPacienteNombre;
+    delete next.rolePlaying.pruebaTranscripcion;
+    delete next.rolePlaying.pruebaTranscripcionInterim;
+    delete next.rolePlaying.pruebaDiarizacionStatus;
+    delete next.rolePlaying.pruebaDiarizacionError;
+    delete next.rolePlaying.pruebaDiarizacionTurnos;
+  }
+
+  return next;
+}
+
 /* =========================================================
    GET /estudiante/materias
    Lista materias donde el estudiante está inscrito
@@ -1249,275 +1348,300 @@ exports.abrirEjercicio = async (req, res) => {
 
 /* =========================================================
    POST /estudiante/ejercicios/:ejercicioId/finalizar
-   (sin cambios)
+   ✅ ACTUALIZADO: normaliza multi-pruebas antes de guardar
    ========================================================= */
-exports.finalizarEjercicio = async (req, res) => {
-  try {
-    const estudianteId = req.user?.id || req.user?._id;
-    const { ejercicioId } = req.params;
-    const { materiaId, respuestas, calificacion, feedback, replace = false } = req.body || {};
-
-    if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
-    if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
-      return res.status(400).json({ message: "ID de ejercicio inválido." });
-    }
-    if (!mongoose.Types.ObjectId.isValid(materiaId)) {
-      return res.status(400).json({ message: "materiaId inválido." });
-    }
-
-    const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
-    if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
-
-    const now = nowDate();
-
-    let inst = await EjercicioInstancia.findOne({
-      estudiante: estudianteId,
-      moduloInstancia: ctx.modInst._id,
-      ejercicio: ejercicioId,
-    });
-
-    if (!inst) {
-      inst = await EjercicioInstancia.create({
+   exports.finalizarEjercicio = async (req, res) => {
+    try {
+      const estudianteId = req.user?.id || req.user?._id;
+      const { ejercicioId } = req.params;
+      const { materiaId, respuestas, calificacion, feedback, replace = false } = req.body || {};
+  
+      if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
+      if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
+        return res.status(400).json({ message: "ID de ejercicio inválido." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(materiaId)) {
+        return res.status(400).json({ message: "materiaId inválido." });
+      }
+  
+      const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
+      if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
+  
+      const now = nowDate();
+  
+      // ✅ Normaliza respuestas entrantes (multi-pruebas)
+      let incomingRespuestas = respuestas || {};
+      incomingRespuestas = normalizeRoleplayPruebas(incomingRespuestas);
+  
+      let inst = await EjercicioInstancia.findOne({
         estudiante: estudianteId,
         moduloInstancia: ctx.modInst._id,
         ejercicio: ejercicioId,
-        estado: "en_progreso",
-        startedAt: now,
-        respuestas: respuestas || {},
-        calificacion: calificacion ?? null,
-        feedback: feedback || "",
       });
-    } else {
+  
+      if (!inst) {
+        inst = await EjercicioInstancia.create({
+          estudiante: estudianteId,
+          moduloInstancia: ctx.modInst._id,
+          ejercicio: ejercicioId,
+          estado: "en_progreso",
+          startedAt: now,
+          respuestas: incomingRespuestas,
+          calificacion: calificacion ?? null,
+          feedback: feedback || "",
+        });
+      } else {
+        const st = normEstadoInstancia(inst.estado);
+        if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
+        if (st === "completado") return res.status(409).json({ message: "Ejercicio ya completado." });
+  
+        if (st === "pendiente") inst.estado = "en_progreso";
+  
+        if (inst.estado === "en_progreso") {
+          marcarInicioSiNoExiste(inst, now);
+        }
+  
+        // ✅ Normaliza también lo previo antes de merge (por compat viejo->nuevo)
+        const prevResp = normalizeRoleplayPruebas(inst.respuestas || {});
+        const nextMerged = replace ? incomingRespuestas : deepMergeNoArrays(prevResp, incomingRespuestas);
+  
+        // ✅ runtime sigue funcionando igual
+        const prevRuntime = extractRoleplayRuntime(prevResp) || {};
+        const incomingRuntime = extractRoleplayRuntime(nextMerged);
+  
+        if (incomingRuntime) {
+          const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, prevRuntime);
+          mirrorRoleplayRuntime(nextMerged, safeRuntime);
+        }
+  
+        inst.respuestas = nextMerged;
+  
+        if (calificacion !== undefined) inst.calificacion = calificacion;
+        if (feedback !== undefined) inst.feedback = feedback;
+      }
+  
+      acumularTiempoSiCorriendo(inst, now);
+      inst.estado = "completado";
+      inst.completedAt = now;
+      await inst.save();
+  
+      const result = await completarEjercicioYAvanzar({
+        estudianteId,
+        materiaId,
+        ejercicioId,
+      });
+  
+      if (!result.ok) {
+        return res
+          .status(result.code || 400)
+          .json({ message: result.message || "No se pudo finalizar." });
+      }
+  
+      return res.json(result);
+    } catch (err) {
+      console.error("❌ Error finalizarEjercicio:", err);
+      return res.status(500).json({ message: "Error al finalizar ejercicio.", error: err.message });
+    }
+  };
+  
+  /* =========================================================
+     ✅ 3) GET /estudiante/ejercicios/:ejercicioId/borrador?materiaId=...
+     ✅ ACTUALIZADO: normaliza multi-pruebas al devolver (no muta DB)
+     ========================================================= */
+  exports.obtenerBorradorEjercicio = async (req, res) => {
+    try {
+      const estudianteId = req.user?.id || req.user?._id;
+      const { ejercicioId } = req.params;
+      const materiaId = req.query?.materiaId;
+  
+      if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
+      if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
+        return res.status(400).json({ message: "ID de ejercicio inválido." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(materiaId)) {
+        return res.status(400).json({ message: "materiaId inválido." });
+      }
+  
+      const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
+      if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
+  
+      const inst = await EjercicioInstancia.findOne({
+        estudiante: estudianteId,
+        moduloInstancia: ctx.modInst._id,
+        ejercicio: ejercicioId,
+      })
+        .select(
+          [
+            "estado",
+            "respuestas",
+            "calificacion",
+            "feedback",
+            "intentosUsados",
+            "updatedAt",
+            "createdAt",
+            "startedAt",
+            "tiempoAcumuladoSeg",
+            "completedAt",
+            "analisisIA",
+            "analisisGeneradoAt",
+            "analisisFuente",
+            "+analisisIA",
+            "+analisisGeneradoAt",
+            "+analisisFuente",
+          ].join(" ")
+        )
+        .lean();
+  
+      let respuestas = inst?.respuestas || {};
+      respuestas = normalizeRoleplayPruebas(respuestas);
+  
+      const runtime = extractRoleplayRuntime(respuestas);
+  
+      return res.json({
+        ok: true,
+        estado: inst?.estado || "bloqueado",
+        respuestas,
+        runtimeRoleplay: runtime,
+        serverNow: new Date().toISOString(),
+  
+        calificacion: inst?.calificacion ?? null,
+        calificacionFinal: inst?.calificacionFinal ?? null,
+        evaluacionInformeScores: inst?.evaluacionInformeScores ?? null,
+  
+        feedback: inst?.feedback || "",
+  
+        // ✅ nombres correctos
+        analisisIA: inst?.analisisIA ?? null,
+        analisisGeneradoAt: inst?.analisisGeneradoAt ?? null,
+        analisisFuente: inst?.analisisFuente ?? "unknown",
+  
+        // ✅ compat
+        analisisIAGeneradoAt: inst?.analisisGeneradoAt ?? null,
+  
+        intentosUsados: inst?.intentosUsados || 0,
+        updatedAt: inst?.updatedAt || null,
+        createdAt: inst?.createdAt || null,
+      });
+    } catch (err) {
+      console.error("❌ Error obtenerBorradorEjercicio:", err);
+      return res.status(500).json({
+        message: "Error al obtener borrador del ejercicio.",
+        error: err.message,
+      });
+    }
+  };
+  
+  /* =========================================================
+     POST /estudiante/ejercicios/:ejercicioId/borrador
+     ✅ ACTUALIZADO: normaliza multi-pruebas + runtime seguro
+     ========================================================= */
+  exports.guardarBorradorEjercicio = async (req, res) => {
+    try {
+      const estudianteId = req.user?.id || req.user?._id;
+      const { ejercicioId } = req.params;
+  
+      const { materiaId, respuestas, replace = false } = req.body || {};
+  
+      if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
+      if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
+        return res.status(400).json({ message: "ID de ejercicio inválido." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(materiaId)) {
+        return res.status(400).json({ message: "materiaId inválido." });
+      }
+  
+      const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
+      if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
+  
+      const lista = await Ejercicio.find({ submodulo: ctx.submoduloId })
+        .select("_id createdAt")
+        .sort({ createdAt: 1 })
+        .lean();
+  
+      const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
+      if (idx < 0) return res.status(404).json({ message: "Ejercicio no pertenece al submódulo." });
+  
+      if (idx > 0) {
+        const prevId = lista[idx - 1]?._id;
+        const prevInst = await EjercicioInstancia.findOne({
+          estudiante: estudianteId,
+          moduloInstancia: ctx.modInst._id,
+          ejercicio: prevId,
+        }).select("estado");
+  
+        if (normEstadoInstancia(prevInst?.estado) !== "completado") {
+          return res.status(403).json({ message: "Ejercicio bloqueado." });
+        }
+      }
+  
+      const now = nowDate();
+  
+      // ✅ Normaliza respuestas entrantes (multi-pruebas)
+      let incomingRespuestas = respuestas || {};
+      incomingRespuestas = normalizeRoleplayPruebas(incomingRespuestas);
+  
+      let inst = await EjercicioInstancia.findOne({
+        estudiante: estudianteId,
+        moduloInstancia: ctx.modInst._id,
+        ejercicio: ejercicioId,
+      });
+  
+      if (!inst) {
+        const payload = {
+          estudiante: estudianteId,
+          moduloInstancia: ctx.modInst._id,
+          ejercicio: ejercicioId,
+          estado: "en_progreso",
+          startedAt: now,
+          respuestas: incomingRespuestas,
+        };
+  
+        // ✅ runtime
+        const incomingRuntime = extractRoleplayRuntime(payload.respuestas);
+        if (incomingRuntime) {
+          const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, {});
+          mirrorRoleplayRuntime(payload.respuestas, safeRuntime);
+        }
+  
+        await EjercicioInstancia.create(payload);
+        return res.json({ ok: true, created: true });
+      }
+  
       const st = normEstadoInstancia(inst.estado);
       if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
       if (st === "completado") return res.status(409).json({ message: "Ejercicio ya completado." });
-
+  
       if (st === "pendiente") inst.estado = "en_progreso";
-
+  
       if (inst.estado === "en_progreso") {
         marcarInicioSiNoExiste(inst, now);
       }
-
-      const prevResp = inst.respuestas || {};
-      inst.respuestas = replace ? respuestas || {} : deepMergeNoArrays(prevResp, respuestas || {});
-
-      if (calificacion !== undefined) inst.calificacion = calificacion;
-      if (feedback !== undefined) inst.feedback = feedback;
-    }
-
-    acumularTiempoSiCorriendo(inst, now);
-    inst.estado = "completado";
-    inst.completedAt = now;
-    await inst.save();
-
-    const result = await completarEjercicioYAvanzar({
-      estudianteId,
-      materiaId,
-      ejercicioId,
-    });
-
-    if (!result.ok) {
-      return res
-        .status(result.code || 400)
-        .json({ message: result.message || "No se pudo finalizar." });
-    }
-
-    return res.json(result);
-  } catch (err) {
-    console.error("❌ Error finalizarEjercicio:", err);
-    return res.status(500).json({ message: "Error al finalizar ejercicio.", error: err.message });
-  }
-};
-
-/* =========================================================
-   ✅ 3) GET /estudiante/ejercicios/:ejercicioId/borrador?materiaId=...
-   (sin cambios funcionales, pero ya lo tienes OK)
-   ========================================================= */
-exports.obtenerBorradorEjercicio = async (req, res) => {
-  try {
-    const estudianteId = req.user?.id || req.user?._id;
-    const { ejercicioId } = req.params;
-    const materiaId = req.query?.materiaId;
-
-    if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
-    if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
-      return res.status(400).json({ message: "ID de ejercicio inválido." });
-    }
-    if (!mongoose.Types.ObjectId.isValid(materiaId)) {
-      return res.status(400).json({ message: "materiaId inválido." });
-    }
-
-    const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
-    if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
-
-    const inst = await EjercicioInstancia.findOne({
-      estudiante: estudianteId,
-      moduloInstancia: ctx.modInst._id,
-      ejercicio: ejercicioId,
-    })
-      .select(
-        [
-          "estado",
-          "respuestas",
-          "calificacion",
-          "feedback",
-          "intentosUsados",
-          "updatedAt",
-          "createdAt",
-          "startedAt",
-          "tiempoAcumuladoSeg",
-          "completedAt",
-          "analisisIA",
-          "analisisGeneradoAt",
-          "analisisFuente",
-          "+analisisIA",
-          "+analisisGeneradoAt",
-          "+analisisFuente",
-        ].join(" ")
-      )
-      .lean();
-    
-    const respuestas = inst?.respuestas || {};
-    const runtime = extractRoleplayRuntime(respuestas);
-    
-    return res.json({
-      ok: true,
-      estado: inst?.estado || "bloqueado",
-      respuestas,
-      runtimeRoleplay: runtime,
-      serverNow: new Date().toISOString(),
-    
-      calificacion: inst?.calificacion ?? null,
-      calificacionFinal: inst?.calificacionFinal ?? null,
-      evaluacionInformeScores: inst?.evaluacionInformeScores ?? null,
-    
-      feedback: inst?.feedback || "",
-    
-      // ✅ nombres correctos
-      analisisIA: inst?.analisisIA ?? null,
-      analisisGeneradoAt: inst?.analisisGeneradoAt ?? null,
-      analisisFuente: inst?.analisisFuente ?? "unknown",
-    
-      // ✅ compat
-      analisisIAGeneradoAt: inst?.analisisGeneradoAt ?? null,
-    
-      intentosUsados: inst?.intentosUsados || 0,
-      updatedAt: inst?.updatedAt || null,
-      createdAt: inst?.createdAt || null,
-    });
-  } catch (err) {
-    console.error("❌ Error obtenerBorradorEjercicio:", err);
-    return res.status(500).json({
-      message: "Error al obtener borrador del ejercicio.",
-      error: err.message,
-    });
-  }
-};
-
-/* =========================================================
-   POST /estudiante/ejercicios/:ejercicioId/borrador
-   (sin cambios)
-   ========================================================= */
-exports.guardarBorradorEjercicio = async (req, res) => {
-  try {
-    const estudianteId = req.user?.id || req.user?._id;
-    const { ejercicioId } = req.params;
-
-    const { materiaId, respuestas, replace = false } = req.body || {};
-
-    if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
-    if (!mongoose.Types.ObjectId.isValid(ejercicioId)) {
-      return res.status(400).json({ message: "ID de ejercicio inválido." });
-    }
-    if (!mongoose.Types.ObjectId.isValid(materiaId)) {
-      return res.status(400).json({ message: "materiaId inválido." });
-    }
-
-    const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
-    if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
-
-    const lista = await Ejercicio.find({ submodulo: ctx.submoduloId })
-      .select("_id createdAt")
-      .sort({ createdAt: 1 })
-      .lean();
-
-    const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
-    if (idx < 0) return res.status(404).json({ message: "Ejercicio no pertenece al submódulo." });
-
-    if (idx > 0) {
-      const prevId = lista[idx - 1]?._id;
-      const prevInst = await EjercicioInstancia.findOne({
-        estudiante: estudianteId,
-        moduloInstancia: ctx.modInst._id,
-        ejercicio: prevId,
-      }).select("estado");
-
-      if (normEstadoInstancia(prevInst?.estado) !== "completado") {
-        return res.status(403).json({ message: "Ejercicio bloqueado." });
-      }
-    }
-
-    const now = nowDate();
-
-    let inst = await EjercicioInstancia.findOne({
-      estudiante: estudianteId,
-      moduloInstancia: ctx.modInst._id,
-      ejercicio: ejercicioId,
-    });
-
-    if (!inst) {
-      const payload = {
-        estudiante: estudianteId,
-        moduloInstancia: ctx.modInst._id,
-        ejercicio: ejercicioId,
-        estado: "en_progreso",
-        startedAt: now,
-        respuestas: respuestas || {},
-      };
-
-      const incomingRuntime = extractRoleplayRuntime(payload.respuestas);
+  
+      // ✅ Normaliza previo y mergea
+      const prevResp = normalizeRoleplayPruebas(inst.respuestas || {});
+      let nextResp = replace ? incomingRespuestas : deepMergeNoArrays(prevResp, incomingRespuestas);
+  
+      // ✅ runtime robusto
+      const prevRuntime = extractRoleplayRuntime(prevResp) || {};
+      const incomingRuntime = extractRoleplayRuntime(nextResp);
+  
       if (incomingRuntime) {
-        const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, {});
-        mirrorRoleplayRuntime(payload.respuestas, safeRuntime);
+        const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, prevRuntime);
+        mirrorRoleplayRuntime(nextResp, safeRuntime);
       }
-
-      await EjercicioInstancia.create(payload);
-      return res.json({ ok: true, created: true });
+  
+      inst.respuestas = nextResp;
+      await inst.save();
+  
+      return res.json({ ok: true, created: false });
+    } catch (err) {
+      console.error("❌ Error guardarBorradorEjercicio:", err);
+      return res.status(500).json({
+        message: "Error al guardar borrador del ejercicio.",
+        error: err.message,
+      });
     }
-
-    const st = normEstadoInstancia(inst.estado);
-    if (st === "bloqueado") return res.status(403).json({ message: "Ejercicio bloqueado." });
-    if (st === "completado") return res.status(409).json({ message: "Ejercicio ya completado." });
-
-    if (st === "pendiente") inst.estado = "en_progreso";
-
-    if (inst.estado === "en_progreso") {
-      marcarInicioSiNoExiste(inst, now);
-    }
-
-    const prevResp = inst.respuestas || {};
-    const nextResp = replace ? respuestas || {} : deepMergeNoArrays(prevResp, respuestas || {});
-
-    const prevRuntime = extractRoleplayRuntime(prevResp) || {};
-    const incomingRuntime = extractRoleplayRuntime(nextResp);
-
-    if (incomingRuntime) {
-      const safeRuntime = normalizeRoleplayRuntime(incomingRuntime, prevRuntime);
-      mirrorRoleplayRuntime(nextResp, safeRuntime);
-    }
-
-    inst.respuestas = nextResp;
-    await inst.save();
-
-    return res.json({ ok: true, created: false });
-  } catch (err) {
-    console.error("❌ Error guardarBorradorEjercicio:", err);
-    return res.status(500).json({
-      message: "Error al guardar borrador del ejercicio.",
-      error: err.message,
-    });
-  }
-};
+  };
 
 /* =========================================================
    GET /estudiante/ejercicios/:ejercicioId/resultado?materiaId=...
