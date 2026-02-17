@@ -25,3 +25,4 @@ router.post("/consejo-diario", verifyToken, generarConsejoDiario);
 router.post("/roleplay/analyze", verifyToken, analizarRolePlayIA);
 
 module.exports = router;
+

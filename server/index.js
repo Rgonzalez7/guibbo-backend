@@ -51,7 +51,7 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
-// ✅ IMPORTS DE RUTAS (UNA SOLA VEZ CADA UNA)
+// ✅ IMPORTS DE RUTAS
 const authRoutes = require("./routes/authRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const expedienteRoutes = require("./routes/expedienteRoutes");
@@ -63,7 +63,7 @@ const sesionesIntervencionRoutes = require("./routes/sesionesIntervencionRoutes"
 const cuadroConvergenciaRoutes = require("./routes/cuadroConvergenciaRoutes");
 const hipotesisRoutes = require("./routes/hipotesisRoutes");
 const diagnosticoFinalRoutes = require("./routes/diagnosticoFinalRoutes");
-const iaRoutes = require("./routes/iaRoutes"); // ✅ SOLO UNA VEZ
+const iaRoutes = require("./routes/iaRoutes");
 const diarizacionRoutes = require("./routes/diarizacionRoutes");
 const consentimientoRoutes = require("./routes/consentimientoRoutes");
 const pruebasRoutes = require("./routes/pruebasRoutes");
@@ -181,25 +181,31 @@ const deepgramWSS = createDeepgramProxy();
 const simWSS = createSimWSS();
 
 server.on("upgrade", (req, socket, head) => {
-  const { url } = req;
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname || "";
 
-  if (url.startsWith("/ws/deepgram")) {
-    deepgramWSS.handleUpgrade(req, socket, head, (ws) => {
-      deepgramWSS.emit("connection", ws, req);
-    });
-    return;
+    if (pathname === "/ws/deepgram") {
+      deepgramWSS.handleUpgrade(req, socket, head, (ws) => {
+        deepgramWSS.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    if (pathname === "/ws/sim") {
+      simWSS.handleUpgrade(req, socket, head, (ws) => {
+        simWSS.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    // socket.io lo maneja internamente
+    if (pathname.startsWith("/socket.io")) return;
+
+    socket.destroy();
+  } catch (e) {
+    socket.destroy();
   }
-
-  if (url.startsWith("/ws/sim")) {
-    simWSS.handleUpgrade(req, socket, head, (ws) => {
-      simWSS.emit("connection", ws, req);
-    });
-    return;
-  }
-
-  if (url.startsWith("/socket.io")) return;
-
-  socket.destroy();
 });
 
 // --- Boot ---
@@ -210,10 +216,7 @@ mongoose
     server.listen(port, "0.0.0.0", () => {
       console.log(`🚀 API & WS corriendo en el puerto ${port}`);
       console.log("🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim");
-      console.log(
-        "🌐 Orígenes permitidos (CORS):",
-        ALLOWED_ORIGINS.join(", ") || "(ninguno)"
-      );
+      console.log("🌐 Orígenes permitidos (CORS):", ALLOWED_ORIGINS.join(", ") || "(ninguno)");
       console.log("🧩 Socket.io listo ✅");
     });
   })
