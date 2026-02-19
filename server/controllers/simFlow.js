@@ -12,7 +12,7 @@ const { EjercicioRolePlay } = require("../models/modulo");
 
 ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
-const DG_KEY = process.env.DEEPGRAM_API_KEY || "";
+const DG_KEY = (process.env.DEEPGRAM_API_KEY || "").trim();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function safeSend(ws, obj) {
@@ -23,7 +23,48 @@ function safeSend(ws, obj) {
 
 function log(...a) {
   console.log("🤖 [SIM]", ...a);
-  console.log("ELEVEN KEY:", process.env.ELEVENLABS_API_KEY ? "OK" : "MISSING");
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/* =========================================================
+   ✅ TTS helpers (FIX de audio)
+   ========================================================= */
+function extractB64FromTtsResult(raw) {
+  if (!raw) return "";
+
+  if (typeof raw === "string") {
+    return raw.trim().replace(/^data:audio\/[^;]+;base64,/i, "");
+  }
+
+  if (Buffer.isBuffer(raw)) {
+    return raw.toString("base64");
+  }
+
+  if (typeof raw === "object") {
+    const candidate =
+      raw.base64 ||
+      raw.audio_b64 ||
+      raw.audioBase64 ||
+      raw.data ||
+      raw.audio ||
+      "";
+
+    if (Buffer.isBuffer(candidate)) return candidate.toString("base64");
+    if (typeof candidate === "string") {
+      return candidate.trim().replace(/^data:audio\/[^;]+;base64,/i, "");
+    }
+  }
+
+  return "";
+}
+
+function looksLikeMp3Base64(b64) {
+  const s = String(b64 || "").trim();
+  if (!s) return false;
+  return s.startsWith("SUQz") || s.startsWith("//uQ") || s.length > 2000;
 }
 
 /* =========================================================
@@ -44,7 +85,9 @@ function verifyWsToken(token) {
    ✅ Límites por tipoRole
    ========================================================= */
 function getRoleplayLimitSeconds(tipoRole) {
-  return String(tipoRole || "").toLowerCase() === "simulada" ? 15 * 60 : 60 * 60;
+  return String(tipoRole || "").toLowerCase() === "simulada"
+    ? 15 * 60
+    : 60 * 60;
 }
 
 /* =========================================================
@@ -84,14 +127,14 @@ function resolveElevenVoiceIdFromProblema(problema) {
 /* =========================================================
    ✅ Prompt
    ========================================================= */
-function buildPrompt(ctx, transcript) {
+function buildPrompt(ctx, therapistText) {
   const { edad, genero, problema } = ctx || {};
   return `Contexto del paciente simulado:
 - Edad: ${edad ?? "N/D"}
 - Género: ${genero ?? "N/D"}
 - Motivo principal: ${problema ?? "N/D"}
 
-Terapeuta dijo: "${transcript}"
+Terapeuta dijo: "${therapistText}"
 
 Responde como el paciente, en una o dos frases, tono natural y breve, en español.`;
 }
@@ -107,20 +150,28 @@ function selectInputFormat(mime) {
   return "webm";
 }
 
+/**
+ * ✅ Deepgram WS para STT (simulación)
+ */
 function createDGClientWS({ sampleRate = 16000 }) {
   const qs = new URLSearchParams({
-    model: "nova-2",
+    model: process.env.DG_MODEL || "nova-2",
     language: "es",
     punctuate: "true",
-    smart_format: "true",
+    interim_results: "false",
     encoding: "linear16",
     sample_rate: String(sampleRate),
-    diarize: "false",
-    interim_results: "true",
+    channels: "1",
+
+    // ✅ endpointing controla cuándo corta el turno
+    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 1200),
   });
 
   const url = `wss://api.deepgram.com/v1/listen?${qs.toString()}`;
-  const headers = { Authorization: `Token ${DG_KEY}` };
+
+  const key = String(DG_KEY || "").trim();
+  const headers = { Authorization: `Token ${key}` };
+
   return new WebSocket(url, { headers });
 }
 
@@ -139,13 +190,41 @@ async function appendTurn({ ejercicioInstanciaId, speaker, text }) {
     { _id: id },
     {
       $push: {
-        "respuestas.rolePlaying.transcripcion.turns": { ts, speaker, text: clean },
+        "respuestas.rolePlaying.transcripcion.turns": {
+          ts,
+          speaker,
+          text: clean,
+        },
       },
       $set: {
         "respuestas.rolePlaying.transcripcion.updatedAt": ts,
       },
     }
   );
+}
+
+/* =========================================================
+   ✅ OpenAI helper (respuesta paciente)
+   ========================================================= */
+async function generatePatientReply({ ctx, therapistText }) {
+  const prompt = buildPrompt(ctx, therapistText);
+  const model = process.env.SIM_OPENAI_MODEL || "gpt-4o-mini";
+
+  const res = await openai.chat.completions.create({
+    model,
+    temperature: Number(process.env.SIM_OPENAI_TEMP || 0.7),
+    messages: [
+      { role: "system", content: "Eres un paciente simulado en psicoterapia." },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  const text =
+    res?.choices?.[0]?.message?.content
+      ? String(res.choices[0].message.content).trim()
+      : "";
+
+  return text;
 }
 
 /* =========================================================
@@ -159,24 +238,53 @@ function createSimWSS() {
 
     let hello = null;
 
-    let dg = null; // WS Deepgram
-    let ff = null; // ffmpeg proc
+    let dg = null;
+    let ff = null;
     let dgReady = false;
     let pcmBuffer = [];
 
-    // runtime
     let userId = null;
     let instanciaId = null;
     let ejercicioId = null;
 
-    let tipoRole = "simulada"; // default seguro
+    let tipoRole = "simulada";
     let problema = "";
     let limitSec = 15 * 60;
     let startMs = Date.now();
 
     let voiceIdResolved = "";
 
+    // half-duplex
+    let speaking = false;
+    let droppedAudioChunks = 0;
+
+    const cooldownMs = Number(process.env.SIM_TTS_COOLDOWN_MS || 350);
+
+    // ✅ IMPORTANT: por defecto NO exigir speech_final (porque a veces no viene)
+    const REQUIRE_SPEECH_FINAL =
+      String(process.env.SIM_REQUIRE_SPEECH_FINAL || "false").toLowerCase() ===
+      "true";
+
+    // debug
+    let __binFrames = 0;
+    let __binLast = Date.now();
+
+    // anti-spam
+    let lastTherapistFinalAt = 0;
+    const MIN_GAP_FINAL_MS = Number(process.env.SIM_MIN_GAP_FINAL_MS || 450);
+
+    // debounce final extra (opcional)
+    let pendingFinalTimer = null;
+    let pendingFinalText = "";
+    const FINAL_DEBOUNCE_MS = Number(process.env.SIM_FINAL_DEBOUNCE_MS || 0);
+
     function cleanup() {
+      try {
+        if (pendingFinalTimer) clearTimeout(pendingFinalTimer);
+      } catch {}
+      pendingFinalTimer = null;
+      pendingFinalText = "";
+
       try {
         if (ff?.stdin) ff.stdin.end();
       } catch {}
@@ -193,11 +301,21 @@ function createSimWSS() {
       pcmBuffer = [];
       hello = null;
 
+      speaking = false;
+      droppedAudioChunks = 0;
+
       log("/ws/sim cerrado");
     }
 
-    ws.on("close", cleanup);
-    ws.on("error", cleanup);
+    ws.on("close", (code, reason) => {
+      log("WS close event", { code, reason: reason?.toString?.() || "" });
+      cleanup();
+    });
+
+    ws.on("error", (err) => {
+      log("WS error event", { message: err?.message || String(err) });
+      cleanup();
+    });
 
     function checkTimeUp() {
       const elapsed = Math.floor((Date.now() - startMs) / 1000);
@@ -212,11 +330,137 @@ function createSimWSS() {
       return false;
     }
 
+    function beginSpeaking(meta = {}) {
+      speaking = true;
+      safeSend(ws, { type: "tts_start", ...meta });
+    }
+
+    async function endSpeaking(meta = {}) {
+      safeSend(ws, { type: "tts_end", ...meta });
+      await sleep(Math.max(0, cooldownMs));
+      speaking = false;
+
+      safeSend(ws, {
+        type: "listening_resumed",
+        cooldownMs,
+        droppedAudioChunks,
+      });
+
+      droppedAudioChunks = 0;
+    }
+
+    async function handleTherapistFinal(transcript) {
+      const clean = String(transcript || "").trim();
+      if (!clean) return;
+      if (checkTimeUp()) return;
+      if (speaking) return;
+
+      const now = Date.now();
+      if (now - lastTherapistFinalAt < MIN_GAP_FINAL_MS) return;
+      lastTherapistFinalAt = now;
+
+      // turno terapeuta
+      try {
+        await appendTurn({
+          ejercicioInstanciaId: instanciaId,
+          speaker: "terapeuta",
+          text: clean,
+        });
+      } catch {}
+
+      safeSend(ws, {
+        type: "turn",
+        speaker: "terapeuta",
+        text: clean,
+        ts: new Date().toISOString(),
+      });
+
+      // respuesta paciente + TTS
+      beginSpeaking({
+        voiceId: voiceIdResolved,
+        problema,
+        problemaKey: normalizeProblemaKey(problema),
+      });
+
+      let reply = "";
+      try {
+        reply = await generatePatientReply({
+          ctx: { problema },
+          therapistText: clean,
+        });
+      } catch (e) {
+        log("OpenAI error:", e?.message || String(e));
+        reply = "No sé… creo que sí. No estoy seguro.";
+      }
+
+      reply = String(reply || "").trim();
+      if (!reply) reply = "No sé…";
+
+      try {
+        await appendTurn({
+          ejercicioInstanciaId: instanciaId,
+          speaker: "paciente",
+          text: reply,
+        });
+      } catch {}
+
+      safeSend(ws, {
+        type: "turn",
+        speaker: "paciente",
+        text: reply,
+        ts: new Date().toISOString(),
+      });
+
+      try {
+        const ttsRes = await ttsSynthesizeBase64({
+          text: reply,
+          voiceId: voiceIdResolved,
+        });
+
+        const audio_b64 = extractB64FromTtsResult(ttsRes);
+        const mime =
+          (ttsRes && typeof ttsRes === "object" && ttsRes.mime) || "audio/mpeg";
+
+        if (!audio_b64) {
+          log("TTS EMPTY (no base64)");
+        } else if (!looksLikeMp3Base64(audio_b64)) {
+          log("TTS INVALID base64 (len =", audio_b64.length, ")");
+        } else {
+          safeSend(ws, {
+            type: "tts_audio",
+            audio_b64,
+            mime,
+            voiceId: voiceIdResolved,
+            ms: Date.now(),
+          });
+        }
+      } catch (e) {
+        log("TTS error:", e?.message || String(e));
+      } finally {
+        await endSpeaking();
+      }
+    }
+
     ws.on("message", async (message, isBinary) => {
       try {
-        // ===========================
+        if (isBinary) {
+          __binFrames++;
+          const now = Date.now();
+          if (now - __binLast > 1000) {
+            log(
+              "AUDIO IN frames/sec =",
+              __binFrames,
+              "| bytes =",
+              message?.length || 0,
+              "| speaking =",
+              speaking
+            );
+            __binFrames = 0;
+            __binLast = now;
+          }
+        }
+
         // 1) HELLO
-        // ===========================
         if (!hello) {
           if (isBinary) return;
 
@@ -230,12 +474,15 @@ function createSimWSS() {
 
           hello = parsed;
 
-          // ✅ Auth
           userId = verifyWsToken(hello.token);
           if (!userId) {
-            log("[TTS] sending audio_b64 len =", String(tts.base64 || "").length, "| mime =", tts.mime);
-            safeSend(ws, { type: "error", message: "Token inválido o ausente (hello.token)" });
-            ws.close();
+            safeSend(ws, {
+              type: "error",
+              message: "Token inválido o ausente (hello.token)",
+            });
+            try {
+              ws.close();
+            } catch {}
             return;
           }
 
@@ -251,13 +498,18 @@ function createSimWSS() {
             return;
           }
 
-          // ✅ Seguridad: instancia pertenece al estudiante y corresponde al ejercicio
-          const inst = await EjercicioInstancia.findOne({ _id: instanciaId, estudiante: userId })
+          const inst = await EjercicioInstancia.findOne({
+            _id: instanciaId,
+            estudiante: userId,
+          })
             .select("_id ejercicio")
             .lean();
 
           if (!inst?._id) {
-            safeSend(ws, { type: "error", message: "Instancia no válida para este usuario" });
+            safeSend(ws, {
+              type: "error",
+              message: "Instancia no válida para este usuario",
+            });
             ws.close();
             return;
           }
@@ -265,20 +517,19 @@ function createSimWSS() {
           if (String(inst.ejercicio) !== String(ejercicioId)) {
             safeSend(ws, {
               type: "error",
-              message: "La instancia no corresponde a ese ejercicio (mismatch ejercicioId)",
+              message:
+                "La instancia no corresponde a ese ejercicio (mismatch ejercicioId)",
             });
             ws.close();
             return;
           }
 
-          // ✅ Config RolePlay desde BD
           const rp = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
             .select("tipoRole trastorno")
             .lean();
 
           tipoRole = rp?.tipoRole || "simulada";
 
-          // ✅ ENFORCE: este WS es SOLO simulada
           if (String(tipoRole).toLowerCase() !== "simulada") {
             safeSend(ws, {
               type: "error",
@@ -294,12 +545,14 @@ function createSimWSS() {
           startMs = Date.now();
 
           if (!DG_KEY) {
-            safeSend(ws, { type: "error", message: "DEEPGRAM_API_KEY no configurada" });
+            safeSend(ws, {
+              type: "error",
+              message: "DEEPGRAM_API_KEY no configurada",
+            });
             ws.close();
             return;
           }
 
-          // ✅ VoiceId por trastorno
           voiceIdResolved = resolveElevenVoiceIdFromProblema(problema);
           if (!voiceIdResolved) {
             safeSend(ws, {
@@ -312,10 +565,50 @@ function createSimWSS() {
           }
 
           const sr = Number(hello.sampleRate) || 16000;
-          log("HELLO OK | sr =", sr, "| mime =", hello.mimeType);
+          log(
+            "HELLO OK | sr =",
+            sr,
+            "| mime =",
+            hello.mimeType,
+            "| problema =",
+            problema
+          );
 
-          // 1) Conectar a Deepgram
           dg = createDGClientWS({ sampleRate: sr });
+
+          dg.on("unexpected-response", (req, res) => {
+            let body = "";
+            try {
+              res.on("data", (chunk) => (body += chunk.toString("utf8")));
+              res.on("end", () => {
+                log("Deepgram UNEXPECTED RESPONSE ❌", {
+                  statusCode: res.statusCode,
+                  statusMessage: res.statusMessage,
+                  body: String(body || "").slice(0, 600),
+                  dgKeyPrefix: String(DG_KEY || "").slice(0, 6) + "***",
+                });
+
+                safeSend(ws, {
+                  type: "error",
+                  message: `Deepgram handshake ${res.statusCode}: ${String(
+                    body || res.statusMessage || ""
+                  ).slice(0, 220)}`,
+                });
+
+                try {
+                  ws.close();
+                } catch {}
+              });
+            } catch {
+              safeSend(ws, {
+                type: "error",
+                message: "Deepgram handshake failed (unexpected-response)",
+              });
+              try {
+                ws.close();
+              } catch {}
+            }
+          });
 
           dg.on("open", () => {
             dgReady = true;
@@ -329,127 +622,88 @@ function createSimWSS() {
             }
           });
 
+          dg.on("close", (code, reason) => {
+            log("Deepgram WS CLOSE", { code, reason: String(reason || "") });
+          });
+
           dg.on("message", async (data) => {
             try {
               if (checkTimeUp()) return;
+              if (speaking) return;
 
               const payload = JSON.parse(data.toString("utf8"));
-              const alt = payload?.channel?.alternatives?.[0];
-              const transcript = alt?.transcript || "";
 
-              if (payload.is_final && transcript.trim()) {
-                // ✅ Turn: estudiante
-                await appendTurn({
-                  ejercicioInstanciaId: instanciaId,
-                  speaker: "estudiante",
-                  text: transcript,
-                });
-                safeSend(ws, { type: "turn", speaker: "estudiante", text: transcript });
-
-                // ✅ IA responde
-                const prompt = buildPrompt(
-                  { ...hello, problema: problema || hello.problema },
-                  transcript
-                );
-
-                const completion = await openai.chat.completions.create({
-                  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-                  messages: [
-                    {
-                      role: "system",
-                      content:
-                        "Eres un paciente simulado. Responde natural, humano, breve y en español.",
-                    },
-                    { role: "user", content: prompt },
-                  ],
-                  temperature: 0.7,
-                });
-
-                const text = completion.choices?.[0]?.message?.content?.trim() || "...";
-
-                // ✅ Turn: paciente
-                await appendTurn({
-                  ejercicioInstanciaId: instanciaId,
-                  speaker: "paciente",
-                  text,
-                });
-                safeSend(ws, { type: "turn", speaker: "paciente", text });
-
-                // ✅ TTS ElevenLabs (con debug + error hacia FE)
-                safeSend(ws, { type: "tts_start" });
-
-                try {
-                  const t0 = Date.now();
-                  const tts = await ttsSynthesizeBase64(text, voiceIdResolved);
-                  const ms = Date.now() - t0;
-
-                  const b64 = String(tts?.base64 || "");
-                  log("TTS OK ✅", { voiceId: tts?.voiceId, ms, b64Len: b64.length });
-
-                  if (!b64 || b64.length < 50) {
-                    safeSend(ws, {
-                      type: "error",
-                      message: "TTS generado pero base64 vacío/corto",
-                      code: "TTS_EMPTY",
-                      voiceId: tts?.voiceId,
-                      b64Len: b64.length,
-                    });
-                  } else {
-                    safeSend(ws, {
-                      type: "tts_audio",
-                      audio_b64: b64,
-                      mime: tts?.mime || "audio/mpeg",
-                      voiceId: tts?.voiceId || voiceIdResolved,
-                      b64Len: b64.length,
-                      ms,
-                    });
-                  }
-                } catch (e) {
-                  const msg = e?.response?.data
-                    ? (Buffer.isBuffer(e.response.data) ? e.response.data.toString("utf8") : String(e.response.data))
-                    : (e?.message || String(e));
-
-                  log("TTS FAIL ❌", {
-                    message: e?.message,
-                    status: e?.response?.status,
-                    data: msg?.slice?.(0, 400),
-                  });
-
-                  safeSend(ws, {
-                    type: "error",
-                    code: "TTS_FAILED",
-                    message: `ElevenLabs falló: ${e?.response?.status || ""} ${e?.message || ""}`.trim(),
-                    status: e?.response?.status,
-                    details: msg?.slice?.(0, 400),
-                    voiceId: voiceIdResolved,
-                  });
-                } finally {
-                  safeSend(ws, { type: "tts_end" });
-                }
+              if (payload?.type === "error" || payload?.error) {
+                log("DG PAYLOAD ERROR", payload);
               }
+
+              const alt = payload?.channel?.alternatives?.[0];
+              const transcript = String(alt?.transcript || "").trim();
+              const isFinal = Boolean(payload?.is_final);
+
+              // ⚠️ speech_final a veces NO viene; por defecto no lo exigimos
+              const speechFinalRaw = payload?.speech_final;
+              const speechFinal =
+                speechFinalRaw === undefined || speechFinalRaw === null
+                  ? true
+                  : Boolean(speechFinalRaw);
+
+              // ✅ necesitamos texto final
+              if (!isFinal || !transcript) return;
+
+              // ✅ si quieres exigir speech_final, se controla con env
+              if (REQUIRE_SPEECH_FINAL && !speechFinal) return;
+
+              if (FINAL_DEBOUNCE_MS > 0) {
+                pendingFinalText = transcript;
+                try {
+                  if (pendingFinalTimer) clearTimeout(pendingFinalTimer);
+                } catch {}
+                pendingFinalTimer = setTimeout(() => {
+                  const t = pendingFinalText;
+                  pendingFinalText = "";
+                  pendingFinalTimer = null;
+                  Promise.resolve().then(() => handleTherapistFinal(t));
+                }, FINAL_DEBOUNCE_MS);
+                return;
+              }
+
+              await handleTherapistFinal(transcript);
             } catch (e) {
-              // opcional: log(e)
+              log("DG parse message error", e?.message || String(e));
             }
           });
 
           dg.on("error", (e) => {
-            safeSend(ws, { type: "error", message: `Deepgram WS error: ${e?.message || ""}` });
+            log("Deepgram WS ERROR ❌", e?.message || e);
+            safeSend(ws, {
+              type: "error",
+              message: `Deepgram WS error: ${e?.message || ""}`,
+            });
+            try {
+              ws.close();
+            } catch {}
           });
 
-          // ✅ READY inmediato (tu FE espera esto para empezar a mandar PCM)
           safeSend(ws, {
             type: "ready",
             tipoRole,
             limitSec,
             problema,
             problemaKey: normalizeProblemaKey(problema),
+            cooldownMs,
+            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 1200),
+            finalDebounceMs: FINAL_DEBOUNCE_MS,
+            requireSpeechFinal: REQUIRE_SPEECH_FINAL,
           });
 
-          // 2) Pipeline audio
+          // pipeline audio
           const inFmt = selectInputFormat(hello?.mimeType);
-          const isPCM = String(hello?.mimeType || "").toLowerCase().includes("audio/pcm");
+          const isPCM = String(hello?.mimeType || "")
+            .toLowerCase()
+            .includes("audio/pcm");
 
-          // ✅ Si ya es PCM, NO usar ffmpeg
+          // ✅ si es PCM, no uses ffmpeg
           if (isPCM) return;
 
           const ar = Number(hello?.sampleRate) || 16000;
@@ -463,7 +717,10 @@ function createSimWSS() {
             .format("s16le")
             .on("start", (cmd) => log("ffmpeg START:", cmd))
             .on("error", (err) => {
-              safeSend(ws, { type: "error", message: `ffmpeg error: ${err?.message || ""}` });
+              safeSend(ws, {
+                type: "error",
+                message: `ffmpeg error: ${err?.message || ""}`,
+              });
               try {
                 dg?.close();
               } catch {}
@@ -478,6 +735,12 @@ function createSimWSS() {
 
           ffOut.on("data", (chunk) => {
             if (checkTimeUp()) return;
+
+            if (speaking) {
+              droppedAudioChunks++;
+              return;
+            }
+
             if (!dgReady) {
               pcmBuffer.push(Buffer.from(chunk));
               return;
@@ -496,9 +759,7 @@ function createSimWSS() {
           return;
         }
 
-        // ===========================
         // 2) CONTROL JSON
-        // ===========================
         if (!isBinary) {
           const evt = JSON.parse(message.toString("utf8"));
 
@@ -512,12 +773,17 @@ function createSimWSS() {
           return;
         }
 
-        // ===========================
         // 3) AUDIO BINARIO
-        // ===========================
         if (checkTimeUp()) return;
 
-        const isPCM = String(hello?.mimeType || "").toLowerCase().includes("audio/pcm");
+        if (speaking) {
+          droppedAudioChunks++;
+          return;
+        }
+
+        const isPCM = String(hello?.mimeType || "")
+          .toLowerCase()
+          .includes("audio/pcm");
 
         if (isPCM) {
           if (!dgReady) {
@@ -536,7 +802,9 @@ function createSimWSS() {
     });
   });
 
-  console.log("✅ WS de simulación listo (noServer). Enrútalo a /ws/sim desde index.js");
+  console.log(
+    "✅ WS de simulación listo (noServer). Enrútalo a /ws/sim desde index.js"
+  );
   return wss;
 }
 

@@ -28,14 +28,60 @@ function ensureElevenKey() {
 }
 
 /**
- * Acepta voiceId dinámico
+ * ✅ Normaliza cualquier forma de retorno a:
+ * { base64: string, mime: string, voiceId: string }
  */
-async function ttsSynthesizeBase64(text, voiceId) {
+function normalizeElevenTtsResult(raw, fallbackVoiceId) {
+  const voiceId = String(fallbackVoiceId || "").trim() || DEFAULT_VOICE_ID;
+
+  // raw podría ser string base64
+  if (typeof raw === "string") {
+    const b64 = raw.trim().replace(/^data:audio\/[^;]+;base64,/i, "");
+    return { base64: b64, mime: "audio/mpeg", voiceId };
+  }
+
+  // raw podría ser Buffer
+  if (Buffer.isBuffer(raw)) {
+    return { base64: raw.toString("base64"), mime: "audio/mpeg", voiceId };
+  }
+
+  // raw como objeto { base64, mime, voiceId } o similares
+  if (raw && typeof raw === "object") {
+    const b64Candidate =
+      raw.base64 ||
+      raw.audio_b64 ||
+      raw.audioBase64 ||
+      raw.data ||
+      raw.audio ||
+      "";
+
+    const mimeCandidate = raw.mime || raw.contentType || "audio/mpeg";
+    const vid = String(raw.voiceId || voiceId).trim() || voiceId;
+
+    let b64 = "";
+    if (Buffer.isBuffer(b64Candidate)) b64 = b64Candidate.toString("base64");
+    else if (typeof b64Candidate === "string") b64 = b64Candidate;
+
+    b64 = String(b64 || "")
+      .trim()
+      .replace(/^data:audio\/[^;]+;base64,/i, "");
+
+    return { base64: b64, mime: String(mimeCandidate || "audio/mpeg"), voiceId: vid };
+  }
+
+  return { base64: "", mime: "audio/mpeg", voiceId };
+}
+
+/**
+ * Acepta voiceId dinámico
+ * ✅ Retorna: { base64, mime, voiceId }
+ */
+async function ttsSynthesizeBase64({ text, voiceId } = {}) {
   const ELEVEN_API_KEY = ensureElevenKey();
 
   const finalVoiceId = String(voiceId || "").trim() || DEFAULT_VOICE_ID;
 
-  // (opcional) sanitize texto
+  // sanitize texto
   const cleanText = String(text || "").trim();
   if (!cleanText) {
     const err = new Error("TTS: texto vacío");
@@ -64,14 +110,24 @@ async function ttsSynthesizeBase64(text, voiceId) {
       }
     );
 
-    const base64 = Buffer.from(res.data).toString("base64");
-    if (!base64 || base64.length < 20) {
-      const err = new Error("TTS: respuesta sin audio (base64 vacío)");
+    // ✅ axios arraybuffer => Buffer
+    const buf = Buffer.from(res.data);
+    const base64 = buf.toString("base64");
+
+    const out = normalizeElevenTtsResult(
+      { base64, mime: "audio/mpeg", voiceId: finalVoiceId },
+      finalVoiceId
+    );
+
+    if (!out.base64 || out.base64.length < 2000) {
+      const err = new Error(
+        `TTS: respuesta sin audio válido (base64 len=${String(out.base64 || "").length})`
+      );
       err.code = "ELEVEN_EMPTY_AUDIO";
       throw err;
     }
 
-    return { base64, mime: "audio/mpeg", voiceId: finalVoiceId };
+    return out;
   } catch (e) {
     const status = e?.response?.status;
 
@@ -84,10 +140,9 @@ async function ttsSynthesizeBase64(text, voiceId) {
       }
     } catch {}
 
-    // Mensaje más claro en 401
     const hint401 =
       status === 401
-        ? " (401 Unauthorized) -> Revisa que tu ELEVEN_API_KEY sea válida, que el .env esté cargando ANTES de require/import, y reinicia el backend."
+        ? " (401 Unauthorized) -> Revisa ELEVEN_API_KEY, reinicia el backend y confirma que el .env carga antes del require."
         : "";
 
     const err = new Error(
