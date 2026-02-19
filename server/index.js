@@ -132,7 +132,7 @@ app.use((err, _req, res, next) => {
 
 // --- Health & raíz ---
 app.get("/health", (_req, res) => {
-  const mongoState = mongoose.connection.readyState; // 0=disc,1=conn,2=conncting,3=disconnecting
+  const mongoState = mongoose.connection.readyState; // 0=disc,1=conn,2=connecting,3=disconnecting
   res.json({
     ok: true,
     env: process.env.NODE_ENV || "development",
@@ -181,14 +181,31 @@ io.on("connection", (socket) => {
 const { createDeepgramProxy } = require("./controllers/deepgramLiveProxy");
 const { createSimWSS } = require("./controllers/simFlow");
 
+// ✅ Real Dual (2 devices)
+let createRealDualWSS = null;
+try {
+  ({ createRealDualWSS } = require("./controllers/realDualFlow"));
+} catch (e) {
+  console.log(
+    "⚠️ realDualFlow no cargado (aún no existe o hay error):",
+    e?.message || e
+  );
+}
+
 const deepgramWSS = createDeepgramProxy();
 const simWSS = createSimWSS();
+
+// ✅ TU controller retorna { hostWSS, patientWSS }
+const realDual = typeof createRealDualWSS === "function" ? createRealDualWSS() : null;
+const realDualHostWSS = realDual?.hostWSS || null;
+const realDualPatientWSS = realDual?.patientWSS || null;
 
 server.on("upgrade", (req, socket, head) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname || "";
 
+    // ✅ Deepgram proxy
     if (pathname === "/ws/deepgram") {
       deepgramWSS.handleUpgrade(req, socket, head, (ws) => {
         deepgramWSS.emit("connection", ws, req);
@@ -196,9 +213,28 @@ server.on("upgrade", (req, socket, head) => {
       return;
     }
 
+    // ✅ Simulación IA
     if (pathname === "/ws/sim") {
       simWSS.handleUpgrade(req, socket, head, (ws) => {
         simWSS.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    // ✅ NUEVO: Real Dual (2 dispositivos)
+    // IMPORTANT: tus paths en controller son /ws/real-dual/host y /ws/real-dual/patient
+    if (pathname === "/ws/real-dual/host") {
+      if (!realDualHostWSS) return socket.destroy();
+      realDualHostWSS.handleUpgrade(req, socket, head, (ws) => {
+        realDualHostWSS.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    if (pathname === "/ws/real-dual/patient") {
+      if (!realDualPatientWSS) return socket.destroy();
+      realDualPatientWSS.handleUpgrade(req, socket, head, (ws) => {
+        realDualPatientWSS.emit("connection", ws, req);
       });
       return;
     }
@@ -207,16 +243,13 @@ server.on("upgrade", (req, socket, head) => {
     if (pathname.startsWith("/socket.io")) return;
 
     socket.destroy();
-  } catch (e) {
+  } catch (_e) {
     socket.destroy();
   }
 });
 
 /* =========================================================
    ✅ BOOT (Fly-friendly)
-   - 1) Escucha SIEMPRE el puerto
-   - 2) Mongo se conecta aparte (con retry)
-   - 3) Si falta MONGODB_URI => exit(1) (para que Fly reinicie)
 ========================================================= */
 
 function startHttpServerOnce() {
@@ -225,6 +258,13 @@ function startHttpServerOnce() {
   server.listen(port, "0.0.0.0", () => {
     console.log(`🚀 API & WS corriendo en el puerto ${port}`);
     console.log("🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim");
+
+    if (realDualHostWSS && realDualPatientWSS) {
+      console.log("🎙️ WS Real Dual en /ws/real-dual/host  |  📱 /ws/real-dual/patient");
+    } else {
+      console.log("⚠️ WS Real Dual NO habilitado (falta controllers/realDualFlow.js o falló require)");
+    }
+
     console.log(
       "🌐 Orígenes permitidos (CORS):",
       ALLOWED_ORIGINS.join(", ") || "(ninguno)"
@@ -245,10 +285,7 @@ async function connectMongoWithRetry() {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 10000,
-      });
-
+      await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
       console.log("✅ Conectado a MongoDB");
       return;
     } catch (err) {
@@ -257,20 +294,14 @@ async function connectMongoWithRetry() {
         err?.message || err
       );
 
-      // si es el último intento, salimos para que Fly reinicie
-      if (attempt === maxAttempts) {
-        process.exit(1);
-      }
-
+      if (attempt === maxAttempts) process.exit(1);
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
 }
 
-// ✅ inicia server SIEMPRE (para smoke checks)
 startHttpServerOnce();
 
-// ✅ conecta Mongo en background con retry
 connectMongoWithRetry().catch((e) => {
   console.error("❌ Mongo fatal:", e?.message || e);
   process.exit(1);
