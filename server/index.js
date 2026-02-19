@@ -123,7 +123,8 @@ app.use((err, _req, res, next) => {
   if (err?.type === "entity.too.large") {
     return res.status(413).json({
       ok: false,
-      message: "Payload demasiado grande (413). Reduce transcripción o aumenta limit.",
+      message:
+        "Payload demasiado grande (413). Reduce transcripción o aumenta limit.",
     });
   }
   return next(err);
@@ -131,10 +132,13 @@ app.use((err, _req, res, next) => {
 
 // --- Health & raíz ---
 app.get("/health", (_req, res) => {
+  const mongoState = mongoose.connection.readyState; // 0=disc,1=conn,2=conncting,3=disconnecting
   res.json({
     ok: true,
     env: process.env.NODE_ENV || "development",
     uptime: process.uptime(),
+    mongoReadyState: mongoState,
+    mongoConnected: mongoState === 1,
   });
 });
 
@@ -208,20 +212,68 @@ server.on("upgrade", (req, socket, head) => {
   }
 });
 
-// --- Boot ---
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("✅ Conectado a MongoDB");
-    server.listen(port, "0.0.0.0", () => {
-      console.log(`🚀 API & WS corriendo en el puerto ${port}`);
-      console.log("🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim");
-      console.log("🌐 Orígenes permitidos (CORS):", ALLOWED_ORIGINS.join(", ") || "(ninguno)");
-      console.log("🧩 Socket.io listo ✅");
-    });
-  })
-  .catch((err) => {
-    console.error("❌ Error al conectar a MongoDB:", err.message);
+/* =========================================================
+   ✅ BOOT (Fly-friendly)
+   - 1) Escucha SIEMPRE el puerto
+   - 2) Mongo se conecta aparte (con retry)
+   - 3) Si falta MONGODB_URI => exit(1) (para que Fly reinicie)
+========================================================= */
+
+function startHttpServerOnce() {
+  if (server.listening) return;
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`🚀 API & WS corriendo en el puerto ${port}`);
+    console.log("🎧 WS Deepgram en /ws/deepgram  |  🤖 WS Sim en /ws/sim");
+    console.log(
+      "🌐 Orígenes permitidos (CORS):",
+      ALLOWED_ORIGINS.join(", ") || "(ninguno)"
+    );
+    console.log("🧩 Socket.io listo ✅");
   });
+}
+
+async function connectMongoWithRetry() {
+  const uri = String(process.env.MONGODB_URI || "").trim();
+  if (!uri) {
+    console.error("❌ MONGODB_URI NO está configurada (Fly secrets).");
+    process.exit(1);
+  }
+
+  const maxAttempts = Number(process.env.MONGO_RETRY_ATTEMPTS || 30);
+  const delayMs = Number(process.env.MONGO_RETRY_DELAY_MS || 2000);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 10000,
+      });
+
+      console.log("✅ Conectado a MongoDB");
+      return;
+    } catch (err) {
+      console.error(
+        `❌ Mongo connect failed (attempt ${attempt}/${maxAttempts}):`,
+        err?.message || err
+      );
+
+      // si es el último intento, salimos para que Fly reinicie
+      if (attempt === maxAttempts) {
+        process.exit(1);
+      }
+
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
+// ✅ inicia server SIEMPRE (para smoke checks)
+startHttpServerOnce();
+
+// ✅ conecta Mongo en background con retry
+connectMongoWithRetry().catch((e) => {
+  console.error("❌ Mongo fatal:", e?.message || e);
+  process.exit(1);
+});
 
 module.exports = { app, server, io };
