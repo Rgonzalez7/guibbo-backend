@@ -186,6 +186,7 @@ const DEFAULT_HERRAMIENTAS_ROLEPLAY = {
   manejoExpediente: false,
   ficha: false,
   hc: false,
+  examen: false,
   convergencia: false,
   hipotesis: false,
   diagnostico: false,

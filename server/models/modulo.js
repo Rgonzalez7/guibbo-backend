@@ -319,6 +319,7 @@ const ejercicioRolePlaySchema = new Schema(
       manejoExpediente: { type: Boolean, default: false },
       ficha: { type: Boolean, default: false },
       hc: { type: Boolean, default: false },
+      examen: { type: Boolean, default: false },
       convergencia: { type: Boolean, default: false },
       hipotesis: { type: Boolean, default: false },
       diagnostico: { type: Boolean, default: false },
