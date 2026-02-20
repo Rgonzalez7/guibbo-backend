@@ -128,24 +128,7 @@ const ROLEPLAY_EVALS_OPTIONAL_DEFAULTS = {
   resumen: false,
   practicarConsignasPruebas: false,
   palabrasClave: false,
-
-  // historia de vida
-  infancia: false,
-  actualidad: false,
-  motivoConsulta: false,
-  relacionPadres: false,
-  relacionSentimental: false,
-  antecedentesPsiquiatricos: false,
-  familiaresPersonales: false,
-  sexualidad: false,
-  nivelEducativo: false,
-  situacionLaboral: false,
-  vicios: false,
-  creenciasReligiosas: false,
-  anamnesis: false,
-  antecedentesSociales: false,
-  antecedentePatologico: false,
-
+  
   // logoterapia
   logoterapiaProposito: false,
   logoterapiaSentido: false,

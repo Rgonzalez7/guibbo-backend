@@ -26,22 +26,6 @@ function clampText(text, max = 12000) {
     practicarConsignasPruebas: "Consignas de pruebas",
     palabrasClave: "Palabras clave",
   
-    // historia de vida
-    infancia: "Infancia",
-    actualidad: "Actualidad",
-    motivoConsulta: "Motivo de consulta",
-    relacionPadres: "Relación con padres",
-    relacionSentimental: "Relación sentimental",
-    antecedentesPsiquiatricos: "Antecedentes psiquiátricos",
-    sexualidad: "Sexualidad",
-    nivelEducativo: "Nivel educativo",
-    situacionLaboral: "Situación laboral",
-    vicios: "Vicios",
-    creenciasReligiosas: "Creencias religiosas",
-    anamnesis: "Anamnesis",
-    antecedentesSociales: "Antecedentes sociales",
-    antecedentePatologico: "Antecedente patológico",
-  
     // enfoques
     logoterapiaProposito: "Logoterapia: propósito",
     logoterapiaSentido: "Logoterapia: sentido",
