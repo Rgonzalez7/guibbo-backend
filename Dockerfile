@@ -16,6 +16,10 @@ RUN npm install --omit=dev
 #    (ajusta si tienes más carpetas necesarias)
 COPY server/. .
 
+
+#4) ffmpeg para transcripcion de sesion
+RUN apt-get update && apt-get install -y ffmpeg
+
 # Variables y puerto
 ENV NODE_ENV=production
 ENV PORT=8080

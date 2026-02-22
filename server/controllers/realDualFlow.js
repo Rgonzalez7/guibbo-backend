@@ -5,14 +5,22 @@ const crypto = require("crypto");
 const ffmpeg = require("fluent-ffmpeg");
 
 const resolveFfmpegPath = require("../utils/resolveFfmpegPath");
-
 ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 const DG_KEY = String(process.env.DEEPGRAM_API_KEY || "").trim();
 
 function safeSend(ws, obj) {
   try {
+    if (!ws || ws.readyState !== 1) return;
     ws.send(JSON.stringify(obj));
+  } catch {}
+}
+
+function safeClose(ws, code = 1000, reason = "") {
+  try {
+    if (!ws) return;
+    if (ws.readyState === 2 || ws.readyState === 3) return;
+    ws.close(code, reason);
   } catch {}
 }
 
@@ -22,9 +30,10 @@ function log(...a) {
 
 /* =========================================================
    ✅ Auth Host (JWT normal)
-   ========================================================= */
+========================================================= */
 function verifyWsToken(token) {
-  const raw = String(token || "").trim();
+  const raw0 = String(token || "").trim();
+  const raw = raw0.replace(/^Bearer\s+/i, "").trim();
   if (!raw) return null;
   try {
     const decoded = jwt.verify(raw, process.env.JWT_SECRET);
@@ -36,10 +45,13 @@ function verifyWsToken(token) {
 
 /* =========================================================
    ✅ Audio helpers
-   ========================================================= */
+========================================================= */
 function selectInputFormat(mime) {
   if (!mime) return "webm";
   const m = String(mime).toLowerCase();
+
+  // iOS/Safari típicamente manda mp4/m4a/aac
+  if (m.includes("m4a") || m.includes("aac")) return "mp4";
   if (m.includes("ogg")) return "ogg";
   if (m.includes("mp4") || m.includes("mpeg")) return "mp4";
   return "webm";
@@ -51,21 +63,22 @@ function isMimePCM(mime) {
 
 /* =========================================================
    ✅ Deepgram WS factory
-   (real-dual: cada canal tiene su DG ws independiente)
-   ========================================================= */
+   Fix #2: interim_results true + vad_events true + endpointing más bajo
+========================================================= */
 function createDGClientWS({ sampleRate = 16000 }) {
-  const endpointing = String(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 1200);
+  const endpointing = String(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 600); // ✅ antes 1200
   const model = process.env.DG_MODEL || "nova-2";
 
   const qs = new URLSearchParams({
     model,
     language: "es",
     punctuate: "true",
-    interim_results: "false",
+    interim_results: "true", // ✅ FIX #2
+    vad_events: "true", // ✅ FIX #2
     encoding: "linear16",
     sample_rate: String(sampleRate),
     channels: "1",
-    endpointing, // tolera micro-pausas
+    endpointing,
   });
 
   const url = `wss://api.deepgram.com/v1/listen?${qs.toString()}`;
@@ -76,19 +89,8 @@ function createDGClientWS({ sampleRate = 16000 }) {
 
 /* =========================================================
    ✅ Rooms in-memory (NO BD)
-   - host crea roomId + joinToken
-   - patient entra con roomId + joinToken
-   - TTL para limpiar rooms colgados
-   ========================================================= */
+========================================================= */
 const ROOMS = new Map();
-// room shape:
-// {
-//   roomId, joinToken,
-//   createdAt, lastSeenAt,
-//   host: { ws, dg, dgReady, ff, pcmBuffer, mimeType, sampleRate },
-//   patient: { ws, dg, dgReady, ff, pcmBuffer, mimeType, sampleRate },
-// }
-
 const ROOM_TTL_MS = Number(process.env.REAL_DUAL_ROOM_TTL_MS || 20 * 60 * 1000); // 20 min
 
 function randomId(len = 16) {
@@ -111,7 +113,7 @@ function cleanupPeer(peer) {
     if (peer?.ff?.stdin) peer.ff.stdin.end();
   } catch {}
   try {
-    if (peer?.ff) peer.ff.kill("SIGKILL");
+    peer?.ff?.kill("SIGKILL");
   } catch {}
 
   if (peer) {
@@ -119,12 +121,17 @@ function cleanupPeer(peer) {
     peer.ff = null;
     peer.dgReady = false;
     peer.pcmBuffer = [];
+    peer.mimeType = peer.mimeType || "";
+    peer.sampleRate = peer.sampleRate || 16000;
+
+    // ✅ FIX #1: buffer de finals
+    peer.finalBuf = "";
   }
 }
 
 function closePeerWs(peer) {
   try {
-    peer?.ws?.close();
+    safeClose(peer?.ws);
   } catch {}
 }
 
@@ -152,35 +159,83 @@ function gcRooms() {
     }
   }
 }
-// GC cada 30s
 setInterval(gcRooms, 30_000).unref?.();
 
 /* =========================================================
-   ✅ Turn emit (mismo “formato” que FE ya entiende)
-   ========================================================= */
+   ✅ Heartbeat WS (ping/pong)
+========================================================= */
+function attachHeartbeat(ws, label = "ws") {
+  if (!ws) return () => {};
+  ws.isAlive = true;
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  const intervalMs = Number(process.env.REAL_DUAL_HEARTBEAT_MS || 15000);
+  const timer = setInterval(() => {
+    try {
+      if (!ws || ws.readyState !== 1) return;
+      if (ws.isAlive === false) {
+        log(`🫀 heartbeat dead -> closing (${label})`);
+        safeClose(ws, 4000, "heartbeat_timeout");
+        return;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    } catch {}
+  }, intervalMs);
+
+  timer.unref?.();
+  return () => {
+    try {
+      clearInterval(timer);
+    } catch {}
+  };
+}
+
+/* =========================================================
+   ✅ Turn emit
+========================================================= */
 function broadcastTurn(room, turn) {
-  // turn = {type:"turn", speaker, text, ts, roomId}
   if (!room) return;
   if (room.host?.ws) safeSend(room.host.ws, turn);
   if (room.patient?.ws) safeSend(room.patient.ws, turn);
 }
 
 /* =========================================================
-   ✅ Hook Deepgram transcript -> turn
-   - Solo disparamos cuando is_final && speech_final
-   ========================================================= */
-function attachDGHandlers({ room, peerRole, peer }) {
-  // peerRole: "estudiante" | "paciente"
-  // peer: { ws, dg, ... }
+   ✅ Host notifications for patient status
+========================================================= */
+function notifyPatientStatus(room, connected, extra = {}) {
+  if (!room) return;
+  room.patientConnected = Boolean(connected);
 
+  if (room.host?.ws) {
+    safeSend(room.host.ws, {
+      type: "patient_status",
+      roomId: room.roomId,
+      connected: Boolean(connected),
+      ...extra,
+    });
+  }
+}
+
+/* =========================================================
+   ✅ DG handlers
+   Fix #1: acumular finals aunque speech_final sea false
+   Fix (nuevo): mandar partial a host cuando is_final=false
+========================================================= */
+function attachDGHandlers({ room, peerRole, peer }) {
   let lastFinalAt = 0;
-  const MIN_GAP_FINAL_MS = Number(process.env.REAL_DUAL_MIN_GAP_FINAL_MS || 350);
+  const MIN_GAP_FINAL_MS = Number(process.env.REAL_DUAL_MIN_GAP_FINAL_MS || 150); // ✅ más suave que 350
+
+  // ✅ FIX #1: buffer por peer
+  peer.finalBuf = peer.finalBuf || "";
 
   peer.dg.on("open", () => {
     peer.dgReady = true;
     log("Deepgram OPEN ✅", { roomId: room.roomId, peerRole });
 
-    // flush buffer
     if (peer.pcmBuffer?.length) {
       try {
         for (const chunk of peer.pcmBuffer) peer.dg.send(chunk);
@@ -188,7 +243,6 @@ function attachDGHandlers({ room, peerRole, peer }) {
       peer.pcmBuffer = [];
     }
 
-    // notify ready channel
     safeSend(peer.ws, {
       type: "channel_ready",
       roomId: room.roomId,
@@ -197,7 +251,12 @@ function attachDGHandlers({ room, peerRole, peer }) {
   });
 
   peer.dg.on("close", (code, reason) => {
-    log("Deepgram CLOSE", { roomId: room.roomId, peerRole, code, reason: String(reason || "") });
+    log("Deepgram CLOSE", {
+      roomId: room.roomId,
+      peerRole,
+      code,
+      reason: String(reason || ""),
+    });
   });
 
   peer.dg.on("unexpected-response", (_req, res) => {
@@ -215,29 +274,28 @@ function attachDGHandlers({ room, peerRole, peer }) {
           type: "error",
           message: `Deepgram handshake failed (${res.statusCode})`,
         });
-        try {
-          peer.ws.close();
-        } catch {}
+        safeClose(peer.ws, 1011, "dg_handshake_failed");
       });
     } catch {
       safeSend(peer.ws, { type: "error", message: "Deepgram handshake failed" });
-      try {
-        peer.ws.close();
-      } catch {}
+      safeClose(peer.ws, 1011, "dg_handshake_failed");
     }
   });
 
   peer.dg.on("error", (e) => {
-    log("Deepgram ERROR ❌", { roomId: room.roomId, peerRole, message: e?.message || String(e) });
+    log("Deepgram ERROR ❌", {
+      roomId: room.roomId,
+      peerRole,
+      message: e?.message || String(e),
+    });
     safeSend(peer.ws, {
       type: "error",
       message: `Deepgram WS error: ${e?.message || ""}`,
     });
-    try {
-      peer.ws.close();
-    } catch {}
+    safeClose(peer.ws, 1011, "dg_ws_error");
   });
 
+  // ✅ REEMPLAZO COMPLETO (partial + finalBuf + turn)
   peer.dg.on("message", (data) => {
     try {
       touchRoom(room);
@@ -249,36 +307,65 @@ function attachDGHandlers({ room, peerRole, peer }) {
       const isFinal = Boolean(payload?.is_final);
       const speechFinal = Boolean(payload?.speech_final);
 
-      if (!isFinal || !transcript) return;
-      if (!speechFinal) return;
+      if (!transcript) return;
 
-      const t = Date.now();
-      if (t - lastFinalAt < MIN_GAP_FINAL_MS) return;
-      lastFinalAt = t;
+      /* =========================================================
+         ✅ 1) PARTIAL (interim) -> SOLO AL HOST (NO persistir)
+      ========================================================= */
+      if (!isFinal) {
+        if (room.host?.ws) {
+          safeSend(room.host.ws, {
+            type: "partial",
+            roomId: room.roomId,
+            speaker: peerRole,
+            text: transcript,
+            ts: new Date().toISOString(),
+          });
+        }
+        return;
+      }
 
-      broadcastTurn(room, {
-        type: "turn",
-        roomId: room.roomId,
-        speaker: peerRole, // ✅ aquí está la magia: NO diarización
-        text: transcript,
-        ts: new Date().toISOString(),
-      });
+      /* =========================================================
+         ✅ 2) FINAL (acumulado)
+      ========================================================= */
+      peer.finalBuf = (peer.finalBuf ? peer.finalBuf + " " : "") + transcript;
+
+      // solo emitimos turno cuando Deepgram marca fin de habla
+      if (speechFinal) {
+        const out = String(peer.finalBuf || "").trim();
+        peer.finalBuf = "";
+
+        if (!out) return;
+
+        const t = Date.now();
+        if (t - lastFinalAt < MIN_GAP_FINAL_MS) return;
+        lastFinalAt = t;
+
+        broadcastTurn(room, {
+          type: "turn",
+          roomId: room.roomId,
+          speaker: peerRole,
+          text: out,
+          ts: new Date().toISOString(),
+        });
+      }
     } catch (e) {
-      log("DG message parse error", { roomId: room.roomId, peerRole, err: e?.message || String(e) });
+      log("DG message parse error", {
+        roomId: room.roomId,
+        peerRole,
+        err: e?.message || String(e),
+      });
     }
   });
 }
 
 /* =========================================================
-   ✅ Audio pipeline per peer:
-   - si input es PCM -> forward directo a DG
-   - si no -> ffmpeg -> PCM -> DG
-   ========================================================= */
+   ✅ Audio pipeline per peer
+========================================================= */
 function setupAudioPipeline({ room, peer }) {
   const mimeType = peer.mimeType;
   const sampleRate = Number(peer.sampleRate || 16000);
 
-  // PCM directo
   if (isMimePCM(mimeType)) return;
 
   const inFmt = selectInputFormat(mimeType);
@@ -292,10 +379,12 @@ function setupAudioPipeline({ room, peer }) {
     .format("s16le")
     .on("start", (cmd) => log("ffmpeg START:", { roomId: room.roomId, cmd }))
     .on("error", (err) => {
+      log("ffmpeg ERROR ❌", { roomId: room.roomId, err: err?.message || String(err) });
       safeSend(peer.ws, { type: "error", message: `ffmpeg error: ${err?.message || ""}` });
       try {
         peer.dg?.close();
       } catch {}
+      safeClose(peer.ws, 1011, "ffmpeg_error");
     })
     .on("end", () => {
       try {
@@ -326,9 +415,7 @@ function setupAudioPipeline({ room, peer }) {
 
 /* =========================================================
    ✅ WS Factory
-   /ws/real-dual/host
-   /ws/real-dual/patient
-   ========================================================= */
+========================================================= */
 function createRealDualWSS() {
   const hostWSS = new WebSocketServer({ noServer: true });
   const patientWSS = new WebSocketServer({ noServer: true });
@@ -338,6 +425,7 @@ function createRealDualWSS() {
   // ----------------------------
   hostWSS.on("connection", (ws) => {
     log("Host connected");
+    const stopHeartbeat = attachHeartbeat(ws, "host");
 
     let hello = null;
     let room = null;
@@ -350,9 +438,13 @@ function createRealDualWSS() {
       pcmBuffer: [],
       mimeType: "",
       sampleRate: 16000,
+      finalBuf: "", // ✅ FIX #1
     };
 
     function cleanupAll() {
+      try {
+        stopHeartbeat?.();
+      } catch {}
       try {
         if (room?.roomId) deleteRoom(room.roomId);
       } catch {}
@@ -377,7 +469,7 @@ function createRealDualWSS() {
           const parsed = JSON.parse(message.toString("utf8"));
           if (parsed?.type !== "hello") {
             safeSend(ws, { type: "error", message: 'Primer mensaje debe ser type="hello"' });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "bad_hello");
             return;
           }
 
@@ -385,20 +477,18 @@ function createRealDualWSS() {
 
           if (!DG_KEY) {
             safeSend(ws, { type: "error", message: "DEEPGRAM_API_KEY no configurada" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1011, "dg_key_missing");
             return;
           }
 
-          // JWT host
           const userId = verifyWsToken(hello.token);
           if (!userId) {
             safeSend(ws, { type: "error", message: "Token inválido o ausente (hello.token)" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "invalid_token");
             return;
           }
 
-          // crear room
-          const roomId = String(hello.roomId || "").trim() || randomId(10);
+          const roomId = randomId(10);
           const joinToken = randomId(10);
 
           room = {
@@ -406,6 +496,7 @@ function createRealDualWSS() {
             joinToken,
             createdAt: nowMs(),
             lastSeenAt: nowMs(),
+            patientConnected: false,
             host: peer,
             patient: {
               ws: null,
@@ -415,6 +506,7 @@ function createRealDualWSS() {
               pcmBuffer: [],
               mimeType: "",
               sampleRate: 16000,
+              finalBuf: "", // ✅ FIX #1
             },
           };
 
@@ -423,29 +515,33 @@ function createRealDualWSS() {
           peer.mimeType = String(hello.mimeType || hello.mime || "audio/pcm;format=s16le");
           peer.sampleRate = Number(hello.sampleRate || 16000);
 
-          // crear DG ws para host
           peer.dg = createDGClientWS({ sampleRate: peer.sampleRate });
           attachDGHandlers({ room, peerRole: "estudiante", peer });
           setupAudioPipeline({ room, peer });
 
-          // responder con join info (para QR)
-          // FE puede construir URL: `${APP_URL}/join/${roomId}?t=${joinToken}` o similar
           safeSend(ws, {
             type: "ready",
             role: "host",
             roomId,
-            joinToken, // 👈 el FE lo convierte en URL/QR
-            endpointingMs: Number(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 1200),
+            joinToken,
+            endpointingMs: Number(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 600),
           });
 
+          notifyPatientStatus(room, false, { reason: "waiting" });
           return;
         }
 
         // 2) control json
         if (!isBinary) {
           const evt = JSON.parse(message.toString("utf8"));
+
+          if (evt?.type === "ping") {
+            safeSend(ws, { type: "pong", ts: Date.now() });
+            return;
+          }
+
           if (evt?.type === "done") {
-            try { ws.close(); } catch {}
+            safeClose(ws, 1000, "done");
           }
           return;
         }
@@ -454,7 +550,6 @@ function createRealDualWSS() {
         if (!room) return;
         touchRoom(room);
 
-        // si PCM -> manda directo a DG
         if (isMimePCM(peer.mimeType)) {
           if (!peer.dgReady) {
             peer.pcmBuffer.push(Buffer.from(message));
@@ -466,11 +561,10 @@ function createRealDualWSS() {
           return;
         }
 
-        // si NO PCM -> pipe a ffmpeg
         if (peer.ff && peer.ff.stdin?.writable) {
           peer.ff.stdin.write(Buffer.from(message));
         }
-      } catch (e) {
+      } catch (_e) {
         safeSend(ws, { type: "error", message: "Mensaje inválido" });
       }
     });
@@ -481,6 +575,7 @@ function createRealDualWSS() {
   // ----------------------------
   patientWSS.on("connection", (ws) => {
     log("Patient connected");
+    const stopHeartbeat = attachHeartbeat(ws, "patient");
 
     let hello = null;
     let room = null;
@@ -493,33 +588,40 @@ function createRealDualWSS() {
       pcmBuffer: [],
       mimeType: "",
       sampleRate: 16000,
+      finalBuf: "", // ✅ FIX #1
     };
 
-    function cleanupSelf() {
-      // NO borramos el room completo si host sigue vivo
+    function cleanupSelf(reason = "closed") {
+      try {
+        stopHeartbeat?.();
+      } catch {}
+
       try {
         if (room?.patient) cleanupPeer(room.patient);
-        if (room?.patient?.ws) {
-          try { room.patient.ws.close(); } catch {}
-        }
+
         if (room) {
           room.patient.ws = null;
           room.patient.dg = null;
           room.patient.ff = null;
           room.patient.dgReady = false;
           room.patient.pcmBuffer = [];
+          room.patient.mimeType = room.patient.mimeType || "";
+          room.patient.sampleRate = room.patient.sampleRate || 16000;
+          room.patient.finalBuf = "";
+
+          notifyPatientStatus(room, false, { reason });
         }
       } catch {}
     }
 
     ws.on("close", () => {
       log("Patient WS closed", { roomId: room?.roomId || null });
-      cleanupSelf();
+      cleanupSelf("ws_close");
     });
 
     ws.on("error", (e) => {
       log("Patient WS error", { message: e?.message || String(e) });
-      cleanupSelf();
+      cleanupSelf("ws_error");
     });
 
     ws.on("message", async (message, isBinary) => {
@@ -531,7 +633,7 @@ function createRealDualWSS() {
           const parsed = JSON.parse(message.toString("utf8"));
           if (parsed?.type !== "hello_patient") {
             safeSend(ws, { type: "error", message: 'Primer mensaje debe ser type="hello_patient"' });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "bad_hello_patient");
             return;
           }
 
@@ -542,7 +644,7 @@ function createRealDualWSS() {
 
           if (!roomId || !joinToken) {
             safeSend(ws, { type: "error", message: "Faltan roomId o joinToken" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "missing_room_or_token");
             return;
           }
 
@@ -550,55 +652,56 @@ function createRealDualWSS() {
 
           if (!room) {
             safeSend(ws, { type: "error", message: "Room no existe o expiró" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "room_not_found");
             return;
           }
 
           if (joinToken !== room.joinToken) {
             safeSend(ws, { type: "error", message: "joinToken inválido" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1008, "invalid_join_token");
             return;
           }
 
           if (!DG_KEY) {
             safeSend(ws, { type: "error", message: "DEEPGRAM_API_KEY no configurada" });
-            try { ws.close(); } catch {}
+            safeClose(ws, 1011, "dg_key_missing");
             return;
           }
 
-          // asignar peer patient al room
+          try {
+            if (room.patient?.ws && room.patient.ws !== ws) {
+              safeClose(room.patient.ws, 4001, "replaced_by_new_patient");
+              cleanupPeer(room.patient);
+            }
+          } catch {}
+
           room.patient.ws = ws;
           room.patient.dg = null;
           room.patient.ff = null;
           room.patient.dgReady = false;
           room.patient.pcmBuffer = [];
+          room.patient.finalBuf = "";
 
-          // copiar settings
           peer.mimeType = String(hello.mimeType || hello.mime || "audio/pcm;format=s16le");
           peer.sampleRate = Number(hello.sampleRate || 16000);
 
-          // transfer a room.patient real
           Object.assign(room.patient, peer);
 
           touchRoom(room);
 
-          // crear DG ws patient
           room.patient.dg = createDGClientWS({ sampleRate: room.patient.sampleRate });
           attachDGHandlers({ room, peerRole: "paciente", peer: room.patient });
           setupAudioPipeline({ room, peer: room.patient });
 
-          // ready patient
           safeSend(ws, {
             type: "ready",
             role: "patient",
             roomId,
-            endpointingMs: Number(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 1200),
+            endpointingMs: Number(process.env.REAL_DUAL_DG_ENDPOINTING_MS || 600),
           });
 
-          // avisar host que patient ya entró
-          if (room.host?.ws) {
-            safeSend(room.host.ws, { type: "patient_joined", roomId });
-          }
+          notifyPatientStatus(room, true, { reason: "joined" });
+          if (room.host?.ws) safeSend(room.host.ws, { type: "patient_joined", roomId });
 
           return;
         }
@@ -606,8 +709,22 @@ function createRealDualWSS() {
         // 2) control json
         if (!isBinary) {
           const evt = JSON.parse(message.toString("utf8"));
+
+          if (evt?.type === "ping") {
+            safeSend(ws, { type: "pong", ts: Date.now() });
+            return;
+          }
+
+          if (evt?.type === "disconnect") {
+            try {
+              notifyPatientStatus(room, false, { reason: "patient_button" });
+            } catch {}
+            safeClose(ws, 1000, "patient_disconnect");
+            return;
+          }
+
           if (evt?.type === "done") {
-            try { ws.close(); } catch {}
+            safeClose(ws, 1000, "done");
           }
           return;
         }
@@ -632,7 +749,7 @@ function createRealDualWSS() {
         if (p.ff && p.ff.stdin?.writable) {
           p.ff.stdin.write(Buffer.from(message));
         }
-      } catch (e) {
+      } catch (_e) {
         safeSend(ws, { type: "error", message: "Mensaje inválido" });
       }
     });

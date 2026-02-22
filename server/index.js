@@ -23,6 +23,8 @@ if (ALLOWED_ORIGINS.length === 0) {
   ALLOWED_ORIGINS.push("http://localhost:3000", "http://localhost:5173");
 }
 
+ALLOWED_ORIGINS.push("https://192.168.1.98:5173");
+
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) return cb(null, true);
@@ -30,7 +32,14 @@ const corsOptions = {
     const allowed =
       ALLOWED_ORIGINS.includes(origin) ||
       /^http:\/\/localhost:\d+$/.test(origin) ||
-      /^http:\/\/127\.0\.0\.1:\d+$/.test(origin);
+      /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
+
+      // ✅ NUEVO: Vite https en LAN
+      /^https:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) ||
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) ||
+
+      // ✅ por si abres con https localhost
+      /^https:\/\/localhost:\d+$/.test(origin);
 
     if (allowed) return cb(null, true);
 
@@ -200,10 +209,49 @@ const realDual = typeof createRealDualWSS === "function" ? createRealDualWSS() :
 const realDualHostWSS = realDual?.hostWSS || null;
 const realDualPatientWSS = realDual?.patientWSS || null;
 
+function isAllowedWsOrigin(origin) {
+  // WS puede venir sin origin (Postman / native). En browser sí viene.
+  if (!origin) return true;
+
+  const o = String(origin).trim().replace(/\/+$/, "");
+  if (!o) return true;
+
+  return (
+    ALLOWED_ORIGINS.includes(o) ||
+    /^http:\/\/localhost:\d+$/.test(o) ||
+    /^http:\/\/127\.0\.0\.1:\d+$/.test(o) ||
+    /^https:\/\/localhost:\d+$/.test(o) ||
+    /^https:\/\/192\.168\.\d+\.\d+:\d+$/.test(o) ||
+    /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(o)
+  );
+}
+
 server.on("upgrade", (req, socket, head) => {
   try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const pathname = url.pathname || "";
+    const base = `http://${req.headers.host || "localhost"}`;
+    const url = new URL(req.url || "/", base);
+
+    // ✅ normaliza: quita slash final
+    const pathname = String(url.pathname || "/").replace(/\/+$/, "") || "/";
+
+    console.log("🔌 upgrade:", {
+      url: req.url,
+      origin: req.headers.origin,
+      host: req.headers.host,
+    });
+
+    // ✅ socket.io lo maneja internamente (NO destruir)
+    if (pathname.startsWith("/socket.io")) return;
+
+    // ✅ valida origin para WS (CORS middleware no aplica acá)
+    const origin = req.headers.origin;
+    if (!isAllowedWsOrigin(origin)) {
+      try {
+        socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+      } catch {}
+      socket.destroy();
+      return;
+    }
 
     // ✅ Deepgram proxy
     if (pathname === "/ws/deepgram") {
@@ -221,8 +269,7 @@ server.on("upgrade", (req, socket, head) => {
       return;
     }
 
-    // ✅ NUEVO: Real Dual (2 dispositivos)
-    // IMPORTANT: tus paths en controller son /ws/real-dual/host y /ws/real-dual/patient
+    // ✅ Real Dual
     if (pathname === "/ws/real-dual/host") {
       if (!realDualHostWSS) return socket.destroy();
       realDualHostWSS.handleUpgrade(req, socket, head, (ws) => {
@@ -238,9 +285,6 @@ server.on("upgrade", (req, socket, head) => {
       });
       return;
     }
-
-    // socket.io lo maneja internamente
-    if (pathname.startsWith("/socket.io")) return;
 
     socket.destroy();
   } catch (_e) {
