@@ -18,7 +18,7 @@ COPY server/. .
 
 
 #4) ffmpeg para transcripcion de sesion
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apk add --no-cache ffmpeg
 
 # Variables y puerto
 ENV NODE_ENV=production
