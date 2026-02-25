@@ -78,6 +78,20 @@ function deepSet(obj, path, value) {
 }
 
 /**
+ * ✅ MUY IMPORTANTE (FIX):
+ * Si tu schema usa Mixed (respuestas...), Mongoose NO detecta cambios profundos.
+ * Entonces debes forzar markModified en rutas clave antes de save().
+ */
+function markTranscripcionModified(inst) {
+  if (!inst || typeof inst.markModified !== "function") return;
+  // marcamos el árbol completo que estamos mutando
+  inst.markModified("respuestas");
+  inst.markModified("respuestas.rolePlaying");
+  inst.markModified("respuestas.rolePlaying.transcripcion");
+  inst.markModified("respuestas.rolePlaying.transcripcion.depuracion");
+}
+
+/**
  * ✅ Normaliza evaluaciones:
  * - si viene ARRAY => ok
  * - si viene OBJ => convierte a array de keys con valor truthy
@@ -128,6 +142,12 @@ function setAnalysisInInstance(inst, result, fuente = "real", replace = true) {
   inst.respuestas.rolePlaying.analysisResult = result;
   inst.respuestas.rolePlaying.savedAt = t.toISOString();
 
+  // por si respuestas es Mixed
+  if (typeof inst.markModified === "function") {
+    inst.markModified("respuestas");
+    inst.markModified("respuestas.rolePlaying");
+  }
+
   return inst;
 }
 
@@ -161,7 +181,24 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
 }
 
 /* =========================================================
-   ✅ Depuración de transcripción (NEW)
+   ✅ MEJORA: retry 1 vez para callLLMJson
+========================================================= */
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function callLLMJsonWithRetry(opts, retries = 1) {
+  try {
+    return await callLLMJson(opts);
+  } catch (e) {
+    if (retries <= 0) throw e;
+    await sleep(1200);
+    return callLLMJsonWithRetry(opts, retries - 1);
+  }
+}
+
+/* =========================================================
+   ✅ Depuración de transcripción
 ========================================================= */
 
 /**
@@ -177,30 +214,31 @@ function normalizeDepuracionResult(raw) {
   const out = isObj(raw) ? raw : {};
   const cleanedText = safeStr(out.cleanedText, "");
 
-  const turns = safeArr(out.turns).map((t, idx) => {
-    const id = safeStr(t?.id, `t_${idx + 1}`);
-    const speakerRaw = safeStr(t?.speaker, "").toLowerCase();
-    const speaker =
-      speakerRaw.includes("tera") || speakerRaw === "estudiante" || speakerRaw === "therapist"
-        ? "estudiante"
-        : speakerRaw.includes("paci") || speakerRaw === "paciente" || speakerRaw === "patient"
-        ? "paciente"
-        : "unknown";
+  const turns = safeArr(out.turns)
+    .map((t, idx) => {
+      const id = safeStr(t?.id, `t_${idx + 1}`);
+      const speakerRaw = safeStr(t?.speaker, "").toLowerCase();
+      const speaker =
+        speakerRaw.includes("tera") || speakerRaw === "estudiante" || speakerRaw === "therapist"
+          ? "estudiante"
+          : speakerRaw.includes("paci") || speakerRaw === "paciente" || speakerRaw === "patient"
+          ? "paciente"
+          : "unknown";
 
-    const confidence = Number.isFinite(Number(t?.confidence)) ? Number(t.confidence) : null;
+      const confidence = Number.isFinite(Number(t?.confidence)) ? Number(t.confidence) : null;
 
-    return {
-      id,
-      speaker,
-      text: safeStr(t?.text, "").trim(),
-      confidence,
-      needsReview: Boolean(t?.needsReview),
-      reason: safeStr(t?.reason, ""),
-      // opcional (si luego quieres UX con highlights)
-      startChar: Number.isFinite(Number(t?.startChar)) ? Number(t.startChar) : null,
-      endChar: Number.isFinite(Number(t?.endChar)) ? Number(t.endChar) : null,
-    };
-  }).filter((t) => t.text);
+      return {
+        id,
+        speaker,
+        text: safeStr(t?.text, "").trim(),
+        confidence,
+        needsReview: Boolean(t?.needsReview),
+        reason: safeStr(t?.reason, ""),
+        startChar: Number.isFinite(Number(t?.startChar)) ? Number(t.startChar) : null,
+        endChar: Number.isFinite(Number(t?.endChar)) ? Number(t.endChar) : null,
+      };
+    })
+    .filter((t) => t.text);
 
   const issues = safeArr(out.issues).map((it, idx) => {
     const id = safeStr(it?.id, `i_${idx + 1}`);
@@ -243,7 +281,6 @@ function longestCommonWordRun(a, b) {
   const B = normForMatch(b).split(" ").filter(Boolean);
   if (A.length === 0 || B.length === 0) return 0;
 
-  // DP para longest common contiguous subsequence (palabras)
   const dp = Array(B.length + 1).fill(0);
   let best = 0;
 
@@ -260,10 +297,9 @@ function longestCommonWordRun(a, b) {
       prev = tmp;
     }
   }
-  return best; // # palabras consecutivas iguales
+  return best;
 }
 
-// Detecta "eco" entre turnos contiguos (paciente->estudiante) o dentro del mismo turno
 function autoIssuesFromTurns(turns) {
   const out = [];
   let idx = 1;
@@ -279,7 +315,6 @@ function autoIssuesFromTurns(turns) {
     affectedTurnIds,
   });
 
-  // 1) Cross-turn echo: compara turnos vecinos
   for (let i = 0; i < turns.length - 1; i++) {
     const t1 = turns[i];
     const t2 = turns[i + 1];
@@ -298,12 +333,10 @@ function autoIssuesFromTurns(turns) {
     }
   }
 
-  // 2) Within-turn repetition: parte del texto repetida dentro del mismo turno
   for (const t of turns) {
     const words = normForMatch(t.text).split(" ").filter(Boolean);
     if (words.length < 18) continue;
 
-    // compara primera mitad vs segunda mitad (simple pero efectivo para repeticiones)
     const mid = Math.floor(words.length / 2);
     const a = words.slice(0, mid).join(" ");
     const b = words.slice(mid).join(" ");
@@ -347,6 +380,9 @@ function ensureTranscripcionObj(inst) {
 
   if (!t.activeVersion) t.activeVersion = "raw";
 
+  // FIX: si esto vive en Mixed, marcamos
+  markTranscripcionModified(inst);
+
   return t;
 }
 
@@ -355,14 +391,14 @@ function buildFinalTextFromTurns(turns = [], speakerOverrides = {}) {
 
   for (const t of turns) {
     const id = String(t?.id || "");
-    const override = speakerOverrides && typeof speakerOverrides === "object" ? speakerOverrides[id] : null;
+    const override =
+      speakerOverrides && typeof speakerOverrides === "object" ? speakerOverrides[id] : null;
 
     const speaker = override || t.speaker || "unknown";
 
     const label =
       speaker === "estudiante" ? "Terapeuta" : speaker === "paciente" ? "Paciente" : "Speaker";
 
-    // Formato limpio sin ruido (puedes cambiarlo luego a “solo estilo” en FE)
     lines.push(`${label}: ${safeStr(t?.text, "").trim()}`.trim());
   }
 
@@ -371,30 +407,23 @@ function buildFinalTextFromTurns(turns = [], speakerOverrides = {}) {
 
 function applyIssuesToTurns({ turns, issues, resolvedIssues }) {
   const byId = new Map(turns.map((t) => [String(t.id), { ...t }]));
-
   const removedTurnIds = new Set();
-
   const resolved = resolvedIssues && typeof resolvedIssues === "object" ? resolvedIssues : {};
 
   for (const issue of issues || []) {
     const issueId = String(issue?.id || "");
     const resolution = resolved[issueId] || null;
 
-    // si no hay resolution, no tocamos
     if (!resolution || typeof resolution !== "object") continue;
 
-    const action = String(resolution.action || resolution?.suggestionAction || "").toLowerCase().trim();
+    const action = String(resolution.action || resolution?.suggestionAction || "")
+      .toLowerCase()
+      .trim();
 
     const affected = Array.isArray(issue?.affectedTurnIds) ? issue.affectedTurnIds : [];
 
-    // Acciones mínimas (suficientes para tu UX actual):
-    // - remove: eliminar turnos duplicados (por ids)
-    // - keep: no hacer nada
-    // - merge: concatenar texto al primer turno y eliminar los demás
     if (action === "remove") {
-      for (const tid of affected) {
-        removedTurnIds.add(String(tid));
-      }
+      for (const tid of affected) removedTurnIds.add(String(tid));
     } else if (action === "merge") {
       const ids = affected.map((x) => String(x)).filter(Boolean);
       if (ids.length >= 2) {
@@ -409,12 +438,8 @@ function applyIssuesToTurns({ turns, issues, resolvedIssues }) {
           }
           const merged = [base.text, ...extraTexts].filter(Boolean).join(" ");
           byId.set(baseId, { ...base, text: merged.trim() });
-        } else {
-          // si no existe base, no hacemos merge
         }
       }
-    } else {
-      // keep / unknown -> no-op
     }
   }
 
@@ -432,7 +457,7 @@ function applyIssuesToTurns({ turns, issues, resolvedIssues }) {
 }
 
 /* =========================================================
-   Controller: análisis 
+   Controller: análisis
 ========================================================= */
 module.exports.analizarRolePlayIA = async (req, res) => {
   try {
@@ -444,23 +469,21 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       herramientas: herramientasRaw,
       data,
 
-      enfoque, // opcional
+      enfoque,
 
       instanciaId,
       moduloInstanciaId,
       sessionId,
 
       replace: replaceRaw = true,
-      fuente = "real", // "real" | "mock"
+      fuente = "real",
     } = req.body || {};
 
     const replace = toBool(replaceRaw, true);
 
-    // ===== Normalizaciones =====
     const evaluaciones = normalizeEvaluaciones(evaluacionesRaw);
     const herramientas = normalizeHerramientas(herramientasRaw);
 
-    // ===== Validaciones mínimas =====
     if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
 
     if (tipo && tipo !== "role_play") {
@@ -483,7 +506,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       });
     }
 
-    // ===== 1) Resolver instancia =====
     const userId = req.user?._id || req.user?.id || null;
 
     const inst = await resolveInstancia({
@@ -506,20 +528,19 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       });
     }
 
-    console.log("APLICAR depuracion => inst", String(inst._id), {
-      url: req.originalUrl,                // ✅ confirma ruta real
+    console.log("ANALISIS RolePlay => inst", String(inst._id), {
+      url: req.originalUrl,
       ejercicioId: String(ejercicioId || ""),
       instanciaId: String(instanciaId || ""),
       moduloInstanciaId: String(moduloInstanciaId || ""),
       userId: String(userId || ""),
       hasTrans: Boolean(inst?.respuestas?.rolePlaying?.transcripcion),
-      hasResult: Boolean(inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.result),
-      status: inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.status,
+      hasDepResult: Boolean(inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.result),
+      depStatus: inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.status,
+      activeVersion: inst?.respuestas?.rolePlaying?.transcripcion?.activeVersion,
     });
 
-    // ===== 2) Resolver data real =====
     let resolvedData = null;
-
     if (isObj(data)) resolvedData = data;
     else resolvedData = extractRPDataFromInstance(inst);
 
@@ -530,7 +551,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       });
     }
 
-    // ===== 3) clamp =====
     const safeData = {
       ...resolvedData,
       transcripcion: clampText(resolvedData?.transcripcion || "", 12000),
@@ -540,7 +560,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       planIntervencion: clampText(resolvedData?.planIntervencion || "", 6000),
     };
 
-    // ===== 4) Prompt =====
     const prompt = buildRolePlayPrompt({
       evaluaciones,
       herramientas,
@@ -548,7 +567,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       enfoque: enfoque || null,
     });
 
-    // ===== 5) LLM JSON =====
     const raw = await callLLMJson({
       system:
         "Eres un supervisor clínico experto. Debes devolver SOLO JSON válido, sin texto adicional.",
@@ -557,15 +575,12 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       temperature: 0.2,
     });
 
-    // ===== 6) Normaliza EXACTO a lo que tu FE consume =====
     let result = normalizeAIResult(raw, { evaluaciones, herramientas, enfoque });
     result = addLabelsToResult(result, { evaluaciones, herramientas });
 
-    // ===== 7) Persistencia =====
     setAnalysisInInstance(inst, result, fuente, replace);
     await inst.save();
 
-    // (opcional) Guardar en Session
     if (sessionId) {
       const ses = await Session.findById(sessionId);
       if (ses) {
@@ -594,17 +609,8 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 };
 
 /* =========================================================
-   ✅ NEW: POST depurar transcripción
-   Ruta sugerida:
+   ✅ POST depurar transcripción
    POST /ia/roleplay/transcripcion/depurar
-   Body:
-   {
-     ejercicioId,
-     instanciaId, moduloInstanciaId,
-     data?: { transcripcion: "..." } // opcional
-     replace?: true
-     model?: "..."
-   }
 ========================================================= */
 module.exports.depurarTranscripcionRolePlay = async (req, res) => {
   try {
@@ -613,7 +619,7 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
       instanciaId,
       moduloInstanciaId,
 
-      data, // opcional (si quieres mandar transcripcion directo)
+      data,
       replace: replaceRaw = true,
       model: modelRaw,
     } = req.body || {};
@@ -623,7 +629,6 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
 
     if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
 
-    // 1) instancia
     const inst = await resolveInstancia({
       instanciaId,
       ejercicioId,
@@ -635,11 +640,14 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
       return res.status(400).json({
         message:
           "No se encontró instancia (EjercicioInstancia). Envía instanciaId (ctx.ejercicioInstanciaId).",
-        debug: { instanciaId: instanciaId || null, ejercicioId, moduloInstanciaId: moduloInstanciaId || null },
+        debug: {
+          instanciaId: instanciaId || null,
+          ejercicioId,
+          moduloInstanciaId: moduloInstanciaId || null,
+        },
       });
     }
 
-    // 2) resolver transcripción raw
     let rpData = null;
     if (isObj(data)) rpData = data;
     else rpData = extractRPDataFromInstance(inst) || {};
@@ -647,84 +655,84 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
     const rawText =
       safeStr(rpData?.transcripcion, "") ||
       safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "") ||
-      safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), ""); // compat por si antes guardabas string
+      safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), "");
 
-    const rawTextClamped = clampText(rawText || "", 10000);
+    // ✅ MEJORA 1/2: clamp más agresivo
+    const rawTextClamped = clampText(rawText || "", 6000);
 
     if (!rawTextClamped || rawTextClamped.trim().length < 15) {
-      return res.status(400).json({
-        message: "No hay transcripción suficiente para depurar.",
-      });
+      return res.status(400).json({ message: "No hay transcripción suficiente para depurar." });
     }
 
-    // 3) persistimos raw (si está vacío o si replace)
     const tObj = ensureTranscripcionObj(inst);
 
     if (replace || !tObj.raw?.text) {
       tObj.raw = { text: rawTextClamped, createdAt: now() };
     }
 
-    // status processing
     tObj.depuracion.status = "processing";
     tObj.depuracion.error = "";
     tObj.depuracion.updatedAt = now();
     if (!tObj.depuracion.createdAt) tObj.depuracion.createdAt = now();
 
+    // ✅ FIX: forzar persistencia en Mixed
+    markTranscripcionModified(inst);
     await inst.save();
 
-    // 4) prompt (muy estricto: NO inventar / NO resumir)
     const prompt = `
-    Vas a depurar una transcripción clínica (terapeuta + paciente) con errores típicos de STT:
-    - traslape, duplicación, "eco" (una voz repite frase de la otra), repeticiones parciales, y segmentos ambiguos.
-    
-    REGLAS (MUY IMPORTANTES):
-    1) NO inventes texto, NO resumas, NO cambies el sentido clínico.
-    2) Detecta y marca "eco": cuando una frase del paciente aparece repetida dentro del turno del terapeuta (o viceversa).
-       - Si hay una repetición de >= 6 palabras consecutivas o muy similar, crea un issue type="duplicate" con suggestion.action="remove" o "merge".
-    3) Si un turno contiene dos bloques que parecen la misma frase repetida (repetición parcial), también es "duplicate".
-    4) Si el speaker es incierto => speaker="unknown", needsReview=true, confidence<0.7.
-    5) Si detectas duplicados obvios puedes:
-       - remove: eliminar el/los turnos duplicados (affectedTurnIds)
-       - merge: fusionar texto al primer turno y eliminar los demás
-       - keep: no hacer nada
-    6) IMPORTANTE: si encuentras cualquier eco/duplicación clara, NO devuelvas issues vacío.
-    
-    FORMATO:
-    - turns deben ser cortos/limpios (no metas 3 intervenciones diferentes dentro de 1 turno si puedes separarlas).
-    - cleanedText debe ser la reconstrucción limpia.
-    
-    DEVUELVE SOLO JSON VÁLIDO con esta forma EXACTA:
-    
-    {
-      "cleanedText": string,
-      "turns": [
-        { "id": "t_1", "speaker": "estudiante|paciente|unknown", "text": string, "confidence": number, "needsReview": boolean, "reason": string }
-      ],
-      "issues": [
-        { "id": "i_1", "type": "duplicate|overlap|speaker_ambiguous|noise|unknown", "severity":"low|medium|high", "snippet": string, "reason": string, "needsReview": boolean, "suggestion": { "action": "keep|remove|merge", "speaker": "estudiante|paciente|unknown" }, "affectedTurnIds": [ "t_1", "t_2" ] }
-      ],
-      "stats": { "removedDuplicates": number, "mergedTurns": number, "flagged": number }
-    }
-    
-    TRANSCRIPCIÓN (raw):
-    ${rawTextClamped}
-    `.trim();
+Vas a depurar una transcripción clínica (terapeuta + paciente) con errores típicos de STT:
+- traslape, duplicación, "eco" (una voz repite frase de la otra), repeticiones parciales, y segmentos ambiguos.
 
-    // 5) LLM JSON
+REGLAS (MUY IMPORTANTES):
+1) NO inventes texto, NO resumas, NO cambies el sentido clínico.
+2) Detecta y marca "eco": cuando una frase del paciente aparece repetida dentro del turno del terapeuta (o viceversa).
+   - Si hay repetición >= 6 palabras consecutivas o muy similar, crea issue type="duplicate" con suggestion.action="remove" o "merge".
+3) Si un turno contiene dos bloques que parecen la misma frase repetida (repetición parcial), también es "duplicate".
+4) Si el speaker es incierto => speaker="unknown", needsReview=true, confidence<0.7.
+5) Si detectas duplicados obvios puedes:
+   - remove: eliminar turnos duplicados (affectedTurnIds)
+   - merge: fusionar texto al primer turno y eliminar los demás
+   - keep: no hacer nada
+6) IMPORTANTE: si encuentras cualquier eco/duplicación clara, NO devuelvas issues vacío.
+
+FORMATO:
+- turns deben ser cortos/limpios (no metas 3 intervenciones distintas dentro de 1 turno si puedes separarlas).
+- cleanedText debe ser la reconstrucción limpia.
+
+DEVUELVE SOLO JSON VÁLIDO con esta forma EXACTA:
+
+{
+  "cleanedText": string,
+  "turns": [
+    { "id": "t_1", "speaker": "estudiante|paciente|unknown", "text": string, "confidence": number, "needsReview": boolean, "reason": string }
+  ],
+  "issues": [
+    { "id": "i_1", "type": "duplicate|overlap|speaker_ambiguous|noise|unknown", "severity":"low|medium|high", "snippet": string, "reason": string, "needsReview": boolean, "suggestion": { "action": "keep|remove|merge", "speaker": "estudiante|paciente|unknown" }, "affectedTurnIds": [ "t_1", "t_2" ] }
+  ],
+  "stats": { "removedDuplicates": number, "mergedTurns": number, "flagged": number }
+}
+
+TRANSCRIPCIÓN (raw):
+${rawTextClamped}
+`.trim();
+
     const model = safeStr(modelRaw, "") || process.env.AI_MODEL || "gpt-4.1-mini";
 
-    const llmRaw = await callLLMJson({
-      system: "Devuelve SOLO JSON válido. No agregues texto extra.",
-      prompt,
-      model,
-      temperature: 0.1,
-    });
+    // ✅ MEJORA 2/2: retry 1 vez
+    const llmRaw = await callLLMJsonWithRetry(
+      {
+        system: "Devuelve SOLO JSON válido. No agregues texto extra.",
+        prompt,
+        model,
+        temperature: 0.1,
+      },
+      1
+    );
 
     const result = normalizeDepuracionResult(llmRaw);
 
-    // ✅ fallback: si no hay turns, intentar parsear desde rawTextClamped
     if ((!result.turns || result.turns.length === 0) && rawTextClamped.includes(":")) {
-      const lines = rawTextClamped.split("\n").map(s => s.trim()).filter(Boolean);
+      const lines = rawTextClamped.split("\n").map((s) => s.trim()).filter(Boolean);
       const turns = [];
       let idx = 1;
 
@@ -735,34 +743,38 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
         const who = m[1].toLowerCase();
         const text = m[2].trim();
 
-        const speaker =
-          who.includes("paci") ? "paciente" :
-          (who.includes("estu") || who.includes("tera")) ? "estudiante" :
-          "unknown";
+        const speaker = who.includes("paci")
+          ? "paciente"
+          : who.includes("estu") || who.includes("tera")
+          ? "estudiante"
+          : "unknown";
 
-        if (text) turns.push({
-          id: `t_${idx++}`,
-          speaker,
-          text,
-          confidence: 0.75,
-          needsReview: false,
-          reason: "parsed_from_raw",
-        });
+        if (text) {
+          turns.push({
+            id: `t_${idx++}`,
+            speaker,
+            text,
+            confidence: 0.75,
+            needsReview: false,
+            reason: "parsed_from_raw",
+          });
+        }
       }
 
       if (turns.length) result.turns = turns;
     }
 
-    // ✅ Si el LLM no encontró issues, aplicamos heurística mínima
     if (!Array.isArray(result.issues) || result.issues.length === 0) {
       const auto = autoIssuesFromTurns(result.turns || []);
       if (auto.length) {
         result.issues = auto;
-        result.stats = { ...(result.stats || {}), flagged: (result.stats?.flagged || 0) + auto.length };
+        result.stats = {
+          ...(result.stats || {}),
+          flagged: (result.stats?.flagged || 0) + auto.length,
+        };
       }
     }
 
-    // 6) guardar resultado
     ensureTranscripcionObj(inst);
 
     inst.respuestas.rolePlaying.transcripcion.depuracion.status = "done";
@@ -770,7 +782,6 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
     inst.respuestas.rolePlaying.transcripcion.depuracion.updatedAt = now();
     inst.respuestas.rolePlaying.transcripcion.depuracion.result = result;
 
-    // reset decisiones si replace
     if (replace) {
       inst.respuestas.rolePlaying.transcripcion.depuracion.userDecisions = {
         resolvedIssues: {},
@@ -779,11 +790,12 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
       inst.respuestas.rolePlaying.transcripcion.depuracion.finalText = "";
     }
 
-    // por defecto aún no activamos depurada hasta que el usuario “aplique”
     if (!inst.respuestas.rolePlaying.transcripcion.activeVersion) {
       inst.respuestas.rolePlaying.transcripcion.activeVersion = "raw";
     }
 
+    // ✅ FIX: forzar persistencia del result en Mixed
+    markTranscripcionModified(inst);
     await inst.save();
 
     return res.json({
@@ -794,27 +806,35 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
   } catch (err) {
     console.error("❌ Error depurarTranscripcionRolePlay:", err);
 
+    // ✅ persistir estado error para evitar "processing" fantasma
+    try {
+      const userId = req.user?._id || req.user?.id || null;
+      const { ejercicioId, instanciaId, moduloInstanciaId } = req.body || {};
+
+      const inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
+      if (inst) {
+        const tObj = ensureTranscripcionObj(inst);
+        tObj.depuracion.status = "error";
+        tObj.depuracion.error = String(err?.message || "Error en depuración");
+        tObj.depuracion.updatedAt = now();
+
+        // ✅ FIX: persistir error en Mixed
+        markTranscripcionModified(inst);
+        await inst.save();
+      }
+    } catch (e2) {
+      console.error("❌ No se pudo persistir error de depuración:", e2?.message);
+    }
+
     const msg =
       err?.response?.data?.error?.message || err?.message || "Error interno del servidor";
-
     return res.status(500).json({ message: msg });
   }
 };
 
 /* =========================================================
-   ✅ NEW: POST aplicar depuración (decisiones del usuario)
-   Ruta sugerida:
+   ✅ POST aplicar depuración (decisiones del usuario)
    POST /ia/roleplay/transcripcion/depurar/aplicar
-   Body:
-   {
-     ejercicioId,
-     instanciaId, moduloInstanciaId,
-     decisions: {
-       speakerOverrides?: { [turnId]: "estudiante"|"paciente"|"unknown" },
-       resolvedIssues?: { [issueId]: { action:"keep|remove|merge" } }
-     },
-     setActive?: true
-   }
 ========================================================= */
 module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
   try {
@@ -824,6 +844,8 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       moduloInstanciaId,
       decisions,
       setActive: setActiveRaw = true,
+
+      clientResult,
     } = req.body || {};
 
     const setActive = toBool(setActiveRaw, true);
@@ -845,8 +867,26 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     }
 
     const tObj = ensureTranscripcionObj(inst);
-
     const dep = tObj.depuracion || {};
+
+    if (String(dep.status || "").toLowerCase() === "processing") {
+      return res.status(409).json({
+        message: "La depuración aún está en proceso. Espera a que termine para poder aplicar.",
+      });
+    }
+
+    // ✅ si backend no tiene result pero FE sí, lo guardamos
+    if ((!dep.result || !isObj(dep.result)) && isObj(clientResult)) {
+      dep.result = clientResult;
+      dep.status = "done";
+      dep.updatedAt = now();
+      dep.error = "";
+
+      // ✅ FIX
+      markTranscripcionModified(inst);
+      await inst.save();
+    }
+
     const depResult = dep.result;
 
     if (!depResult || !isObj(depResult)) {
@@ -865,17 +905,21 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
         ? decisions.resolvedIssues
         : {};
 
-    // merge decisiones acumuladas
     const prevDec = dep.userDecisions && typeof dep.userDecisions === "object" ? dep.userDecisions : {};
-    const prevSO = prevDec.speakerOverrides && typeof prevDec.speakerOverrides === "object" ? prevDec.speakerOverrides : {};
-    const prevRI = prevDec.resolvedIssues && typeof prevDec.resolvedIssues === "object" ? prevDec.resolvedIssues : {};
+    const prevSO =
+      prevDec.speakerOverrides && typeof prevDec.speakerOverrides === "object"
+        ? prevDec.speakerOverrides
+        : {};
+    const prevRI =
+      prevDec.resolvedIssues && typeof prevDec.resolvedIssues === "object"
+        ? prevDec.resolvedIssues
+        : {};
 
     dep.userDecisions = {
       speakerOverrides: { ...prevSO, ...(isObj(speakerOverridesIn) ? speakerOverridesIn : {}) },
       resolvedIssues: { ...prevRI, ...(isObj(resolvedIssuesIn) ? resolvedIssuesIn : {}) },
     };
 
-    // aplicar resoluciones a turns
     const turns = safeArr(depResult.turns);
     const issues = safeArr(depResult.issues);
 
@@ -894,18 +938,18 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     dep.updatedAt = now();
     dep.status = "done";
 
-    // activamos depurada si se pide
     if (setActive) {
       tObj.activeVersion = "depurada";
     }
 
-    // guardamos los turns actualizados también (para que FE pinte “final” sin recomputar)
     dep.result = {
       ...depResult,
       turns: turnsAfterIssues,
       cleanedText: safeStr(depResult.cleanedText, finalText) || finalText,
     };
 
+    // ✅ FIX: si no marcas Modified aquí, también puede perderse
+    markTranscripcionModified(inst);
     await inst.save();
 
     return res.json({

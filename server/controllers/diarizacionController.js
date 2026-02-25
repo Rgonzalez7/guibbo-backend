@@ -1,61 +1,107 @@
 const openai = require('../utils/openai');
-const { dividirTextoEnBloques } = require('../utils/dividirTexto');
+
+const { dividirTextoEnBloques } = require("../utils/dividirTexto");
+
+function tryParseJsonArray(str) {
+  const s = String(str || "").trim();
+  // intenta extraer el primer array JSON grande: [ ... ]
+  const m = s.match(/\[[\s\S]*\]/);
+  if (!m) return null;
+  try {
+    const arr = JSON.parse(m[0]);
+    return Array.isArray(arr) ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeTurns(arr) {
+  return (arr || [])
+    .map((x) => ({
+      hablante: String(x?.hablante || x?.speaker || "").trim() || "Speaker",
+      texto: String(x?.texto || x?.text || "").trim(),
+    }))
+    .filter((x) => x.texto);
+}
+
+async function mapWithConcurrency(items, limit, worker) {
+  const results = [];
+  let idx = 0;
+
+  const runners = new Array(Math.max(1, limit)).fill(null).map(async () => {
+    while (idx < items.length) {
+      const current = idx++;
+      results[current] = await worker(items[current], current);
+    }
+  });
+
+  await Promise.all(runners);
+  return results;
+}
 
 const diarizarTextoIA = async (req, res) => {
   try {
     const { texto } = req.body;
 
-    if (!texto || texto.trim() === '') {
-      return res.status(400).json({ message: 'Texto vacío o inválido.' });
+    if (!texto || String(texto).trim() === "") {
+      return res.status(400).json({ message: "Texto vacío o inválido." });
     }
 
-    const bloques = dividirTextoEnBloques(texto, 15);
+    // ✅ menos requests: bloque más grande (ajústalo si quieres)
+    const bloques = dividirTextoEnBloques(texto, 60); // antes 15
     const resultados = [];
 
-    for (const bloque of bloques) {
+    // ✅ concurrencia controlada (2 en paralelo)
+    const parciales = await mapWithConcurrency(bloques, 2, async (bloque) => {
       const prompt = `
-A continuación recibirás una transcripción de una sesión entre un paciente y un terapeuta. 
-Tu tarea es determinar, en cada línea, quién está hablando: "Paciente" o "Terapeuta". 
-Devuelve una lista en formato JSON como esta:
+A continuación recibirás una transcripción de una sesión entre un paciente y un terapeuta.
+Tu tarea es determinar quién habla en cada intervención: "Paciente" o "Terapeuta".
 
+Devuelve SOLO JSON válido como una lista:
 [
   { "hablante": "Paciente", "texto": "..." },
   { "hablante": "Terapeuta", "texto": "..." }
 ]
 
-No incluyas ninguna explicación, solo el JSON. Aquí va la transcripción:
+REGLAS:
+- No agregues explicaciones.
+- Mantén el texto lo más parecido posible al original.
+- Si es ambiguo, elige la mejor opción según patrones lingüísticos.
 
+TRANSCRIPCIÓN:
 """${bloque}"""
-      `;
+`.trim();
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2
+        // ✅ usa un modelo rápido (cambia aquí si tu cuenta usa otro nombre)
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
       });
 
-      const respuesta = completion.choices?.[0]?.message?.content || '';
+      const content = completion.choices?.[0]?.message?.content || "";
 
+      // ✅ parseo robusto (primero intenta JSON array)
+      const parsed = tryParseJsonArray(content);
+      if (parsed) return normalizeTurns(parsed);
+
+      // fallback viejo: regex por objetos
       const regex = /\{\s*"hablante"\s*:\s*".*?",\s*"texto"\s*:\s*".*?"\s*\}/gs;
-      const matches = respuesta.match(regex);
+      const matches = content.match(regex);
+      if (!matches || matches.length === 0) return [];
 
-      if (!matches || matches.length === 0) {
-        console.warn('[⚠️ No se encontraron turnos válidos en un bloque]');
-        continue;
-      }
+      const safeJson = `[${matches.join(",")}]`;
+      return normalizeTurns(JSON.parse(safeJson));
+    });
 
-      const safeJson = `[${matches.join(',')}]`;
-      const parcial = JSON.parse(safeJson);
+    for (const arr of parciales) resultados.push(...(arr || []));
 
-      resultados.push(...parcial);
-    }
-
-    res.json({ diarizado: resultados });
+    return res.json({ diarizado: resultados });
   } catch (err) {
-    console.error('[❌ Error parseando JSON de diarización]', err.message);
-    res.status(500).json({
-      message: 'Respuesta de diarización malformada',
-      error: err.message
+    console.error("[❌ diarización error]", err);
+    return res.status(500).json({
+      message: "Error en diarización",
+      error: err?.message,
     });
   }
 };
