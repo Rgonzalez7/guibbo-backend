@@ -60,23 +60,6 @@ function deepGet(obj, path, fallback = undefined) {
   }
 }
 
-function deepSet(obj, path, value) {
-  const parts = String(path || "")
-    .split(".")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (!parts.length) return obj;
-
-  let cur = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const k = parts[i];
-    if (!cur[k] || typeof cur[k] !== "object") cur[k] = {};
-    cur = cur[k];
-  }
-  cur[parts[parts.length - 1]] = value;
-  return obj;
-}
-
 /**
  * ✅ MUY IMPORTANTE (FIX):
  * Si tu schema usa Mixed (respuestas...), Mongoose NO detecta cambios profundos.
@@ -84,7 +67,6 @@ function deepSet(obj, path, value) {
  */
 function markTranscripcionModified(inst) {
   if (!inst || typeof inst.markModified !== "function") return;
-  // marcamos el árbol completo que estamos mutando
   inst.markModified("respuestas");
   inst.markModified("respuestas.rolePlaying");
   inst.markModified("respuestas.rolePlaying.transcripcion");
@@ -142,7 +124,6 @@ function setAnalysisInInstance(inst, result, fuente = "real", replace = true) {
   inst.respuestas.rolePlaying.analysisResult = result;
   inst.respuestas.rolePlaying.savedAt = t.toISOString();
 
-  // por si respuestas es Mixed
   if (typeof inst.markModified === "function") {
     inst.markModified("respuestas");
     inst.markModified("respuestas.rolePlaying");
@@ -153,11 +134,6 @@ function setAnalysisInInstance(inst, result, fuente = "real", replace = true) {
 
 /**
  * ✅ Resolver EjercicioInstancia:
- * - prioridad: instanciaId
- * - fallback: buscar por (estudiante + ejercicioId [+ moduloInstanciaId])
- *
- * NOTA: tu schema usa "estudiante", NO "usuario"
- *       dejamos compat con "usuario" por si tuvieras datos viejos.
  */
 async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId }) {
   let inst = null;
@@ -181,7 +157,7 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
 }
 
 /* =========================================================
-   ✅ MEJORA: retry 1 vez para callLLMJson
+   ✅ Retry 1 vez para callLLMJson
 ========================================================= */
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -198,18 +174,12 @@ async function callLLMJsonWithRetry(opts, retries = 1) {
 }
 
 /* =========================================================
-   ✅ Depuración de transcripción
+   ✅ Depuración (SIN incongruencias):
+   Solo segmenta en turnos y asigna speaker:
+   - terapeuta (estudiante)
+   - paciente
+   - unknown (ambiguo)
 ========================================================= */
-
-/**
- * Estructura esperada del LLM (JSON):
- * {
- *   cleanedText: string,
- *   turns: [{ id, speaker, text, confidence, needsReview, reason, startChar, endChar }],
- *   issues: [{ id, type, severity, snippet, reason, suggestion, needsReview, affectedTurnIds: [] }],
- *   stats: { removedDuplicates:number, mergedTurns:number, flagged:number }
- * }
- */
 function normalizeDepuracionResult(raw) {
   const out = isObj(raw) ? raw : {};
   const cleanedText = safeStr(out.cleanedText, "");
@@ -219,13 +189,19 @@ function normalizeDepuracionResult(raw) {
       const id = safeStr(t?.id, `t_${idx + 1}`);
       const speakerRaw = safeStr(t?.speaker, "").toLowerCase();
       const speaker =
-        speakerRaw.includes("tera") || speakerRaw === "estudiante" || speakerRaw === "therapist"
+        speakerRaw.includes("tera") ||
+        speakerRaw === "estudiante" ||
+        speakerRaw === "therapist"
           ? "estudiante"
-          : speakerRaw.includes("paci") || speakerRaw === "paciente" || speakerRaw === "patient"
+          : speakerRaw.includes("paci") ||
+            speakerRaw === "paciente" ||
+            speakerRaw === "patient"
           ? "paciente"
           : "unknown";
 
-      const confidence = Number.isFinite(Number(t?.confidence)) ? Number(t.confidence) : null;
+      const confidence = Number.isFinite(Number(t?.confidence))
+        ? Number(t.confidence)
+        : null;
 
       return {
         id,
@@ -240,24 +216,7 @@ function normalizeDepuracionResult(raw) {
     })
     .filter((t) => t.text);
 
-  const issues = safeArr(out.issues).map((it, idx) => {
-    const id = safeStr(it?.id, `i_${idx + 1}`);
-    const type = safeStr(it?.type, "unknown");
-    const severity = safeStr(it?.severity, "low");
-    const affectedTurnIds = safeArr(it?.affectedTurnIds).map((x) => safeStr(x, "")).filter(Boolean);
-
-    return {
-      id,
-      type,
-      severity,
-      snippet: safeStr(it?.snippet, ""),
-      reason: safeStr(it?.reason, ""),
-      needsReview: Boolean(it?.needsReview),
-      suggestion: isObj(it?.suggestion) ? it.suggestion : {},
-      affectedTurnIds,
-    };
-  });
-
+  // Compat: dejamos issues/stats, pero vacíos/0 (sin “incongruencias”)
   const statsIn = isObj(out.stats) ? out.stats : {};
   const stats = {
     removedDuplicates: Number(statsIn.removedDuplicates || 0) || 0,
@@ -265,97 +224,12 @@ function normalizeDepuracionResult(raw) {
     flagged: Number(statsIn.flagged || 0) || 0,
   };
 
-  return { cleanedText, turns, issues, stats };
-}
-
-function normForMatch(s) {
-  return safeStr(s, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function longestCommonWordRun(a, b) {
-  const A = normForMatch(a).split(" ").filter(Boolean);
-  const B = normForMatch(b).split(" ").filter(Boolean);
-  if (A.length === 0 || B.length === 0) return 0;
-
-  const dp = Array(B.length + 1).fill(0);
-  let best = 0;
-
-  for (let i = 1; i <= A.length; i++) {
-    let prev = 0;
-    for (let j = 1; j <= B.length; j++) {
-      const tmp = dp[j];
-      if (A[i - 1] === B[j - 1]) {
-        dp[j] = prev + 1;
-        if (dp[j] > best) best = dp[j];
-      } else {
-        dp[j] = 0;
-      }
-      prev = tmp;
-    }
-  }
-  return best;
-}
-
-function autoIssuesFromTurns(turns) {
-  const out = [];
-  let idx = 1;
-
-  const mk = (type, severity, snippet, reason, action, affectedTurnIds) => ({
-    id: `auto_${idx++}`,
-    type,
-    severity,
-    snippet,
-    reason,
-    needsReview: false,
-    suggestion: { action, speaker: "unknown" },
-    affectedTurnIds,
-  });
-
-  for (let i = 0; i < turns.length - 1; i++) {
-    const t1 = turns[i];
-    const t2 = turns[i + 1];
-    const run = longestCommonWordRun(t1.text, t2.text);
-    if (run >= 6) {
-      out.push(
-        mk(
-          "duplicate",
-          run >= 10 ? "high" : "medium",
-          `Eco detectado (${run} palabras)`,
-          "Frase repetida entre turnos contiguos (posible eco de STT).",
-          "merge",
-          [String(t1.id), String(t2.id)]
-        )
-      );
-    }
-  }
-
-  for (const t of turns) {
-    const words = normForMatch(t.text).split(" ").filter(Boolean);
-    if (words.length < 18) continue;
-
-    const mid = Math.floor(words.length / 2);
-    const a = words.slice(0, mid).join(" ");
-    const b = words.slice(mid).join(" ");
-    const run = longestCommonWordRun(a, b);
-    if (run >= 6) {
-      out.push(
-        mk(
-          "duplicate",
-          run >= 10 ? "high" : "medium",
-          `Repetición interna (${run} palabras)`,
-          "El mismo turno contiene repetición/eco (posible pegado de otra voz).",
-          "keep",
-          [String(t.id)]
-        )
-      );
-    }
-  }
-
-  return out;
+  return {
+    cleanedText,
+    turns,
+    issues: [], // 👈 ya no se usa
+    stats,
+  };
 }
 
 function ensureTranscripcionObj(inst) {
@@ -374,15 +248,36 @@ function ensureTranscripcionObj(inst) {
       createdAt: null,
       updatedAt: null,
       result: null,
-      userDecisions: { resolvedIssues: {}, speakerOverrides: {} },
+      userDecisions: {
+        resolvedIssues: {}, // compat (ya no se usa)
+        speakerOverrides: {},
+        turnSplits: {},
+        turnEdits: {},
+      },
       finalText: "",
     };
 
+  if (!isObj(t.depuracion.userDecisions)) {
+    t.depuracion.userDecisions = {
+      resolvedIssues: {},
+      speakerOverrides: {},
+      turnSplits: {},
+      turnEdits: {},
+    };
+  } else {
+    if (!isObj(t.depuracion.userDecisions.resolvedIssues))
+      t.depuracion.userDecisions.resolvedIssues = {};
+    if (!isObj(t.depuracion.userDecisions.speakerOverrides))
+      t.depuracion.userDecisions.speakerOverrides = {};
+    if (!isObj(t.depuracion.userDecisions.turnSplits))
+      t.depuracion.userDecisions.turnSplits = {};
+    if (!isObj(t.depuracion.userDecisions.turnEdits))
+      t.depuracion.userDecisions.turnEdits = {};
+  }
+
   if (!t.activeVersion) t.activeVersion = "raw";
 
-  // FIX: si esto vive en Mixed, marcamos
   markTranscripcionModified(inst);
-
   return t;
 }
 
@@ -397,63 +292,196 @@ function buildFinalTextFromTurns(turns = [], speakerOverrides = {}) {
     const speaker = override || t.speaker || "unknown";
 
     const label =
-      speaker === "estudiante" ? "Terapeuta" : speaker === "paciente" ? "Paciente" : "Speaker";
+      speaker === "estudiante"
+        ? "Terapeuta"
+        : speaker === "paciente"
+        ? "Paciente"
+        : "Speaker";
 
-    lines.push(`${label}: ${safeStr(t?.text, "").trim()}`.trim());
+    const text = safeStr(t?.text, "").trim();
+    if (!text) continue;
+
+    lines.push(`${label}: ${text}`.trim());
   }
 
   return lines.join("\n");
 }
 
-function applyIssuesToTurns({ turns, issues, resolvedIssues }) {
-  const byId = new Map(turns.map((t) => [String(t.id), { ...t }]));
-  const removedTurnIds = new Set();
-  const resolved = resolvedIssues && typeof resolvedIssues === "object" ? resolvedIssues : {};
+/* =========================================================
+   ✅ turnSplits helpers
+========================================================= */
+function normalizeTurnSplits(turnSplitsRaw) {
+  // Esperado: { [turnId]: [{ id, speaker, text }] }
+  if (!isObj(turnSplitsRaw)) return {};
 
-  for (const issue of issues || []) {
-    const issueId = String(issue?.id || "");
-    const resolution = resolved[issueId] || null;
+  const out = {};
+  for (const [turnId, arr] of Object.entries(turnSplitsRaw)) {
+    const tid = String(turnId || "").trim();
+    if (!tid) continue;
 
-    if (!resolution || typeof resolution !== "object") continue;
+    const items = safeArr(arr)
+      .map((x, idx) => {
+        const id = safeStr(x?.id, `split_${tid}_${idx + 1}`);
+        const speakerRaw = safeStr(x?.speaker, "unknown").toLowerCase();
+        const speaker =
+          speakerRaw === "estudiante" ||
+          speakerRaw.includes("tera") ||
+          speakerRaw === "therapist"
+            ? "estudiante"
+            : speakerRaw === "paciente" ||
+              speakerRaw.includes("paci") ||
+              speakerRaw === "patient"
+            ? "paciente"
+            : "unknown";
 
-    const action = String(resolution.action || resolution?.suggestionAction || "")
-      .toLowerCase()
-      .trim();
+        const text = safeStr(x?.text, "").trim();
+        if (!text) return null;
 
-    const affected = Array.isArray(issue?.affectedTurnIds) ? issue.affectedTurnIds : [];
+        return { id, speaker, text };
+      })
+      .filter(Boolean);
 
-    if (action === "remove") {
-      for (const tid of affected) removedTurnIds.add(String(tid));
-    } else if (action === "merge") {
-      const ids = affected.map((x) => String(x)).filter(Boolean);
-      if (ids.length >= 2) {
-        const baseId = ids[0];
-        const base = byId.get(baseId);
-        if (base) {
-          const extraTexts = [];
-          for (let i = 1; i < ids.length; i++) {
-            const t = byId.get(ids[i]);
-            if (t?.text) extraTexts.push(t.text);
-            removedTurnIds.add(ids[i]);
-          }
-          const merged = [base.text, ...extraTexts].filter(Boolean).join(" ");
-          byId.set(baseId, { ...base, text: merged.trim() });
-        }
-      }
+    if (items.length) out[tid] = items;
+  }
+
+  return out;
+}
+
+function applyTurnSplitsToTurns(turns = [], turnSplits = {}) {
+  // - Mantener turnos base en orden
+  // - Insertar splits DESPUÉS del turno original
+  if (!Array.isArray(turns) || turns.length === 0) return [];
+  if (!isObj(turnSplits) || Object.keys(turnSplits).length === 0) return turns;
+
+  const out = [];
+  for (const t of turns) {
+    out.push(t);
+
+    const tid = String(t?.id || "");
+    const splits = Array.isArray(turnSplits[tid]) ? turnSplits[tid] : [];
+    for (const sp of splits) {
+      const id = safeStr(sp?.id, "");
+      const text = safeStr(sp?.text, "").trim();
+      if (!id || !text) continue;
+
+      out.push({
+        id,
+        speaker: safeStr(sp?.speaker, "unknown"),
+        text,
+        confidence: null,
+        needsReview: false,
+        reason: "user_split",
+        startChar: null,
+        endChar: null,
+      });
     }
   }
 
-  const outTurns = [];
-  for (const t of turns) {
-    const id = String(t?.id || "");
-    if (!id) continue;
-    if (removedTurnIds.has(id)) continue;
+  return out;
+}
 
-    const fresh = byId.get(id);
-    if (fresh && fresh.text) outTurns.push(fresh);
+/* =========================================================
+   ✅ turnEdits helpers (quitar texto del turno original)
+========================================================= */
+function escapeRegExp(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function removeOnceLoose(haystack, needle) {
+  const H = safeStr(haystack, "");
+  const N = safeStr(needle, "").trim();
+  if (!H || !N) return H;
+
+  const idx = H.indexOf(N);
+  if (idx >= 0) {
+    return H.slice(0, idx) + H.slice(idx + N.length);
   }
 
-  return outTurns;
+  const parts = N
+    .split(/\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(escapeRegExp);
+
+  if (!parts.length) return H;
+
+  const re = new RegExp(parts.join("\\s+"), "m");
+  const m = H.match(re);
+  if (!m || typeof m.index !== "number") return H;
+
+  const start = m.index;
+  const end = start + m[0].length;
+  return H.slice(0, start) + H.slice(end);
+}
+
+function normalizeSpacing(s) {
+  return safeStr(s, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function computeEditedTurnText(originalText, removals = []) {
+  let out = safeStr(originalText, "");
+  for (const r of removals || []) {
+    const piece = safeStr(r?.text, "").trim();
+    if (!piece) continue;
+    out = removeOnceLoose(out, piece);
+  }
+  return normalizeSpacing(out);
+}
+
+function normalizeTurnEdits(turnEditsRaw) {
+  // Esperado:
+  // { [turnId]: { originalText: string, removals: [{ splitId, text }] } }
+  if (!isObj(turnEditsRaw)) return {};
+
+  const out = {};
+  for (const [turnId, ed] of Object.entries(turnEditsRaw)) {
+    const tid = safeStr(turnId, "").trim();
+    if (!tid) continue;
+    if (!isObj(ed)) continue;
+
+    const originalText = safeStr(ed?.originalText, "").trim();
+    const removals = safeArr(ed?.removals)
+      .map((r) => {
+        if (!isObj(r)) return null;
+        const splitId = safeStr(r?.splitId, "").trim();
+        const text = safeStr(r?.text, "").trim();
+        if (!text) return null;
+        return { splitId: splitId || null, text };
+      })
+      .filter(Boolean);
+
+    if (!originalText && removals.length === 0) continue;
+
+    out[tid] = { originalText, removals };
+  }
+
+  return out;
+}
+
+function applyTurnEditsToTurns(turns = [], turnEdits = {}) {
+  if (!Array.isArray(turns) || turns.length === 0) return [];
+  if (!isObj(turnEdits) || Object.keys(turnEdits).length === 0) return turns;
+
+  return turns
+    .map((t) => {
+      const id = safeStr(t?.id, "");
+      if (!id) return t;
+
+      const ed = turnEdits[id];
+      if (!isObj(ed)) return t;
+
+      const base = safeStr(t?.text, "");
+      const originalText = safeStr(ed?.originalText, base) || base;
+      const removals = safeArr(ed?.removals);
+
+      const edited = computeEditedTurnText(originalText, removals);
+      return { ...t, text: safeStr(edited, "").trim() };
+    })
+    .filter((t) => safeStr(t?.text, "").trim().length > 0);
 }
 
 /* =========================================================
@@ -528,18 +556,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       });
     }
 
-    console.log("ANALISIS RolePlay => inst", String(inst._id), {
-      url: req.originalUrl,
-      ejercicioId: String(ejercicioId || ""),
-      instanciaId: String(instanciaId || ""),
-      moduloInstanciaId: String(moduloInstanciaId || ""),
-      userId: String(userId || ""),
-      hasTrans: Boolean(inst?.respuestas?.rolePlaying?.transcripcion),
-      hasDepResult: Boolean(inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.result),
-      depStatus: inst?.respuestas?.rolePlaying?.transcripcion?.depuracion?.status,
-      activeVersion: inst?.respuestas?.rolePlaying?.transcripcion?.activeVersion,
-    });
-
     let resolvedData = null;
     if (isObj(data)) resolvedData = data;
     else resolvedData = extractRPDataFromInstance(inst);
@@ -609,8 +625,7 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 };
 
 /* =========================================================
-   ✅ POST depurar transcripción
-   POST /ia/roleplay/transcripcion/depurar
+   ✅ POST depurar transcripción (SOLO speakers + segmentación)
 ========================================================= */
 module.exports.depurarTranscripcionRolePlay = async (req, res) => {
   try {
@@ -657,7 +672,6 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
       safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "") ||
       safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), "");
 
-    // ✅ MEJORA 1/2: clamp más agresivo
     const rawTextClamped = clampText(rawText || "", 6000);
 
     if (!rawTextClamped || rawTextClamped.trim().length < 15) {
@@ -675,29 +689,25 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
     tObj.depuracion.updatedAt = now();
     if (!tObj.depuracion.createdAt) tObj.depuracion.createdAt = now();
 
-    // ✅ FIX: forzar persistencia en Mixed
     markTranscripcionModified(inst);
     await inst.save();
 
     const prompt = `
-Vas a depurar una transcripción clínica (terapeuta + paciente) con errores típicos de STT:
-- traslape, duplicación, "eco" (una voz repite frase de la otra), repeticiones parciales, y segmentos ambiguos.
+Vas a preparar una transcripción clínica (terapeuta + paciente) para revisión humana.
 
-REGLAS (MUY IMPORTANTES):
-1) NO inventes texto, NO resumas, NO cambies el sentido clínico.
-2) Detecta y marca "eco": cuando una frase del paciente aparece repetida dentro del turno del terapeuta (o viceversa).
-   - Si hay repetición >= 6 palabras consecutivas o muy similar, crea issue type="duplicate" con suggestion.action="remove" o "merge".
-3) Si un turno contiene dos bloques que parecen la misma frase repetida (repetición parcial), también es "duplicate".
-4) Si el speaker es incierto => speaker="unknown", needsReview=true, confidence<0.7.
-5) Si detectas duplicados obvios puedes:
-   - remove: eliminar turnos duplicados (affectedTurnIds)
-   - merge: fusionar texto al primer turno y eliminar los demás
-   - keep: no hacer nada
-6) IMPORTANTE: si encuentras cualquier eco/duplicación clara, NO devuelvas issues vacío.
+OBJETIVO (IMPORTANTE):
+- SOLO segmentar en turnos y asignar el locutor:
+  - "estudiante" = Terapeuta
+  - "paciente"   = Paciente
+  - "unknown"    = Ambiguo / no claro
 
-FORMATO:
-- turns deben ser cortos/limpios (no metas 3 intervenciones distintas dentro de 1 turno si puedes separarlas).
-- cleanedText debe ser la reconstrucción limpia.
+REGLAS:
+1) NO inventes texto, NO resumas, NO cambies el sentido.
+2) NO detectes ni generes incongruencias/issues. "issues" debe ser [] siempre.
+3) Mantén el texto lo más fiel posible (solo limpia espacios excesivos si es necesario).
+4) Si no estás seguro del locutor: speaker="unknown", needsReview=true y confidence<0.7.
+5) Si el texto viene en líneas tipo "Terapeuta: ..." / "Paciente: ...", respeta eso.
+6) Entrega turnos razonablemente cortos: si hay dos intervenciones claramente separadas, sepáralas.
 
 DEVUELVE SOLO JSON VÁLIDO con esta forma EXACTA:
 
@@ -706,10 +716,8 @@ DEVUELVE SOLO JSON VÁLIDO con esta forma EXACTA:
   "turns": [
     { "id": "t_1", "speaker": "estudiante|paciente|unknown", "text": string, "confidence": number, "needsReview": boolean, "reason": string }
   ],
-  "issues": [
-    { "id": "i_1", "type": "duplicate|overlap|speaker_ambiguous|noise|unknown", "severity":"low|medium|high", "snippet": string, "reason": string, "needsReview": boolean, "suggestion": { "action": "keep|remove|merge", "speaker": "estudiante|paciente|unknown" }, "affectedTurnIds": [ "t_1", "t_2" ] }
-  ],
-  "stats": { "removedDuplicates": number, "mergedTurns": number, "flagged": number }
+  "issues": [],
+  "stats": { "removedDuplicates": 0, "mergedTurns": 0, "flagged": 0 }
 }
 
 TRANSCRIPCIÓN (raw):
@@ -718,7 +726,6 @@ ${rawTextClamped}
 
     const model = safeStr(modelRaw, "") || process.env.AI_MODEL || "gpt-4.1-mini";
 
-    // ✅ MEJORA 2/2: retry 1 vez
     const llmRaw = await callLLMJsonWithRetry(
       {
         system: "Devuelve SOLO JSON válido. No agregues texto extra.",
@@ -731,8 +738,13 @@ ${rawTextClamped}
 
     const result = normalizeDepuracionResult(llmRaw);
 
+    // Fallback: si no hay turns pero hay prefijos ":" lo parseamos
     if ((!result.turns || result.turns.length === 0) && rawTextClamped.includes(":")) {
-      const lines = rawTextClamped.split("\n").map((s) => s.trim()).filter(Boolean);
+      const lines = rawTextClamped
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       const turns = [];
       let idx = 1;
 
@@ -754,24 +766,18 @@ ${rawTextClamped}
             id: `t_${idx++}`,
             speaker,
             text,
-            confidence: 0.75,
+            confidence: 0.8,
             needsReview: false,
             reason: "parsed_from_raw",
+            startChar: null,
+            endChar: null,
           });
         }
       }
 
-      if (turns.length) result.turns = turns;
-    }
-
-    if (!Array.isArray(result.issues) || result.issues.length === 0) {
-      const auto = autoIssuesFromTurns(result.turns || []);
-      if (auto.length) {
-        result.issues = auto;
-        result.stats = {
-          ...(result.stats || {}),
-          flagged: (result.stats?.flagged || 0) + auto.length,
-        };
+      if (turns.length) {
+        result.turns = turns;
+        result.cleanedText = buildFinalTextFromTurns(turns, {});
       }
     }
 
@@ -780,12 +786,23 @@ ${rawTextClamped}
     inst.respuestas.rolePlaying.transcripcion.depuracion.status = "done";
     inst.respuestas.rolePlaying.transcripcion.depuracion.model = model;
     inst.respuestas.rolePlaying.transcripcion.depuracion.updatedAt = now();
-    inst.respuestas.rolePlaying.transcripcion.depuracion.result = result;
+    inst.respuestas.rolePlaying.transcripcion.depuracion.result = {
+      ...result,
+      // Asegura compat:
+      issues: [],
+      stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+      // si cleanedText viene vacío, lo armamos desde turns
+      cleanedText:
+        safeStr(result.cleanedText, "").trim() ||
+        buildFinalTextFromTurns(result.turns || [], {}),
+    };
 
     if (replace) {
       inst.respuestas.rolePlaying.transcripcion.depuracion.userDecisions = {
-        resolvedIssues: {},
+        resolvedIssues: {}, // compat (ya no se usa)
         speakerOverrides: {},
+        turnSplits: {},
+        turnEdits: {},
       };
       inst.respuestas.rolePlaying.transcripcion.depuracion.finalText = "";
     }
@@ -794,7 +811,6 @@ ${rawTextClamped}
       inst.respuestas.rolePlaying.transcripcion.activeVersion = "raw";
     }
 
-    // ✅ FIX: forzar persistencia del result en Mixed
     markTranscripcionModified(inst);
     await inst.save();
 
@@ -806,7 +822,6 @@ ${rawTextClamped}
   } catch (err) {
     console.error("❌ Error depurarTranscripcionRolePlay:", err);
 
-    // ✅ persistir estado error para evitar "processing" fantasma
     try {
       const userId = req.user?._id || req.user?.id || null;
       const { ejercicioId, instanciaId, moduloInstanciaId } = req.body || {};
@@ -818,7 +833,6 @@ ${rawTextClamped}
         tObj.depuracion.error = String(err?.message || "Error en depuración");
         tObj.depuracion.updatedAt = now();
 
-        // ✅ FIX: persistir error en Mixed
         markTranscripcionModified(inst);
         await inst.save();
       }
@@ -834,7 +848,11 @@ ${rawTextClamped}
 
 /* =========================================================
    ✅ POST aplicar depuración (decisiones del usuario)
-   POST /ia/roleplay/transcripcion/depurar/aplicar
+   - SIN incongruencias/issues
+   - Solo:
+     - speakerOverrides
+     - turnSplits
+     - turnEdits (mover texto: quitar del turno original)
 ========================================================= */
 module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
   try {
@@ -844,7 +862,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       moduloInstanciaId,
       decisions,
       setActive: setActiveRaw = true,
-
       clientResult,
     } = req.body || {};
 
@@ -861,9 +878,7 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     });
 
     if (!inst) {
-      return res.status(400).json({
-        message: "No se encontró instancia (EjercicioInstancia).",
-      });
+      return res.status(400).json({ message: "No se encontró instancia (EjercicioInstancia)." });
     }
 
     const tObj = ensureTranscripcionObj(inst);
@@ -882,7 +897,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       dep.updatedAt = now();
       dep.error = "";
 
-      // ✅ FIX
       markTranscripcionModified(inst);
       await inst.save();
     }
@@ -895,48 +909,64 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       });
     }
 
+    // ================================
+    // 1) Tomar decisiones del FE
+    // ================================
     const speakerOverridesIn =
       decisions && typeof decisions === "object" && decisions.speakerOverrides
         ? decisions.speakerOverrides
         : {};
 
-    const resolvedIssuesIn =
-      decisions && typeof decisions === "object" && decisions.resolvedIssues
-        ? decisions.resolvedIssues
+    // compat: ignoramos resolvedIssues (no se usa)
+    const turnSplitsIn =
+      decisions && typeof decisions === "object" && decisions.turnSplits
+        ? decisions.turnSplits
         : {};
 
+    const turnEditsIn =
+      decisions && typeof decisions === "object" && decisions.turnEdits ? decisions.turnEdits : {};
+
+    // ================================
+    // 2) Merge decisiones (sin borrar)
+    // ================================
     const prevDec = dep.userDecisions && typeof dep.userDecisions === "object" ? dep.userDecisions : {};
-    const prevSO =
-      prevDec.speakerOverrides && typeof prevDec.speakerOverrides === "object"
-        ? prevDec.speakerOverrides
-        : {};
-    const prevRI =
-      prevDec.resolvedIssues && typeof prevDec.resolvedIssues === "object"
-        ? prevDec.resolvedIssues
-        : {};
+    const prevSO = isObj(prevDec.speakerOverrides) ? prevDec.speakerOverrides : {};
+    const prevTS = isObj(prevDec.turnSplits) ? prevDec.turnSplits : {};
+    const prevTE = isObj(prevDec.turnEdits) ? prevDec.turnEdits : {};
+
+    const normTS = normalizeTurnSplits(turnSplitsIn);
+    const normTE = normalizeTurnEdits(turnEditsIn);
 
     dep.userDecisions = {
+      // compat (ya no se usa, pero mantenemos)
+      resolvedIssues: isObj(prevDec.resolvedIssues) ? prevDec.resolvedIssues : {},
+
       speakerOverrides: { ...prevSO, ...(isObj(speakerOverridesIn) ? speakerOverridesIn : {}) },
-      resolvedIssues: { ...prevRI, ...(isObj(resolvedIssuesIn) ? resolvedIssuesIn : {}) },
+      turnSplits: { ...prevTS, ...(isObj(normTS) ? normTS : {}) },
+      turnEdits: { ...prevTE, ...(isObj(normTE) ? normTE : {}) },
     };
 
-    const turns = safeArr(depResult.turns);
-    const issues = safeArr(depResult.issues);
+    // ================================
+    // 3) Aplicar reglas a turnos
+    // ================================
+    const turnsBase = safeArr(depResult.turns);
 
-    const turnsAfterIssues = applyIssuesToTurns({
-      turns,
-      issues,
-      resolvedIssues: dep.userDecisions.resolvedIssues,
-    });
+    // 3.1 aplicar turnEdits (quita texto del turno original)
+    const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
 
-    const finalText = buildFinalTextFromTurns(
-      turnsAfterIssues,
-      dep.userDecisions.speakerOverrides
-    );
+    // 3.2 splits (insertar después del turno original)
+    const turnsApplied = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
 
+    // 3.3 finalText (aplica speakerOverrides en labels)
+    const finalText = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
+
+    // ================================
+    // 4) Persistir resultado aplicado
+    // ================================
     dep.finalText = finalText;
     dep.updatedAt = now();
     dep.status = "done";
+    dep.error = "";
 
     if (setActive) {
       tObj.activeVersion = "depurada";
@@ -944,11 +974,26 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
 
     dep.result = {
       ...depResult,
-      turns: turnsAfterIssues,
-      cleanedText: safeStr(depResult.cleanedText, finalText) || finalText,
+      // compat: issues vacío siempre
+      issues: [],
+      stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+
+      cleanedText: finalText,
+      turns: turnsApplied,
+      _applied: {
+        setActive: Boolean(setActive),
+        baseTurnsCount: turnsBase.length,
+        afterEditsCount: turnsAfterEdits.length,
+        appliedTurnsCount: turnsApplied.length,
+        hasSplits: Object.keys(dep.userDecisions.turnSplits || {}).length > 0,
+        splitsCount: Object.values(dep.userDecisions.turnSplits || {}).reduce(
+          (a, arr) => a + (Array.isArray(arr) ? arr.length : 0),
+          0
+        ),
+        hasEdits: Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
+      },
     };
 
-    // ✅ FIX: si no marcas Modified aquí, también puede perderse
     markTranscripcionModified(inst);
     await inst.save();
 
