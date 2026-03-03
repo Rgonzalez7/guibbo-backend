@@ -12,6 +12,8 @@ const {
 
 const { callLLMJson } = require("../utils/llmClient");
 
+const SPLIT_MARK_RE = /\[\[SPLIT:([^\]]+)\]\]/g;
+
 /* =========================================================
    Helpers
 ========================================================= */
@@ -71,6 +73,43 @@ function markTranscripcionModified(inst) {
   inst.markModified("respuestas.rolePlaying");
   inst.markModified("respuestas.rolePlaying.transcripcion");
   inst.markModified("respuestas.rolePlaying.transcripcion.depuracion");
+}
+
+/* =========================================================
+   ✅ Undo history helpers
+========================================================= */
+function cloneJSON(v) {
+  try {
+    return JSON.parse(JSON.stringify(v));
+  } catch {
+    return v;
+  }
+}
+
+function ensureDepHistory(dep) {
+  if (!dep || typeof dep !== "object") return;
+  if (!Array.isArray(dep.history)) dep.history = [];
+}
+
+function pushDepHistorySnapshot(dep, payload, max = 30) {
+  if (!dep || typeof dep !== "object") return;
+  ensureDepHistory(dep);
+
+  dep.history.push({
+    at: new Date().toISOString(),
+    ...cloneJSON(payload || {}),
+  });
+
+  if (dep.history.length > max) {
+    dep.history = dep.history.slice(dep.history.length - max);
+  }
+}
+
+function popDepHistorySnapshot(dep) {
+  if (!dep || typeof dep !== "object") return null;
+  ensureDepHistory(dep);
+  if (dep.history.length === 0) return null;
+  return dep.history.pop();
 }
 
 /**
@@ -255,6 +294,7 @@ function ensureTranscripcionObj(inst) {
         turnEdits: {},
       },
       finalText: "",
+      history: [], // ✅ Undo stack
     };
 
   if (!isObj(t.depuracion.userDecisions)) {
@@ -274,6 +314,8 @@ function ensureTranscripcionObj(inst) {
     if (!isObj(t.depuracion.userDecisions.turnEdits))
       t.depuracion.userDecisions.turnEdits = {};
   }
+
+  if (!Array.isArray(t.depuracion.history)) t.depuracion.history = [];
 
   if (!t.activeVersion) t.activeVersion = "raw";
 
@@ -422,14 +464,82 @@ function normalizeSpacing(s) {
     .trim();
 }
 
+function replaceOnceLoose(haystack, needle, replacement) {
+  const H = safeStr(haystack, "");
+  const N = safeStr(needle, "").trim();
+  if (!H || !N) return H;
+
+  const idx = H.indexOf(N);
+  if (idx >= 0) return H.slice(0, idx) + replacement + H.slice(idx + N.length);
+
+  const parts = N
+    .split(/\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(escapeRegExp);
+
+  if (!parts.length) return H;
+
+  const re = new RegExp(parts.join("\\s+"), "m");
+  const m = H.match(re);
+  if (!m || typeof m.index !== "number") return H;
+
+  const start = m.index;
+  const end = start + m[0].length;
+  return H.slice(0, start) + replacement + H.slice(end);
+}
+
+function normalizeSpacingKeepMarkers(s) {
+  return safeStr(s, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 function computeEditedTurnText(originalText, removals = []) {
-  let out = safeStr(originalText, "");
-  for (const r of removals || []) {
-    const piece = safeStr(r?.text, "").trim();
-    if (!piece) continue;
-    out = removeOnceLoose(out, piece);
+  const base = safeStr(originalText, "");
+  if (!base) return "";
+
+  // 1) aplicar por posiciones (start/end) DESC
+  const withPos = safeArr(removals)
+    .map((r) => {
+      if (!isObj(r)) return null;
+      const splitId = safeStr(r?.splitId, "").trim();
+      const piece = safeStr(r?.text, "").trim();
+      const start = Number(r?.start);
+      const end = Number(r?.end);
+      if (!splitId || !piece) return null;
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+      return { splitId, piece, start, end };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.start - a.start);
+
+  let out = base;
+
+  for (const r of withPos) {
+    if (r.start < 0 || r.end > out.length) continue;
+    const marker = `[[SPLIT:${r.splitId}]]`;
+    out = out.slice(0, r.start) + marker + out.slice(r.end);
   }
-  return normalizeSpacing(out);
+
+  // 2) fallback por búsqueda flexible
+  for (const r of safeArr(removals)) {
+    if (!isObj(r)) continue;
+    const splitId = safeStr(r?.splitId, "").trim();
+    const piece = safeStr(r?.text, "").trim();
+    const start = Number(r?.start);
+    const end = Number(r?.end);
+
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) continue;
+    if (!splitId || !piece) continue;
+
+    const marker = `[[SPLIT:${splitId}]]`;
+    out = replaceOnceLoose(out, piece, marker);
+  }
+
+  return normalizeSpacingKeepMarkers(out);
 }
 
 function normalizeTurnEdits(turnEditsRaw) {
@@ -450,7 +560,15 @@ function normalizeTurnEdits(turnEditsRaw) {
         const splitId = safeStr(r?.splitId, "").trim();
         const text = safeStr(r?.text, "").trim();
         if (!text) return null;
-        return { splitId: splitId || null, text };
+        const start = Number(r?.start);
+        const end = Number(r?.end);
+
+        return {
+          splitId: splitId || null,
+          text,
+          start: Number.isFinite(start) ? start : null,
+          end: Number.isFinite(end) ? end : null,
+        };
       })
       .filter(Boolean);
 
@@ -483,6 +601,7 @@ function applyTurnEditsToTurns(turns = [], turnEdits = {}) {
     })
     .filter((t) => safeStr(t?.text, "").trim().length > 0);
 }
+
 
 /* =========================================================
    Controller: análisis
@@ -626,6 +745,7 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 
 /* =========================================================
    ✅ POST depurar transcripción (SOLO speakers + segmentación)
+   ✅ FIX: guarda baseTurns inmutable para evitar duplicados al aplicar varias veces
 ========================================================= */
 module.exports.depurarTranscripcionRolePlay = async (req, res) => {
   try {
@@ -783,18 +903,27 @@ ${rawTextClamped}
 
     ensureTranscripcionObj(inst);
 
+    const baseTurns = safeArr(result.turns);
+
     inst.respuestas.rolePlaying.transcripcion.depuracion.status = "done";
     inst.respuestas.rolePlaying.transcripcion.depuracion.model = model;
     inst.respuestas.rolePlaying.transcripcion.depuracion.updatedAt = now();
     inst.respuestas.rolePlaying.transcripcion.depuracion.result = {
       ...result,
+
+      // ✅ FIX: guardar turnos base inmutables
+      baseTurns,
+
+      // ✅ Compat UI: turns siempre = baseTurns (NO turnos aplicados)
+      turns: baseTurns,
+
       // Asegura compat:
       issues: [],
       stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
-      // si cleanedText viene vacío, lo armamos desde turns
+
+      // si cleanedText viene vacío, lo armamos desde baseTurns
       cleanedText:
-        safeStr(result.cleanedText, "").trim() ||
-        buildFinalTextFromTurns(result.turns || [], {}),
+        safeStr(result.cleanedText, "").trim() || buildFinalTextFromTurns(baseTurns || [], {}),
     };
 
     if (replace) {
@@ -805,6 +934,8 @@ ${rawTextClamped}
         turnEdits: {},
       };
       inst.respuestas.rolePlaying.transcripcion.depuracion.finalText = "";
+      // ✅ reset history en replace (nuevo flujo)
+      inst.respuestas.rolePlaying.transcripcion.depuracion.history = [];
     }
 
     if (!inst.respuestas.rolePlaying.transcripcion.activeVersion) {
@@ -853,6 +984,9 @@ ${rawTextClamped}
      - speakerOverrides
      - turnSplits
      - turnEdits (mover texto: quitar del turno original)
+   ✅ FIX: SIEMPRE reconstruye desde baseTurns inmutable (evita duplicados)
+   ✅ UNDO: guarda snapshot antes de aplicar
+   ✅ REPLACE decisions: permite "borrar" cambios desde FE
 ========================================================= */
 module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
   try {
@@ -917,51 +1051,75 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
         ? decisions.speakerOverrides
         : {};
 
-    // compat: ignoramos resolvedIssues (no se usa)
     const turnSplitsIn =
-      decisions && typeof decisions === "object" && decisions.turnSplits
-        ? decisions.turnSplits
-        : {};
+      decisions && typeof decisions === "object" && decisions.turnSplits ? decisions.turnSplits : {};
 
     const turnEditsIn =
       decisions && typeof decisions === "object" && decisions.turnEdits ? decisions.turnEdits : {};
 
     // ================================
-    // 2) Merge decisiones (sin borrar)
+    // 2) ✅ Guardar snapshot UNDO (antes de cambiar)
     // ================================
-    const prevDec = dep.userDecisions && typeof dep.userDecisions === "object" ? dep.userDecisions : {};
-    const prevSO = isObj(prevDec.speakerOverrides) ? prevDec.speakerOverrides : {};
-    const prevTS = isObj(prevDec.turnSplits) ? prevDec.turnSplits : {};
-    const prevTE = isObj(prevDec.turnEdits) ? prevDec.turnEdits : {};
+    ensureDepHistory(dep);
+    pushDepHistorySnapshot(dep, {
+      userDecisions: dep.userDecisions || {
+        resolvedIssues: {},
+        speakerOverrides: {},
+        turnSplits: {},
+        turnEdits: {},
+      },
+      finalText: dep.finalText || "",
+      activeVersion: tObj.activeVersion || "raw",
+    });
+
+    // ================================
+    // 3) ✅ REPLACE decisiones (estado exacto)
+    //    Permite eliminar splits/overrides/edits desde FE
+    // ================================
+    const prevDec =
+      dep.userDecisions && typeof dep.userDecisions === "object" ? dep.userDecisions : {};
+    const resolvedIssuesKeep = isObj(prevDec.resolvedIssues) ? prevDec.resolvedIssues : {};
 
     const normTS = normalizeTurnSplits(turnSplitsIn);
     const normTE = normalizeTurnEdits(turnEditsIn);
 
     dep.userDecisions = {
-      // compat (ya no se usa, pero mantenemos)
-      resolvedIssues: isObj(prevDec.resolvedIssues) ? prevDec.resolvedIssues : {},
-
-      speakerOverrides: { ...prevSO, ...(isObj(speakerOverridesIn) ? speakerOverridesIn : {}) },
-      turnSplits: { ...prevTS, ...(isObj(normTS) ? normTS : {}) },
-      turnEdits: { ...prevTE, ...(isObj(normTE) ? normTE : {}) },
+      resolvedIssues: resolvedIssuesKeep, // compat (no usado)
+      speakerOverrides: isObj(speakerOverridesIn) ? speakerOverridesIn : {},
+      turnSplits: isObj(normTS) ? normTS : {},
+      turnEdits: isObj(normTE) ? normTE : {},
     };
 
     // ================================
-    // 3) Aplicar reglas a turnos
+    // 4) Aplicar reglas a turnos (BASE INMUTABLE)
     // ================================
-    const turnsBase = safeArr(depResult.turns);
+    let turnsBase = safeArr(depResult.baseTurns);
 
-    // 3.1 aplicar turnEdits (quita texto del turno original)
+    // Fallback compat si data vieja no tiene baseTurns:
+    if (!turnsBase.length) {
+      const maybe = safeArr(depResult.turns);
+
+      // Si alguna vez guardaste turnos aplicados, filtramos heurísticamente splits
+      turnsBase = maybe.filter((t) => {
+        const id = safeStr(t?.id, "");
+        const reason = safeStr(t?.reason, "");
+        if (reason === "user_split") return false;
+        if (id.startsWith("split-") || id.startsWith("split_")) return false;
+        return true;
+      });
+    }
+
+    // 4.1 aplicar turnEdits (quita texto del turno original)
     const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
 
-    // 3.2 splits (insertar después del turno original)
+    // 4.2 splits (insertar después del turno original)
     const turnsApplied = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
 
-    // 3.3 finalText (aplica speakerOverrides en labels)
+    // 4.3 finalText (aplica speakerOverrides en labels)
     const finalText = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
 
     // ================================
-    // 4) Persistir resultado aplicado
+    // 5) Persistir resultado aplicado
     // ================================
     dep.finalText = finalText;
     dep.updatedAt = now();
@@ -972,14 +1130,21 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       tObj.activeVersion = "depurada";
     }
 
+    // ✅ FIX CLAVE:
+    // - dep.result.turns se mantiene como baseTurns (NO applied)
+    // - appliedTurns se guarda aparte para debug
     dep.result = {
       ...depResult,
-      // compat: issues vacío siempre
+
+      baseTurns: turnsBase,
+      turns: turnsBase,
+
+      appliedTurns: turnsApplied,
+
       issues: [],
       stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
 
       cleanedText: finalText,
-      turns: turnsApplied,
       _applied: {
         setActive: Boolean(setActive),
         baseTurnsCount: turnsBase.length,
@@ -991,6 +1156,7 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
           0
         ),
         hasEdits: Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
+        historyCount: Array.isArray(dep.history) ? dep.history.length : 0,
       },
     };
 
@@ -1008,6 +1174,100 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     const msg =
       err?.response?.data?.error?.message || err?.message || "Error interno del servidor";
 
+    return res.status(500).json({ message: msg });
+  }
+};
+
+/* =========================================================
+   ✅ POST undo depuración
+   - Revierte al snapshot anterior (userDecisions + finalText)
+   - Recalcula finalText desde baseTurns (fuente de verdad)
+========================================================= */
+module.exports.deshacerDepuracionTranscripcionRolePlay = async (req, res) => {
+  try {
+    const { ejercicioId, instanciaId, moduloInstanciaId } = req.body || {};
+    const userId = req.user?._id || req.user?.id || null;
+
+    if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
+
+    const inst = await resolveInstancia({
+      instanciaId,
+      ejercicioId,
+      moduloInstanciaId,
+      userId,
+    });
+
+    if (!inst) {
+      return res.status(400).json({ message: "No se encontró instancia (EjercicioInstancia)." });
+    }
+
+    const tObj = ensureTranscripcionObj(inst);
+    const dep = tObj.depuracion || {};
+
+    const depResult = dep.result;
+    if (!depResult || !isObj(depResult)) {
+      return res.status(400).json({ message: "No existe resultado de depuración para deshacer." });
+    }
+
+    ensureDepHistory(dep);
+    const snap = popDepHistorySnapshot(dep);
+
+    if (!snap) {
+      return res.status(409).json({ message: "No hay acciones para deshacer." });
+    }
+
+    const restored =
+      snap.userDecisions && typeof snap.userDecisions === "object" ? snap.userDecisions : {};
+
+    dep.userDecisions = {
+      resolvedIssues: isObj(restored.resolvedIssues) ? restored.resolvedIssues : {},
+      speakerOverrides: isObj(restored.speakerOverrides) ? restored.speakerOverrides : {},
+      turnSplits: isObj(restored.turnSplits) ? normalizeTurnSplits(restored.turnSplits) : {},
+      turnEdits: isObj(restored.turnEdits) ? normalizeTurnEdits(restored.turnEdits) : {},
+    };
+
+    // Recalcular desde baseTurns
+    let turnsBase = safeArr(depResult.baseTurns);
+    if (!turnsBase.length) turnsBase = safeArr(depResult.turns); // fallback compat
+
+    const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
+    const turnsApplied = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
+    const finalText = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
+
+    dep.finalText = finalText;
+    dep.updatedAt = now();
+    dep.status = "done";
+    dep.error = "";
+
+    // Si quieres que undo también restaure activeVersion, descomenta:
+    // if (snap.activeVersion) tObj.activeVersion = snap.activeVersion;
+
+    dep.result = {
+      ...depResult,
+      baseTurns: turnsBase,
+      turns: turnsBase,
+      appliedTurns: turnsApplied,
+      issues: [],
+      stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+      cleanedText: finalText,
+      _undo: {
+        restoredAt: new Date().toISOString(),
+        historyCount: Array.isArray(dep.history) ? dep.history.length : 0,
+      },
+    };
+
+    markTranscripcionModified(inst);
+    await inst.save();
+
+    return res.json({
+      ok: true,
+      instanciaId: String(inst._id),
+      transcripcion: inst.respuestas.rolePlaying.transcripcion,
+    });
+  } catch (err) {
+    console.error("❌ Error deshacerDepuracionTranscripcionRolePlay:", err);
+    const msg =
+      err?.response?.data?.error?.message || err?.message || "Error interno del servidor";
     return res.status(500).json({ message: msg });
   }
 };
