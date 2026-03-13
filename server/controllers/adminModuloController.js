@@ -11,8 +11,10 @@ const {
   EjercicioCriteriosDx,
   EjercicioPruebas,
   EjercicioInterpretacionProyectiva,
-  TIPOS_MODULO, // puede ser array u objeto
-} = require('../models/modulo');
+  TIPOS_MODULO,
+  PRAXIS_NIVELES,
+  MODELOS_INTERVENCION,
+} = require("../models/modulo");
 
 const Universidad = require('../models/university');
 const Usuario = require('../models/user');
@@ -102,67 +104,10 @@ function normalizeTipoConsentimiento(raw) {
 }
 
 // =====================
-// ✅ Helpers booleans + normalizadores RolePlay
+// ✅ Helpers booleans + normalizadores RolePlay PRAXIS
 // =====================
 function toBool(v) {
-  return v === true || v === 'true' || v === 1 || v === '1';
-}
-
-const ROLEPLAY_EVALS_BASE = {
-  rapport: true,
-  preguntasAbiertas: true,
-  encuadre: true,
-  alianzaTerapeutica: true,
-};
-
-const ROLEPLAY_EVALS_OPTIONAL_DEFAULTS = {
-  // generales
-  parafrasis: false,
-  reflejo: false,
-  clarificacion: false,
-  chisteTerapeutico: false,
-  sarcasmoTerapeutico: false,
-  empatia: false,
-  revelacion: false,
-  metafora: false,
-  resumen: false,
-  practicarConsignasPruebas: false,
-  palabrasClave: false,
-  
-  // logoterapia
-  logoterapiaProposito: false,
-  logoterapiaSentido: false,
-
-  // TCC
-  tccReestructuracion: false,
-  tccIdeasIrracionales: false,
-  tccABC: false,
-
-  // Psicoanálisis
-  psicoLapsus: false,
-  psicoDefensas: false,
-
-  // Humanismo
-  humanismo: false,
-
-  // otros
-  entrevistaTrabajo: false,
-  protocolosMEP: false,
-};
-
-function normalizeEvaluacionesRolePlay(ev = {}) {
-  const inEv = ev && typeof ev === 'object' ? ev : {};
-  const out = { ...ROLEPLAY_EVALS_OPTIONAL_DEFAULTS };
-
-  // opcionales
-  Object.keys(ROLEPLAY_EVALS_OPTIONAL_DEFAULTS).forEach((k) => {
-    if (Object.prototype.hasOwnProperty.call(inEv, k)) {
-      out[k] = toBool(inEv[k]);
-    }
-  });
-
-  // base SIEMPRE true
-  return { ...out, ...ROLEPLAY_EVALS_BASE };
+  return v === true || v === "true" || v === 1 || v === "1";
 }
 
 const DEFAULT_HERRAMIENTAS_ROLEPLAY = {
@@ -181,7 +126,7 @@ const DEFAULT_HERRAMIENTAS_ROLEPLAY = {
 };
 
 function normalizeHerramientasRolePlay(h = {}) {
-  const inH = h && typeof h === 'object' ? h : {};
+  const inH = h && typeof h === "object" ? h : {};
   const out = { ...DEFAULT_HERRAMIENTAS_ROLEPLAY };
 
   Object.keys(DEFAULT_HERRAMIENTAS_ROLEPLAY).forEach((k) => {
@@ -194,20 +139,132 @@ function normalizeHerramientasRolePlay(h = {}) {
 }
 
 function normalizePruebasConfigRolePlay(pruebasConfig) {
-  if (!pruebasConfig || typeof pruebasConfig !== 'object') {
-    return { modo: 'student_choice', prueba: '' };
+  if (!pruebasConfig || typeof pruebasConfig !== "object") {
+    return { modo: "student_choice", prueba: "" };
   }
+
   const modo =
-    pruebasConfig.modo === 'fixed' || pruebasConfig.modo === 'student_choice'
+    pruebasConfig.modo === "fixed" || pruebasConfig.modo === "student_choice"
       ? pruebasConfig.modo
-      : 'student_choice';
+      : "student_choice";
 
-  const prueba = pruebasConfig.prueba ? String(pruebasConfig.prueba) : '';
+  const prueba = pruebasConfig.prueba ? String(pruebasConfig.prueba) : "";
 
-  // Si es student_choice, prueba debe ir vacía
-  if (modo === 'student_choice') return { modo, prueba: '' };
+  if (modo === "student_choice") {
+    return { modo, prueba: "" };
+  }
 
   return { modo, prueba };
+}
+
+function normalizePraxisNivel(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+
+  if (!v) return "nivel_1";
+
+  if (PRAXIS_NIVELES.includes(v)) return v;
+
+  if (
+    v === "nivel 1" ||
+    v === "nivel_i" ||
+    v === "nivel i" ||
+    v === "i" ||
+    v === "1" ||
+    v === "formacion inicial" ||
+    v === "formación inicial" ||
+    v === "inicio"
+  ) {
+    return "nivel_1";
+  }
+
+  if (
+    v === "nivel 2" ||
+    v === "nivel_ii" ||
+    v === "nivel ii" ||
+    v === "ii" ||
+    v === "2" ||
+    v === "desarrollo intermedio" ||
+    v === "intermedio"
+  ) {
+    return "nivel_2";
+  }
+
+  if (
+    v === "nivel 3" ||
+    v === "nivel_iii" ||
+    v === "nivel iii" ||
+    v === "iii" ||
+    v === "3" ||
+    v === "formacion avanzada" ||
+    v === "formación avanzada" ||
+    v === "avanzado"
+  ) {
+    return "nivel_3";
+  }
+
+  return "nivel_1";
+}
+
+function normalizeModeloIntervencion(raw) {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+
+  const exact = MODELOS_INTERVENCION.find((x) => x === v);
+  if (exact) return exact;
+
+  const vLower = stripDiacritics(v.toLowerCase());
+
+  for (const item of MODELOS_INTERVENCION) {
+    const itemNorm = stripDiacritics(String(item).toLowerCase());
+    if (itemNorm === vLower) return item;
+  }
+
+  // aliases comunes
+  if (vLower === "tcc" || vLower.includes("cognitivo conductual")) {
+    return "Terapia Cognitivo-Conductual (TCC)";
+  }
+
+  if (vLower.includes("psicoanal")) {
+    return "Psicoanálisis";
+  }
+
+  if (vLower.includes("logoterapia")) {
+    return "Logoterapia";
+  }
+
+  if (vLower.includes("centrada en la persona")) {
+    return "Terapia Centrada en la Persona";
+  }
+
+  if (vLower.includes("gestalt")) {
+    return "Gestalt";
+  }
+
+  if (vLower.includes("humanista")) {
+    return "Humanista-Existencial";
+  }
+
+  if (vLower.includes("fap")) {
+    return "Terapia Analítico-Funcional (FAP)";
+  }
+
+  if (vLower.includes("sistem")) {
+    return "Sistémica";
+  }
+
+  if (vLower === "act" || vLower.includes("aceptacion y compromiso")) {
+    return "Aceptación y Compromiso (ACT)";
+  }
+
+  if (vLower === "dbt" || vLower.includes("dialectica conductual")) {
+    return "Dialéctica Conductual (DBT)";
+  }
+
+  if (vLower.includes("mindfulness")) {
+    return "Mindfulness / Mindfulness-based";
+  }
+
+  return "";
 }
 
 function isRolePlayTipo(tipoEjercicio) {
@@ -1410,8 +1467,9 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         consentimiento,
         tipoConsentimiento,
         herramientas,
-        evaluaciones,
-        pruebasConfig: pruebasConfigRolePlay, // ✅ RolePlay config (alias)
+        praxisNivel,
+        modeloIntervencion,
+        pruebasConfig: pruebasConfigRolePlay,
   
         // Grabar voz
         caso,
@@ -1504,29 +1562,35 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       else if (isRolePlayTipo(tipoEjercicio)) {
         const consentimientoBool = toBool(consentimiento);
         const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
-  
+
         if (consentimientoBool && !tcNorm) {
           return res.status(400).json({
             message:
               "tipoConsentimiento inválido. Valores permitidos: " +
-              (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues ||
-                []
-              ).join(", "),
+              (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues || []).join(", "),
           });
         }
-  
+
+        const praxisNivelNorm = normalizePraxisNivel(praxisNivel);
+        const modeloIntervencionNorm = normalizeModeloIntervencion(modeloIntervencion);
+
         detalle = await EjercicioRolePlay.create({
           ejercicio: ejercicio._id,
-  
+
           tipoRole: tipoRole === "simulada" ? "simulada" : "real",
           trastorno: trastorno || "",
-  
+
           consentimiento: consentimientoBool,
           tipoConsentimiento: consentimientoBool ? tcNorm : "",
-  
+
+          praxisNivel: praxisNivelNorm,
+          modeloIntervencion: modeloIntervencionNorm,
+
           herramientas: normalizeHerramientasRolePlay(herramientas || {}),
-          evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}),
-          pruebasConfig: { modo: "student_choice", prueba: "" },
+          pruebasConfig: normalizePruebasConfigRolePlay(pruebasConfigRolePlay),
+
+          // compat legacy: lo dejamos null/nulo
+          evaluaciones: null,
         });
       } else if (tipoEjercicio === "Criterios de diagnostico") {
         detalle = await EjercicioCriteriosDx.create({
@@ -1598,18 +1662,19 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         return res.status(404).json({ message: "Ejercicio no encontrado" });
   
       const {
-        titulo,
-        tiempo,
-        tipoModulo,
-        tipoEjercicio,
+          titulo,
+          tiempo,
+          tipoModulo,
+          tipoEjercicio,
   
-        // RolePlay
-        tipoRole,
-        trastorno,
-        consentimiento,
-        tipoConsentimiento,
-        herramientas,
-        evaluaciones,
+          // RolePlay
+          tipoRole,
+          trastorno,
+          consentimiento,
+          tipoConsentimiento,
+          herramientas,
+          praxisNivel,
+          modeloIntervencion,
   
         // ✅ unificado
         pruebasConfig,
@@ -1698,47 +1763,70 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       // ✅ ROLEPLAY
       else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
         detalle = await EjercicioRolePlay.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioRolePlay.create({ ejercicio: id });
-  
-        if (tipoRole !== undefined)
-          detalle.tipoRole = tipoRole === "simulada" ? "simulada" : "real";
-        if (trastorno !== undefined) detalle.trastorno = trastorno || "";
-  
-        if (consentimiento !== undefined) {
-          detalle.consentimiento = toBool(consentimiento);
+        if (!detalle) {
+          detalle = await EjercicioRolePlay.create({ ejercicio: id });
         }
-  
-        // ✅ Validación consistente con CREATE
-        if (tipoConsentimiento !== undefined) {
-          const consentimientoBool =
-            consentimiento !== undefined ? toBool(consentimiento) : !!detalle.consentimiento;
-  
+
+        if (tipoRole !== undefined) {
+          detalle.tipoRole = tipoRole === "simulada" ? "simulada" : "real";
+        }
+
+        if (trastorno !== undefined) {
+          detalle.trastorno = String(trastorno || "");
+        }
+
+        if (consentimiento !== undefined) {
+          const consentimientoBool = toBool(consentimiento);
+          detalle.consentimiento = consentimientoBool;
+
+          if (!consentimientoBool) {
+            detalle.tipoConsentimiento = "";
+          } else if (tipoConsentimiento !== undefined) {
+            const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
+            if (!tcNorm) {
+              return res.status(400).json({
+                message:
+                  "tipoConsentimiento inválido. Valores permitidos: " +
+                  (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues || []).join(", "),
+              });
+            }
+            detalle.tipoConsentimiento = tcNorm;
+          }
+        } else if (tipoConsentimiento !== undefined && detalle.consentimiento) {
           const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
-  
-          if (consentimientoBool && !tcNorm) {
+          if (!tcNorm) {
             return res.status(400).json({
               message:
                 "tipoConsentimiento inválido. Valores permitidos: " +
-                (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues ||
-                  []
-                ).join(", "),
+                (EjercicioRolePlay.schema.path("tipoConsentimiento").enumValues || []).join(", "),
             });
           }
-  
-          detalle.tipoConsentimiento = consentimientoBool ? tcNorm : "";
+          detalle.tipoConsentimiento = tcNorm;
         }
-  
-        if (herramientas !== undefined)
+
+        if (praxisNivel !== undefined) {
+          detalle.praxisNivel = normalizePraxisNivel(praxisNivel);
+        }
+
+        if (modeloIntervencion !== undefined) {
+          detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
+        }
+
+        if (herramientas !== undefined) {
           detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
-        if (evaluaciones !== undefined)
-          detalle.evaluaciones = normalizeEvaluacionesRolePlay(evaluaciones || {});
-  
-          if (pruebasConfig !== undefined) {
-            detalle.pruebasConfig = { modo: "student_choice", prueba: "" };
-          }
-  
+        }
+
+        if (pruebasConfig !== undefined) {
+          detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig);
+        }
+
+        // compat legacy: ya no se usa como fuente principal
+        if (evaluaciones !== undefined) {
+          detalle.evaluaciones = null;
+        }
+
         await detalle.save();
-      } else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
+      }else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
         detalle = await EjercicioCriteriosDx.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioCriteriosDx.create({ ejercicio: id });
   
@@ -1837,179 +1925,6 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       console.error('❌ Error obteniendo ejercicio (admin):', err);
       return res.status(500).json({
         message: 'Error al obtener ejercicio (admin)',
-        error: err.message,
-      });
-    }
-  };
-
-/* ===========================
-   ACTUALIZAR EJERCICIO (ADMIN, SOLO LOCAL)
-   =========================== */
-
-   exports.actualizarEjercicioAdmin = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'ID de ejercicio inválido.' });
-      }
-  
-      const ejercicio = await Ejercicio.findById(id);
-      if (!ejercicio) return res.status(404).json({ message: 'Ejercicio no encontrado' });
-  
-      const {
-        titulo,
-        tiempo,
-        tipoModulo,
-        tipoEjercicio,
-      
-        // RolePlay
-        tipoRole,
-        trastorno,
-        consentimiento,
-        tipoConsentimiento,
-        herramientas,
-        evaluaciones,
-      
-        // ✅ unificado
-        pruebasConfig,
-      
-        // Grabar voz
-        caso,
-      
-        // Criterios Dx
-        criterios,
-        intentos,
-      
-        // Pruebas
-        pruebas,
-      
-        // Proyectivas
-        historia,
-        imagen,
-      
-        // Interp frases
-        edad,
-        ocupacion,
-        motivo,
-        historiaPersonal,
-        tipo,
-        respuestasFrases,
-        texto,
-      } = req.body || {};
-  
-      if (titulo !== undefined) ejercicio.titulo = String(titulo);
-      if (tiempo !== undefined) ejercicio.tiempo = typeof tiempo === 'number' ? tiempo : Number(tiempo) || 0;
-      await ejercicio.save();
-  
-      let detalle = null;
-  
-      if (ejercicio.tipoEjercicio === 'Grabar voz') {
-        detalle = await EjercicioGrabarVoz.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioGrabarVoz.create({ ejercicio: id });
-  
-        if (caso !== undefined) detalle.caso = String(caso || '');
-        if (req.body?.evaluaciones !== undefined) {
-          detalle.evaluaciones = normalizeEvaluacionesIA(req.body.evaluaciones || {});
-        }
-        await detalle.save();
-      }
-  
-      else if (ejercicio.tipoEjercicio === 'Interpretación de frases incompletas') {
-        detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioInterpretacionFrases.create({ ejercicio: id });
-  
-        if (edad !== undefined) detalle.edad = Number(edad);
-        if (ocupacion !== undefined) detalle.ocupacion = ocupacion || '';
-        if (motivo !== undefined) detalle.motivo = motivo || '';
-        if (historiaPersonal !== undefined) detalle.historiaPersonal = historiaPersonal || '';
-        if (tipo !== undefined) detalle.tipoTest = tipo || 'adulto';
-        if (Array.isArray(respuestasFrases)) detalle.respuestasFrases = respuestasFrases;
-        if (texto !== undefined) detalle.notas = texto || '';
-        if (intentos !== undefined) detalle.intentos = typeof intentos === 'number' ? intentos : Number(intentos) || 1;
-  
-        await detalle.save();
-      }
-  
-      // ✅ ROLEPLAY
-      else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
-        detalle = await EjercicioRolePlay.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioRolePlay.create({ ejercicio: id });
-  
-        if (tipoRole !== undefined) detalle.tipoRole = tipoRole === 'simulada' ? 'simulada' : 'real';
-        if (trastorno !== undefined) detalle.trastorno = trastorno || '';
-  
-        if (consentimiento !== undefined) {
-          detalle.consentimiento = toBool(consentimiento);
-        }
-        
-        if (tipoConsentimiento !== undefined) {
-          const consentimientoBool =
-            (consentimiento !== undefined) ? toBool(consentimiento) : !!detalle.consentimiento;
-        
-          const tcNorm = normalizeTipoConsentimiento(tipoConsentimiento);
-        
-          detalle.tipoConsentimiento = consentimientoBool ? tcNorm : "";
-        }
-  
-        if (herramientas !== undefined) detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
-        if (evaluaciones !== undefined) detalle.evaluaciones = normalizeEvaluacionesRolePlay(evaluaciones || {});
-  
-        // ✅ FIX: usa el renombrado
-        if (pruebasConfig !== undefined) {
-          detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig || {});
-        }
-  
-        await detalle.save();
-      }
-  
-      else if (ejercicio.tipoEjercicio === 'Criterios de diagnostico') {
-        detalle = await EjercicioCriteriosDx.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioCriteriosDx.create({ ejercicio: id });
-  
-        if (caso !== undefined) detalle.caso = caso || '';
-        if (criterios !== undefined) detalle.criterios = criterios || '';
-        if (intentos !== undefined) detalle.intentos = typeof intentos === 'number' ? intentos : Number(intentos) || 1;
-  
-        await detalle.save();
-      }
-  
-      else if (ejercicio.tipoEjercicio === 'Aplicación de pruebas') {
-        detalle = await EjercicioPruebas.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioPruebas.create({ ejercicio: id });
-      
-        // ✅ en UPDATE solo usa "pruebasConfig" (unificado) o "pruebas" como compat
-        const cfg =
-          (pruebasConfig && typeof pruebasConfig === 'object')
-            ? pruebasConfig
-            : (pruebas && typeof pruebas === 'object')
-              ? pruebas
-              : {};
-      
-        detalle.pruebasConfig = cfg;
-        await detalle.save();
-      }
-  
-      else if (ejercicio.tipoEjercicio === 'Pruebas psicometricas') {
-        detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioInterpretacionProyectiva.create({ ejercicio: id });
-  
-        if (imagen !== undefined) detalle.imagen = imagen || '';
-        if (historia !== undefined) detalle.historia = historia || '';
-        if (intentos !== undefined) detalle.intentos = typeof intentos === 'number' ? intentos : Number(intentos) || 1;
-  
-        await detalle.save();
-      }
-  
-      return res.json({
-        message: 'Ejercicio actualizado correctamente',
-        ejercicio,
-        detalle,
-      });
-    } catch (err) {
-      console.error('❌ Error actualizando ejercicio (admin):', err);
-      return res.status(500).json({
-        message: 'Error al actualizar ejercicio (admin)',
         error: err.message,
       });
     }

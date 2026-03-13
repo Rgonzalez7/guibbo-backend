@@ -1,4 +1,3 @@
-// server/models/ejercicioInstancia.js
 const mongoose = require("mongoose");
 
 const ejercicioInstanciaSchema = new mongoose.Schema(
@@ -23,7 +22,7 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ✅ NUEVOS ESTADOS reales de flujo
+    // ✅ ESTADOS reales de flujo
     estado: {
       type: String,
       enum: ["bloqueado", "pendiente", "en_progreso", "completado"],
@@ -40,24 +39,37 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
-  
+
     calificacionFinal: {
       type: Number,
       default: null,
     },
-    
+
     feedback: {
       type: String,
       default: "",
     },
-    
+
     evaluacionInformeScores: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
 
-    // ✅ Guarda el análisis COMPLETO (JSON)
+    /* =========================================================
+       ✅ ANÁLISIS IA PRINCIPAL
+       Este seguirá guardando la evaluación Praxis-TH
+       ========================================================= */
     analisisIA: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
+    /* =========================================================
+       ✅ NUEVO: evaluación de herramientas
+       Aquí guardaremos la coherencia/redacción de:
+       ficha, hc, examen, diagnóstico, etc.
+       ========================================================= */
+    evaluacionHerramientas: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
@@ -81,7 +93,7 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
     },
 
     /* =========================================================
-       ✅ TIEMPO REAL DE PRÁCTICA (NUEVO)
+       ✅ TIEMPO REAL DE PRÁCTICA
        ========================================================= */
 
     // Marca cuando el estudiante inició la sesión actual (si está en progreso)
@@ -91,14 +103,14 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Total acumulado de práctica en segundos (suma de todas las sesiones)
+    // Total acumulado de práctica en segundos
     tiempoAcumuladoSeg: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    // Auditoría opcional (si quieres ver entradas/salidas)
+    // Auditoría opcional
     sesiones: [
       {
         startedAt: { type: Date, required: true },
@@ -107,7 +119,7 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
       },
     ],
 
-    // Marca final (opcional) al completar
+    // Marca final al completar
     completedAt: {
       type: Date,
       default: null,

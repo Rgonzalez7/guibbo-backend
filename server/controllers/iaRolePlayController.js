@@ -1,6 +1,7 @@
 // server/controllers/iaRolePlayController.js
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const Session = require("../models/session");
+const { EjercicioRolePlay } = require("../models/modulo");
 
 const {
   buildRolePlayPrompt,
@@ -8,6 +9,8 @@ const {
   normalizeAIResult,
   addLabelsToResult,
   extractRPDataFromInstance,
+  normalizePraxisNivel,
+  normalizeModeloIntervencion,
 } = require("../utils/analisisRolePlayIA");
 
 const { callLLMJson } = require("../utils/llmClient");
@@ -145,30 +148,167 @@ function normalizeHerramientas(herramientasRaw) {
 }
 
 /**
- * ✅ Guarda el análisis en EjercicioInstancia, manteniendo compat con UI actual.
+ * ✅ Guarda el análisis PRAXIS-TH y la evaluación de herramientas.
  */
-function setAnalysisInInstance(inst, result, fuente = "real", replace = true) {
+function setAnalysisInInstance(
+  inst,
+  {
+    analisisIA,
+    evaluacionHerramientas,
+  },
+  fuente = "real",
+  replace = true
+) {
   const t = now();
 
-  inst.analisisIA = replace ? result : { ...(inst.analisisIA || {}), ...result };
+  inst.analisisIA = replace
+    ? analisisIA
+    : { ...(inst.analisisIA || {}), ...(analisisIA || {}) };
+
+  inst.evaluacionHerramientas = replace
+    ? evaluacionHerramientas
+    : {
+        ...(inst.evaluacionHerramientas || {}),
+        ...(evaluacionHerramientas || {}),
+      };
+
   inst.analisisGeneradoAt = t;
   inst.analisisFuente = fuente;
-
   inst.intentosUsados = Number(inst.intentosUsados || 0) + 1;
 
   if (!inst.respuestas) inst.respuestas = {};
   if (!inst.respuestas.rolePlaying) inst.respuestas.rolePlaying = {};
 
-  // compat UI actual
-  inst.respuestas.rolePlaying.analysisResult = result;
+  // ✅ compatibilidad amplia
+  inst.respuestas.rolePlaying.analysisResult = {
+    analisisIA: inst.analisisIA,
+    evaluacionHerramientas: inst.evaluacionHerramientas,
+  };
+
+  inst.respuestas.rolePlaying.analisisIA = inst.analisisIA;
+  inst.respuestas.rolePlaying.evaluacionHerramientas = inst.evaluacionHerramientas;
   inst.respuestas.rolePlaying.savedAt = t.toISOString();
 
   if (typeof inst.markModified === "function") {
+    inst.markModified("analisisIA");
+    inst.markModified("evaluacionHerramientas");
     inst.markModified("respuestas");
     inst.markModified("respuestas.rolePlaying");
+    inst.markModified("respuestas.rolePlaying.analysisResult");
+    inst.markModified("respuestas.rolePlaying.analisisIA");
+    inst.markModified("respuestas.rolePlaying.evaluacionHerramientas");
+    inst.markModified("respuestas.rolePlaying.savedAt");
   }
 
   return inst;
+}
+
+function hasAnyEnabledTool(herramientas = {}) {
+  if (!herramientas || typeof herramientas !== "object") return false;
+  return Object.keys(herramientas).some((k) => herramientas[k] === true);
+}
+
+async function resolveRolePlayConfig({
+  ejercicioId,
+  herramientasRaw,
+  praxisNivelRaw,
+  modeloIntervencionRaw,
+  enfoqueRaw,
+}) {
+  let detalle = null;
+
+  if (ejercicioId) {
+    try {
+      detalle = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
+        .select("praxisNivel modeloIntervencion herramientas")
+        .lean();
+    } catch {
+      detalle = null;
+    }
+  }
+
+  const herramientasFromReq = normalizeHerramientas(herramientasRaw);
+  const herramientasFromDb = normalizeHerramientas(detalle?.herramientas);
+
+  const herramientas = hasAnyEnabledTool(herramientasFromReq)
+    ? herramientasFromReq
+    : hasAnyEnabledTool(herramientasFromDb)
+    ? herramientasFromDb
+    : {};
+
+  const praxisNivel = normalizePraxisNivel(
+    praxisNivelRaw || detalle?.praxisNivel || "nivel_1"
+  );
+
+  const modeloIntervencion = normalizeModeloIntervencion(
+    modeloIntervencionRaw || enfoqueRaw || detalle?.modeloIntervencion || ""
+  );
+
+  return {
+    praxisNivel,
+    modeloIntervencion,
+    herramientas,
+    detalleRolePlay: detalle || null,
+  };
+}
+
+function buildSafeAnalysisData(resolvedData = {}) {
+  return {
+    ...resolvedData,
+
+    transcripcion: clampText(
+      resolvedData?.transcripcion ||
+        resolvedData?.transcription ||
+        resolvedData?.textoTranscripcion ||
+        "",
+      12000
+    ),
+
+    pruebaTranscripcion: clampText(
+      resolvedData?.pruebaTranscripcion ||
+        resolvedData?.transcripcionPrueba ||
+        resolvedData?.transcripcionDePrueba ||
+        "",
+      6000
+    ),
+
+    interpretacionPrueba: clampText(
+      resolvedData?.interpretacionPrueba ||
+        resolvedData?.interpretacionDePrueba ||
+        resolvedData?.interpretacionPruebas ||
+        "",
+      6000
+    ),
+
+    anexos: clampText(resolvedData?.anexos || "", 6000),
+
+    // ✅ aquí conviene dejarlo como venga, no forzarlo a string
+    planIntervencion:
+      resolvedData?.planIntervencion ||
+      resolvedData?.planAgenda ||
+      resolvedData?.planIntervencionAgenda ||
+      resolvedData?.agendaIntervencion ||
+      [],
+
+    // herramientas/documentos
+    fichaTecnica: resolvedData?.fichaTecnica || resolvedData?.ficha || {},
+    historialClinico: resolvedData?.historialClinico || resolvedData?.hc || {},
+    examenMental:
+      resolvedData?.examenMental ||
+      resolvedData?.estadoMental ||
+      resolvedData?.mentalStatusExam ||
+      {},
+    convergencia: resolvedData?.convergencia || [],
+    hipotesis:
+      resolvedData?.hipotesis ||
+      resolvedData?.hipotesisDiagnostica ||
+      "",
+    diagnosticoFinal:
+      resolvedData?.diagnosticoFinal ||
+      resolvedData?.diagnostico ||
+      "",
+    recomendaciones: resolvedData?.recomendaciones || "",
+  };
 }
 
 /**
@@ -186,7 +326,7 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
 
   const q = {
     ejercicio: ejercicioId,
-    $or: [{ estudiante: userId }, { usuario: userId }], // compat
+    $or: [{ estudiante: userId }, { usuario: userId }],
   };
 
   if (moduloInstanciaId) q.moduloInstancia = moduloInstanciaId;
@@ -213,11 +353,7 @@ async function callLLMJsonWithRetry(opts, retries = 1) {
 }
 
 /* =========================================================
-   ✅ Depuración (SIN incongruencias):
-   Solo segmenta en turnos y asigna speaker:
-   - terapeuta (estudiante)
-   - paciente
-   - unknown (ambiguo)
+   ✅ Depuración (SIN incongruencias)
 ========================================================= */
 function normalizeDepuracionResult(raw) {
   const out = isObj(raw) ? raw : {};
@@ -255,7 +391,6 @@ function normalizeDepuracionResult(raw) {
     })
     .filter((t) => t.text);
 
-  // Compat: dejamos issues/stats, pero vacíos/0 (sin “incongruencias”)
   const statsIn = isObj(out.stats) ? out.stats : {};
   const stats = {
     removedDuplicates: Number(statsIn.removedDuplicates || 0) || 0,
@@ -266,7 +401,7 @@ function normalizeDepuracionResult(raw) {
   return {
     cleanedText,
     turns,
-    issues: [], // 👈 ya no se usa
+    issues: [],
     stats,
   };
 }
@@ -288,13 +423,13 @@ function ensureTranscripcionObj(inst) {
       updatedAt: null,
       result: null,
       userDecisions: {
-        resolvedIssues: {}, // compat (ya no se usa)
+        resolvedIssues: {},
         speakerOverrides: {},
         turnSplits: {},
         turnEdits: {},
       },
       finalText: "",
-      history: [], // ✅ Undo stack
+      history: [],
     };
 
   if (!isObj(t.depuracion.userDecisions)) {
@@ -488,7 +623,6 @@ function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
     rpData?.transcriptionTurns,
     rpData?.transcriptTurns,
     deepGet(rpData, "transcriptionData.turns", null),
-
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion.turns", null),
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion", null),
     deepGet(inst, "respuestas.rolePlaying.turnosDiarizados", null),
@@ -535,7 +669,6 @@ function buildManualDepuracionResultFromSource(baseTurns = []) {
    ✅ turnSplits helpers
 ========================================================= */
 function normalizeTurnSplits(turnSplitsRaw) {
-  // Esperado: { [turnId]: [{ id, speaker, text }] }
   if (!isObj(turnSplitsRaw)) return {};
 
   const out = {};
@@ -572,8 +705,6 @@ function normalizeTurnSplits(turnSplitsRaw) {
 }
 
 function applyTurnSplitsToTurns(turns = [], turnSplits = {}) {
-  // - Mantener turnos base en orden
-  // - Insertar splits DESPUÉS del turno original
   if (!Array.isArray(turns) || turns.length === 0) return [];
   if (!isObj(turnSplits) || Object.keys(turnSplits).length === 0) return turns;
 
@@ -605,7 +736,7 @@ function applyTurnSplitsToTurns(turns = [], turnSplits = {}) {
 }
 
 /* =========================================================
-   ✅ turnEdits helpers (quitar texto del turno original)
+   ✅ turnEdits helpers
 ========================================================= */
 function escapeRegExp(s) {
   return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -683,7 +814,6 @@ function computeEditedTurnText(originalText, removals = []) {
   const base = safeStr(originalText, "");
   if (!base) return "";
 
-  // 1) aplicar por posiciones (start/end) DESC
   const withPos = safeArr(removals)
     .map((r) => {
       if (!isObj(r)) return null;
@@ -706,7 +836,6 @@ function computeEditedTurnText(originalText, removals = []) {
     out = out.slice(0, r.start) + marker + out.slice(r.end);
   }
 
-  // 2) fallback por búsqueda flexible
   for (const r of safeArr(removals)) {
     if (!isObj(r)) continue;
     const splitId = safeStr(r?.splitId, "").trim();
@@ -725,8 +854,6 @@ function computeEditedTurnText(originalText, removals = []) {
 }
 
 function normalizeTurnEdits(turnEditsRaw) {
-  // Esperado:
-  // { [turnId]: { originalText: string, removals: [{ splitId, text }] } }
   if (!isObj(turnEditsRaw)) return {};
 
   const out = {};
@@ -786,7 +913,6 @@ function applyTurnEditsToTurns(turns = [], turnEdits = {}) {
   });
 }
 
-
 /* =========================================================
    Controller: análisis
 ========================================================= */
@@ -797,9 +923,12 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       tipo,
 
       evaluaciones: evaluacionesRaw,
-      herramientas: herramientasRaw,
-      data,
 
+      praxisNivel: praxisNivelRaw,
+      modeloIntervencion: modeloIntervencionRaw,
+      herramientas: herramientasRaw,
+
+      data,
       enfoque,
 
       instanciaId,
@@ -812,29 +941,12 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 
     const replace = toBool(replaceRaw, true);
 
-    const evaluaciones = normalizeEvaluaciones(evaluacionesRaw);
-    const herramientas = normalizeHerramientas(herramientasRaw);
-
-    if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
+    if (!ejercicioId) {
+      return res.status(400).json({ message: "Falta ejercicioId" });
+    }
 
     if (tipo && tipo !== "role_play") {
       return res.status(400).json({ message: "tipo inválido (usa role_play)" });
-    }
-
-    if (!Array.isArray(evaluaciones) || evaluaciones.length === 0) {
-      return res.status(400).json({
-        message:
-          "Falta evaluaciones. Envía array (['rapport', ...]) o un objeto ({rapport:true, ...}).",
-        debug: { type: typeof evaluacionesRaw, sample: evaluacionesRaw || null },
-      });
-    }
-
-    if (!isObj(herramientas) || Object.keys(herramientas).length === 0) {
-      return res.status(400).json({
-        message:
-          "Falta herramientas. Envía objeto ({ fichaTecnica:true, ... }) o array (['fichaTecnica', ...]).",
-        debug: { type: typeof herramientasRaw, sample: herramientasRaw || null },
-      });
     }
 
     const userId = req.user?._id || req.user?.id || null;
@@ -870,32 +982,51 @@ module.exports.analizarRolePlayIA = async (req, res) => {
       });
     }
 
-    const safeData = {
-      ...resolvedData,
-      transcripcion: clampText(resolvedData?.transcripcion || "", 12000),
-      pruebaTranscripcion: clampText(resolvedData?.pruebaTranscripcion || "", 6000),
-      interpretacionPrueba: clampText(resolvedData?.interpretacionPrueba || "", 6000),
-      anexos: clampText(resolvedData?.anexos || "", 6000),
-      planIntervencion: clampText(resolvedData?.planIntervencion || "", 6000),
-    };
+    const {
+      praxisNivel,
+      modeloIntervencion,
+      herramientas,
+    } = await resolveRolePlayConfig({
+      ejercicioId,
+      herramientasRaw,
+      praxisNivelRaw,
+      modeloIntervencionRaw,
+      enfoqueRaw: enfoque,
+    });
+
+    const herramientasActivas = Object.keys(herramientas || {}).filter(
+      (k) => herramientas?.[k] === true
+    );
+
+    const safeData = buildSafeAnalysisData(resolvedData);
 
     const prompt = buildRolePlayPrompt({
-      evaluaciones,
+      praxisNivel,
+      modeloIntervencion,
       herramientas,
       data: safeData,
-      enfoque: enfoque || null,
     });
 
-    const raw = await callLLMJson({
-      system:
-        "Eres un supervisor clínico experto. Debes devolver SOLO JSON válido, sin texto adicional.",
-      prompt,
-      model: process.env.AI_MODEL || "gpt-4.1-mini",
-      temperature: 0.2,
+    const raw = await callLLMJsonWithRetry(
+      {
+        system:
+          "Eres un supervisor clínico experto en entrenamiento formativo. Debes devolver SOLO JSON válido, sin texto adicional.",
+        prompt,
+        model: process.env.AI_MODEL || "gpt-4.1-mini",
+        temperature: 0.2,
+      },
+      1
+    );
+
+    let result = normalizeAIResult(raw, {
+      praxisNivel,
+      modeloIntervencion,
+      herramientas,
     });
 
-    let result = normalizeAIResult(raw, { evaluaciones, herramientas, enfoque });
-    result = addLabelsToResult(result, { evaluaciones, herramientas });
+    result = addLabelsToResult(result, {
+      herramientas,
+    });
 
     setAnalysisInInstance(inst, result, fuente, replace);
     await inst.save();
@@ -903,25 +1034,43 @@ module.exports.analizarRolePlayIA = async (req, res) => {
     if (sessionId) {
       const ses = await Session.findById(sessionId);
       if (ses) {
-        ses.analisisIA = result;
+        ses.analisisIA = result.analisisIA;
+        ses.evaluacionHerramientas = result.evaluacionHerramientas;
+
+        if (typeof ses.markModified === "function") {
+          ses.markModified("analisisIA");
+          ses.markModified("evaluacionHerramientas");
+        }
+
         await ses.save();
       }
     }
 
     return res.json({
-      ...result,
+      analisisIA: result.analisisIA,
+      evaluacionHerramientas: result.evaluacionHerramientas,
       _metaPersistencia: {
         instanciaId: String(inst._id),
         analisisGeneradoAt: inst.analisisGeneradoAt || null,
         analisisFuente: inst.analisisFuente || fuente,
         intentosUsados: inst.intentosUsados ?? null,
+        praxisNivel,
+        modeloIntervencion,
+        herramientasEvaluadas: herramientasActivas,
+        legacyEvaluacionesRecibidas: Array.isArray(evaluacionesRaw)
+          ? evaluacionesRaw
+          : isObj(evaluacionesRaw)
+          ? Object.keys(evaluacionesRaw).filter((k) => Boolean(evaluacionesRaw[k]))
+          : [],
       },
     });
   } catch (err) {
     console.error("❌ Error analizarRolePlayIA:", err);
 
     const msg =
-      err?.response?.data?.error?.message || err?.message || "Error interno del servidor";
+      err?.response?.data?.error?.message ||
+      err?.message ||
+      "Error interno del servidor";
 
     return res.status(500).json({ message: msg });
   }
@@ -929,9 +1078,6 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 
 /* =========================================================
    ✅ POST depurar transcripción (MANUAL)
-   - YA NO USA IA
-   - Toma la transcripción diarizada existente
-   - Construye baseTurns
 ========================================================= */
 module.exports.depurarTranscripcionRolePlay = async (req, res) => {
   try {
@@ -1051,10 +1197,6 @@ module.exports.depurarTranscripcionRolePlay = async (req, res) => {
 
 /* =========================================================
    ✅ POST aplicar depuración manual
-   - YA NO DEPENDE DE IA
-   - Reconstruye desde baseTurns
-   - Guarda speakerOverrides / turnSplits / turnEdits
-   - Puede inicializar baseTurns si todavía no existen
 ========================================================= */
 module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
   try {
@@ -1091,9 +1233,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     const tObj = ensureTranscripcionObj(inst);
     const dep = tObj.depuracion || {};
 
-    // ==================================================
-    // 1) Si no existe result todavía, lo inicializamos
-    // ==================================================
     if (!dep.result || !isObj(dep.result)) {
       let rpData = null;
       if (isObj(data)) rpData = data;
@@ -1132,9 +1271,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       });
     }
 
-    // ==================================================
-    // 2) Decisions del FE
-    // ==================================================
     const speakerOverridesIn =
       decisions && typeof decisions === "object" && decisions.speakerOverrides
         ? decisions.speakerOverrides
@@ -1150,9 +1286,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
         ? decisions.turnEdits
         : {};
 
-    // ==================================================
-    // 3) Snapshot para undo
-    // ==================================================
     ensureDepHistory(dep);
     pushDepHistorySnapshot(dep, {
       userDecisions: dep.userDecisions || {
@@ -1165,9 +1298,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       activeVersion: tObj.activeVersion || "raw",
     });
 
-    // ==================================================
-    // 4) REPLACE exacto del estado manual
-    // ==================================================
     const prevDec =
       dep.userDecisions && typeof dep.userDecisions === "object"
         ? dep.userDecisions
@@ -1187,9 +1317,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       turnEdits: isObj(normTE) ? normTE : {},
     };
 
-    // ==================================================
-    // 5) Fuente de verdad = baseTurns
-    // ==================================================
     let turnsBase = safeArr(depResult.baseTurns);
 
     if (!turnsBase.length) {
@@ -1208,24 +1335,18 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       });
     }
 
-    // 5.1 quitar texto del turno original
     const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
 
-    // 5.2 insertar splits
     const turnsApplied = applyTurnSplitsToTurns(
       turnsAfterEdits,
       dep.userDecisions.turnSplits
     );
 
-    // 5.3 texto final
     const finalText = buildFinalTextFromTurns(
       turnsApplied,
       dep.userDecisions.speakerOverrides
     );
 
-    // ==================================================
-    // 6) Persistir resultado final
-    // ==================================================
     dep.finalText = finalText;
     dep.updatedAt = now();
     dep.status = "done";
@@ -1260,8 +1381,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       },
     };
 
-    // Opcional pero recomendado:
-    // si la versión activa es depurada, también sincronizamos el texto visible
     if (tObj.activeVersion === "depurada") {
       tObj.raw = {
         ...(tObj.raw || {}),

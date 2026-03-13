@@ -1,5 +1,4 @@
-// server/models/modulo.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 /*
@@ -22,8 +21,8 @@ const TIPOS_MODULO = [
 ]; */
 
 const TIPOS_MODULO = [
-  'Role playing persona real',
-  'Role playing IA',
+  "Role playing persona real",
+  "Role playing IA",
 ];
 
 /*
@@ -45,11 +44,53 @@ const TIPOS_EJERCICIO = [
 ];
 */
 
-
 const TIPOS_EJERCICIO = [
-  'Role playing persona',
-  'Role Playing IA',
+  "Role playing persona",
+  "Role Playing IA",
 ];
+
+/* =========================================================
+   ✅ NUEVOS ENUMS PRAXIS-TH
+========================================================= */
+const PRAXIS_NIVELES = [
+  "nivel_1",
+  "nivel_2",
+  "nivel_3",
+];
+
+const MODELOS_INTERVENCION = [
+  "Terapia Cognitivo-Conductual (TCC)",
+  "Psicoanálisis",
+  "Logoterapia",
+  "Terapia Centrada en la Persona",
+  "Gestalt",
+  "Humanista-Existencial",
+  "Terapia Analítico-Funcional (FAP)",
+  "Sistémica",
+  "Aceptación y Compromiso (ACT)",
+  "Dialéctica Conductual (DBT)",
+  "Mindfulness / Mindfulness-based",
+];
+
+/* =========================================================
+   Helpers
+========================================================= */
+function defaultHerramientasRolePlay() {
+  return {
+    manejoExpediente: false,
+    ficha: false,
+    hc: false,
+    examen: false,
+    convergencia: false,
+    hipotesis: false,
+    diagnostico: false,
+    pruebas: false,
+    interpretacion: false,
+    recomendaciones: false,
+    anexos: false,
+    plan: false,
+  };
+}
 
 // ===== Módulo =====
 const moduloSchema = new Schema(
@@ -65,17 +106,17 @@ const moduloSchema = new Schema(
     // 👇 NUEVOS CAMPOS PARA DIFERENCIAR GLOBAL vs LOCAL
     esGlobal: {
       type: Boolean,
-      default: true, // por defecto: módulos creados por el súper
+      default: true,
       index: true,
     },
-    // Si es un módulo local de una universidad concreta
+
     universidad: {
       type: Schema.Types.ObjectId,
       // ref: 'Universidad',
       default: null,
       index: true,
     },
-    // Usuario que lo creó (súper o admin de carrera)
+
     creadoPor: {
       type: Schema.Types.ObjectId,
       // ref: 'Usuario',
@@ -84,7 +125,7 @@ const moduloSchema = new Schema(
 
     activo: {
       type: Boolean,
-      default: true, // el super lo crea activo
+      default: true,
     },
   },
   { timestamps: true }
@@ -95,11 +136,12 @@ const submoduloSchema = new Schema(
   {
     modulo: {
       type: Schema.Types.ObjectId,
-      ref: 'Modulo',
+      ref: "Modulo",
       required: true,
     },
     titulo: { type: String, required: true, trim: true },
-    descripcion: { type: String, trim: true, default: '' },
+    descripcion: { type: String, trim: true, default: "" },
+
     // cantidad de reintentos permitidos (0 = ilimitado)
     reintento: {
       type: Number,
@@ -114,7 +156,7 @@ const ejercicioSchema = new Schema(
   {
     submodulo: {
       type: Schema.Types.ObjectId,
-      ref: 'Submodulo',
+      ref: "Submodulo",
       required: true,
     },
     tipoEjercicio: {
@@ -131,6 +173,7 @@ const ejercicioSchema = new Schema(
       required: true,
       trim: true,
     },
+
     // Tiempo sugerido (en minutos) para completar el ejercicio
     tiempo: {
       type: Number,
@@ -145,9 +188,9 @@ const ejercicioGrabarVozSchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
-      unique: true, // 1 a 1
+      unique: true,
     },
 
     caso: {
@@ -174,14 +217,13 @@ const ejercicioGrabarVozSchema = new Schema(
       practicarConsignasPruebas: { type: Boolean, default: false },
     },
 
-    // (Opcional) si quieres guardar el resultado en este doc
     transcripcionRespuesta: {
       type: String,
-      default: '',
+      default: "",
     },
     analisisRespuesta: {
       type: String,
-      default: '',
+      default: "",
     },
   },
   { timestamps: true }
@@ -192,34 +234,34 @@ const ejercicioInterpretacionFrasesSchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
-      unique: true, // 1 a 1
+      unique: true,
     },
-    // Campos del formulario
+
     edad: { type: Number },
     ocupacion: { type: String, trim: true },
     motivo: { type: String, trim: true },
     historiaPersonal: { type: String, trim: true },
     tipoTest: {
       type: String,
-      enum: ['adulto', 'niño'],
-      default: 'adulto',
+      enum: ["adulto", "niño"],
+      default: "adulto",
     },
-    // 60 respuestas a las frases incompletas
+
     respuestasFrases: [
       {
         type: String,
         trim: true,
-        default: '',
+        default: "",
       },
     ],
-    // Notas generales de interpretación
+
     notas: {
       type: String,
       trim: true,
     },
-    // Intentos permitidos para este ejercicio
+
     intentos: {
       type: Number,
       default: 1,
@@ -233,7 +275,7 @@ const ejercicioRolePlaySchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
       unique: true,
     },
@@ -241,11 +283,11 @@ const ejercicioRolePlaySchema = new Schema(
     // real | simulada (IA / aula)
     tipoRole: {
       type: String,
-      enum: ['real', 'simulada'],
-      default: 'real',
+      enum: ["real", "simulada"],
+      default: "real",
     },
 
-    trastorno: { type: String, trim: true, default: '' },
+    trastorno: { type: String, trim: true, default: "" },
 
     // Consentimiento
     consentimiento: {
@@ -254,67 +296,35 @@ const ejercicioRolePlaySchema = new Schema(
     },
     tipoConsentimiento: {
       type: String,
-      enum: ['adulto', 'niño', ''],
-      default: '',
+      enum: ["adulto", "niño", ""],
+      default: "",
     },
 
-    // ✅ Evaluaciones IA (base + opcionales)
-    // Base SIEMPRE deberían quedar en true:
-    // rapport, preguntasAbiertas, encuadre, alianzaTerapeutica
-    evaluaciones: {
-      rapport: { type: Boolean, default: true },
-      preguntasAbiertas: { type: Boolean, default: true },
-      encuadre: { type: Boolean, default: true },
-      alianzaTerapeutica: { type: Boolean, default: true },
+    /* =========================================================
+       ✅ NUEVA CONFIGURACIÓN PRAXIS-TH
+       ========================================================= */
 
-      // opcionales (por defecto apagadas)
-      parafrasis: { type: Boolean, default: false },
-      reflejo: { type: Boolean, default: false },
-      clarificacion: { type: Boolean, default: false },
-      chisteTerapeutico: { type: Boolean, default: false },
-      sarcasmoTerapeutico: { type: Boolean, default: false },
-      empatia: { type: Boolean, default: false },
-      revelacion: { type: Boolean, default: false },
-      metafora: { type: Boolean, default: false },
-      resumen: { type: Boolean, default: false },
-      practicarConsignasPruebas: { type: Boolean, default: false },
-
-      // extra opcionales
-      palabrasClave: { type: Boolean, default: false },
-
-      // historia de vida (opcionales)
-      infancia: { type: Boolean, default: false },
-      actualidad: { type: Boolean, default: false },
-      motivoConsulta: { type: Boolean, default: false },
-      relacionPadres: { type: Boolean, default: false },
-      relacionSentimental: { type: Boolean, default: false },
-      antecedentesPsiquiatricos: { type: Boolean, default: false },
-      sexualidad: { type: Boolean, default: false },
-      nivelEducativo: { type: Boolean, default: false },
-      situacionLaboral: { type: Boolean, default: false },
-      vicios: { type: Boolean, default: false },
-      creenciasReligiosas: { type: Boolean, default: false },
-      anamnesis: { type: Boolean, default: false },
-      antecedentesSociales: { type: Boolean, default: false },
-      antecedentePatologico: { type: Boolean, default: false },
-
-      // enfoques (opcionales)
-      logoterapiaProposito: { type: Boolean, default: false },
-      logoterapiaSentido: { type: Boolean, default: false },
-
-      tccReestructuracion: { type: Boolean, default: false },
-      tccIdeasIrracionales: { type: Boolean, default: false },
-      tccABC: { type: Boolean, default: false },
-
-      psicoLapsus: { type: Boolean, default: false },
-      psicoDefensas: { type: Boolean, default: false },
-
-      // otros (opcionales)
-      entrevistaTrabajo: { type: Boolean, default: false },
-      protocolosMEP: { type: Boolean, default: false },
+    // Nivel base de evaluación Praxis-TH
+    praxisNivel: {
+      type: String,
+      enum: PRAXIS_NIVELES,
+      default: "nivel_1",
+      index: true,
     },
 
-    // ✅ Partes/Herramientas (tu estructura actual)
+    // Modelo de intervención opcional para ajustar la evaluación
+    modeloIntervencion: {
+      type: String,
+      enum: ["", ...MODELOS_INTERVENCION],
+      default: "",
+      trim: true,
+    },
+
+    /* =========================================================
+       ✅ Herramientas / partes del expediente
+       Estas se mantienen porque serán evaluadas por
+       coherencia y redacción según la transcripción.
+       ========================================================= */
     herramientas: {
       manejoExpediente: { type: Boolean, default: false },
       ficha: { type: Boolean, default: false },
@@ -331,21 +341,50 @@ const ejercicioRolePlaySchema = new Schema(
     },
 
     // ✅ Config de pruebas SOLO si herramientas.pruebas = true
-    // Lo guardamos flexible para no pelear con cambios futuros
     pruebasConfig: {
       type: Schema.Types.Mixed,
       default: {},
     },
+
+    /* =========================================================
+       ✅ COMPAT LEGACY
+       Lo dejamos temporalmente para ejercicios viejos.
+       Ya no será la fuente principal de evaluación.
+       ========================================================= */
+    evaluaciones: {
+      type: Schema.Types.Mixed,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true }
 );
+
+/* =========================================================
+   Hooks RolePlay
+========================================================= */
+ejercicioRolePlaySchema.pre("validate", function (next) {
+  if (!this.herramientas || typeof this.herramientas !== "object") {
+    this.herramientas = defaultHerramientasRolePlay();
+  }
+
+  if (!this.praxisNivel) {
+    this.praxisNivel = "nivel_1";
+  }
+
+  if (typeof this.modeloIntervencion !== "string") {
+    this.modeloIntervencion = "";
+  }
+
+  next();
+});
 
 // ===== Ejercicio específico: Criterios de diagnóstico =====
 const ejercicioCriteriosDxSchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
       unique: true,
     },
@@ -371,12 +410,11 @@ const ejercicioPruebasSchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
       unique: true,
     },
-    // Guardamos el objeto tal cual viene del frontend:
-    // { seleccion_multiple: { enabled, test }, fv: { ... }, ... }
+
     pruebasConfig: {
       type: Schema.Types.Mixed,
       default: {},
@@ -390,11 +428,11 @@ const ejercicioInterpretacionProyectivaSchema = new Schema(
   {
     ejercicio: {
       type: Schema.Types.ObjectId,
-      ref: 'Ejercicio',
+      ref: "Ejercicio",
       required: true,
       unique: true,
     },
-    // Ruta o URL de la imagen proyectiva
+
     imagen: {
       type: String,
       trim: true,
@@ -412,31 +450,31 @@ const ejercicioInterpretacionProyectivaSchema = new Schema(
 );
 
 // Exportar modelos + enums para reutilizar
-const Modulo = mongoose.model('Modulo', moduloSchema);
-const Submodulo = mongoose.model('Submodulo', submoduloSchema);
-const Ejercicio = mongoose.model('Ejercicio', ejercicioSchema);
+const Modulo = mongoose.model("Modulo", moduloSchema);
+const Submodulo = mongoose.model("Submodulo", submoduloSchema);
+const Ejercicio = mongoose.model("Ejercicio", ejercicioSchema);
 const EjercicioGrabarVoz = mongoose.model(
-  'EjercicioGrabarVoz',
+  "EjercicioGrabarVoz",
   ejercicioGrabarVozSchema
 );
 const EjercicioInterpretacionFrases = mongoose.model(
-  'EjercicioInterpretacionFrases',
+  "EjercicioInterpretacionFrases",
   ejercicioInterpretacionFrasesSchema
 );
 const EjercicioRolePlay = mongoose.model(
-  'EjercicioRolePlay',
+  "EjercicioRolePlay",
   ejercicioRolePlaySchema
 );
 const EjercicioCriteriosDx = mongoose.model(
-  'EjercicioCriteriosDx',
+  "EjercicioCriteriosDx",
   ejercicioCriteriosDxSchema
 );
 const EjercicioPruebas = mongoose.model(
-  'EjercicioPruebas',
+  "EjercicioPruebas",
   ejercicioPruebasSchema
 );
 const EjercicioInterpretacionProyectiva = mongoose.model(
-  'EjercicioInterpretacionProyectiva',
+  "EjercicioInterpretacionProyectiva",
   ejercicioInterpretacionProyectivaSchema
 );
 
@@ -452,4 +490,6 @@ module.exports = {
   EjercicioInterpretacionProyectiva,
   TIPOS_MODULO,
   TIPOS_EJERCICIO,
+  PRAXIS_NIVELES,
+  MODELOS_INTERVENCION,
 };

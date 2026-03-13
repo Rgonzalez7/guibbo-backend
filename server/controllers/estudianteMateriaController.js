@@ -31,7 +31,7 @@ function oid(v) {
 }
 
 function isRolePlayTipo(tipo) {
-  return ["Role playing persona", "Role playing Aula", "Role Playing IA"].includes(tipo);
+  return ["Role playing persona", "Role Playing IA"].includes(tipo);
 }
 
 /**
