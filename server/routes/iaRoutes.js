@@ -12,40 +12,24 @@ const {
   deshacerDepuracionTranscripcionRolePlay,
 } = require("../controllers/iaRolePlayController");
 
+const { analizarPraxis } = require("../controllers/iaPraxisController");
+const { analizarHerramientas } = require("../controllers/iaHerramientasController");
+
 // ✅ Consejo diario
 router.post("/consejo-diario", verifyToken, generarConsejoDiario);
 
-// ✅ Análisis REAL para RolePlaying (dinámico)
+// ✅ Legacy — mantiene ambas evaluaciones juntas (no eliminar)
 router.post("/roleplay/analyze", verifyToken, analizarRolePlayIA);
 
-/* =========================================================
-   ✅ NEW: Depuración de transcripción (RolePlay)
-   POST /api/ia/roleplay/transcripcion/depurar
-========================================================= */
-router.post(
-  "/roleplay/transcripcion/depurar",
-  verifyToken,
-  depurarTranscripcionRolePlay
-);
+// ✅ PRAXIS-TH — solo transcripción, se llama al terminar la sesión
+router.post("/roleplay/praxis", verifyToken, analizarPraxis);
 
-/* =========================================================
-   ✅ NEW: Aplicar depuración (decisiones del usuario)
-   POST /api/ia/roleplay/transcripcion/depurar/aplicar
-========================================================= */
-router.post(
-  "/roleplay/transcripcion/depurar/aplicar",
-  verifyToken,
-  aplicarDepuracionTranscripcionRolePlay
-);
+// ✅ HERRAMIENTAS — solo instrumentos clínicos, se llama al finalizar el ejercicio
+router.post("/roleplay/herramientas", verifyToken, analizarHerramientas);
 
-/* =========================================================
-   ✅ NEW: Deshacer depuración (volver a raw / limpiar activeVersion)
-   POST /api/ia/roleplay/transcripcion/depuracion/undo
-========================================================= */
-router.post(
-  "/roleplay/transcripcion/depuracion/undo",
-  verifyToken,
-  deshacerDepuracionTranscripcionRolePlay
-);
+// ✅ Depuración de transcripción
+router.post("/roleplay/transcripcion/depurar", verifyToken, depurarTranscripcionRolePlay);
+router.post("/roleplay/transcripcion/depurar/aplicar", verifyToken, aplicarDepuracionTranscripcionRolePlay);
+router.post("/roleplay/transcripcion/depuracion/undo", verifyToken, deshacerDepuracionTranscripcionRolePlay);
 
 module.exports = router;

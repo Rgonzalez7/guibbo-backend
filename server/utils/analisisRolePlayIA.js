@@ -238,384 +238,430 @@ function buildRolePlayPrompt({
   const toolPayloads = buildToolPayloads(data, herramientas);
 
   return `
-Devuelve SOLO JSON válido con esta estructura EXACTA:
-
-{
-  "praxisTH": {
-    "praxisNivel": ${JSON.stringify(nivel)},
-    "modeloIntervencion": ${JSON.stringify(modelo)},
-    "ponderaciones": {
-      "ASC": ${weights.ASC},
-      "IIT": ${weights.IIT},
-      "IRI": ${weights.IRI},
-      "MMD": ${weights.MMD},
-      "MLT": ${weights.MLT}
-    },
-    "indiceGlobal": {
-      "bruto": 0,
-      "porcentaje": 0,
-      "nivelDesempeno": "",
-      "summary": ""
-    },
-    "studentSummary": {
-      "opening": "",
-      "whatWentWell": [""],
-      "whatToImprove": [""],
-      "nextStep": "",
-      "closingRecommendation": ""
-    },
-    "dimensiones": {
-      "ASC": {
-        "nivel": 1,
-        "score": 0,
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "loQuePodriasMejorar": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "sugerenciaParaMejorar": {
-            "textoBreve": "",
-            "ejemploIntervencion": ""
-          },
-          "whyThisMatters": [""]
-        }
-      },
-      "IIT": {
-        "nivel": 1,
-        "score": 0,
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "loQuePodriasMejorar": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "sugerenciaParaMejorar": {
-            "textoBreve": "",
-            "ejemploIntervencion": ""
-          },
-          "whyThisMatters": [""]
-        }
-      },
-      "IRI": {
-        "nivel": 1,
-        "score": 0,
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "loQuePodriasMejorar": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "sugerenciaParaMejorar": {
-            "textoBreve": "",
-            "ejemploIntervencion": ""
-          },
-          "whyThisMatters": [""]
-        }
-      },
-      "MMD": {
-        "nivel": 1,
-        "score": 0,
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "loQuePodriasMejorar": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "sugerenciaParaMejorar": {
-            "textoBreve": "",
-            "ejemploIntervencion": ""
-          },
-          "whyThisMatters": [""]
-        }
-      },
-      "MLT": {
-        "nivel": 1,
-        "score": 0,
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "loQuePodriasMejorar": {
-            "textoBreve": "",
-            "evidencias": [
-              { "quote": "", "explanation": "" }
-            ]
-          },
-          "sugerenciaParaMejorar": {
-            "textoBreve": "",
-            "ejemploIntervencion": ""
-          },
-          "whyThisMatters": [""]
-        }
-      }
-    },
-    "retroalimentacionGlobal": {
-      "fortalezas": [""],
-      "areasMejora": [""],
-      "recomendacionCentral": ""
-    }
-  },
-  "evaluacionHerramientas": {
-    "generalScore": 0,
-    "general": {
-      "score": 0,
-      "summary": ""
-    },
-    "studentSummary": {
-      "whatWentWell": [""],
-      "whatToImprove": [""],
-      "howToImprove": [
-        { "explanation": "", "example": "" }
-      ]
-    },
-    "tools": {
-      ${toolList
-        .map(
-          (t) => `
-      "${t.key}": {
-        "score": 0,
-        "metrics": [
-          { "key": "coherencia", "label": "Coherencia clínica", "score": 0 },
-          { "key": "redaccion", "label": "Redacción técnica", "score": 0 },
-          { "key": "alineacion", "label": "Alineación con transcripción", "score": 0 }
-        ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "why": "" } ],
-        "studentGuidance": {
-          "whatWentWell": [""],
-          "whatToImprove": [""],
-          "howToImprove": [
-            { "explanation": "", "example": "" }
-          ]
-        }
-      }`
-        )
-        .join(",")}
-    }
-  },
-  "meta": {
-    "praxisNivel": ${JSON.stringify(nivel)},
-    "modeloIntervencion": ${JSON.stringify(modelo)}
-  }
-}
-
-REGLAS DE SALIDA:
-- Responde SOLO JSON válido.
-- No incluyas markdown, explicaciones, ni texto fuera del JSON.
-- Todos los scores deben ser enteros entre 0 y 100.
-- Todos los niveles PRAXIS deben ser enteros entre 1 y 5.
-- Usa evidencia textual exacta de la transcripción cuando exista.
-- Si no hay evidencia suficiente, dilo explícitamente y baja la puntuación.
-- NO inventes contenido clínico que no esté presente en la transcripción o en las herramientas.
-- La salida debe sonar como supervisión formativa, no como juicio punitivo.
-- La retroalimentación debe ayudar al estudiante a comprender qué hizo, qué debe ajustar y cómo puede mejorar de forma concreta.
-
-MARCO METODOLÓGICO OBLIGATORIO:
-PRAXIS-TH es un método estructurado de entrenamiento clínico orientado al desarrollo progresivo de la competencia clínica.
-Debes tratarlo como un marco formativo basado en:
-1. dimensiones observables,
-2. ponderaciones paramétricas,
-3. evidencia textual,
-4. progresión de desempeño,
-5. retroalimentación formativa.
-NO lo trates como una certificación profesional.
-NO sustituyas la supervisión humana.
-Tu tarea es producir retroalimentación técnica, clara, pedagógica y accionable.
-
-TAREA 1 — EVALUACIÓN PRAXIS-TH:
-Debes evaluar SOLO estas 5 dimensiones:
-- ASC: Análisis Secuencial Conversacional
-- IIT: Intencionalidad de la Intervención Terapéutica
-- IRI: Integración de Referencias Internas
-- MMD: Movilización Micro-Dinámica
-- MLT: Manejo del Límite Terapéutico
-
-PONDERACIONES PARA ESTE CASO:
-- ASC = ${weights.ASC}
-- IIT = ${weights.IIT}
-- IRI = ${weights.IRI}
-- MMD = ${weights.MMD}
-- MLT = ${weights.MLT}
-
-DEFINICIÓN OPERATIVA DE CADA DIMENSIÓN:
-- ASC: analiza si la conversación tiene secuencia clínica clara, continuidad temática, transiciones comprensibles, escucha conectada con la respuesta y cierre parcial de bloques.
-- IIT: analiza si las intervenciones del terapeuta tienen dirección clínica reconocible, propósito terapéutico y sentido dentro del proceso.
-- IRI: analiza si el terapeuta retoma e integra elementos previos que el paciente ya había dicho, mostrando continuidad y elaboración.
-- MMD: analiza si el terapeuta logra pequeños movimientos clínicos dentro de la sesión, como ampliar conciencia, matizar emociones, abrir perspectiva o facilitar insight.
-- MLT: analiza el manejo del encuadre, el rol terapéutico, los límites conversacionales y la consistencia profesional.
-
-CÓMO EVALUAR PRAXIS-TH:
-- "nivel" = nivel de desempeño de 1 a 5 según PRAXIS-TH.
-- "score" = traducción porcentual del desempeño de esa dimensión (0..100).
-- Evalúa con base en la transcripción clínica del estudiante.
-- La retroalimentación debe sustentarse en evidencia textual observable.
-- Si la diarización no es perfecta, infiere el rol terapéutico por intención, estructura clínica, preguntas, validaciones, reformulaciones, encuadre y manejo del proceso.
-- Si hay modelo de intervención configurado, úsalo como lente de ajuste clínico e interpretativo, pero NO cambies las 5 dimensiones PRAXIS-TH ni sus ponderaciones base.
-- El índice global debe integrarse a partir de las dimensiones, pero NO debe reemplazar el análisis detallado por dimensión.
-- El resumen global debe ser formativo, técnico y claro.
-
-GUÍA DE NIVELES:
-- 1 = Incipiente
-- 2 = Básico
-- 3 = Competente
-- 4 = Avanzado
-- 5 = Estratégico
-
-REGLAS PEDAGÓGICAS OBLIGATORIAS PARA PRAXIS-TH:
-Para cada dimensión debes explicar SIEMPRE tres cosas:
-1. qué hizo bien el estudiante,
-2. qué podría mejorar,
-3. cómo podría intervenir mejor la próxima vez.
-
-IMPORTANTE:
-- La metodología sigue siendo PRAXIS-TH.
-- Pero la respuesta pedagógica final debe resumirse SOLO en estas 3 áreas:
-  1. "loQueHicisteBien"
-  2. "loQuePodriasMejorar"
-  3. "sugerenciaParaMejorar"
-- NO uses "whatWentWell", "whatToImprove" ni "howToImprove" dentro de cada dimensión PRAXIS.
-- Esas 3 áreas no son una traducción posterior: son la forma principal de salida pedagógica.
-- Debes escribir como si estuvieras ayudando al estudiante a entender su desempeño sin abrumarlo con tecnicismos.
-- Mantén precisión clínica, pero expresa el aprendizaje de forma clara.
-
-FORMATO OBLIGATORIO DE "studentGuidance" EN CADA DIMENSIÓN:
-- "loQueHicisteBien":
-  - "textoBreve": resumen breve, claro y humano de lo que hizo bien.
-  - "evidencias": devuelve 2 evidencias siempre que exista base suficiente en la transcripción, si existen.
-  - Cada evidencia debe tener:
-    - "quote": cita exacta breve de la sesión.
-    - "explanation": explicación breve de por qué eso estuvo bien.
-- "loQuePodriasMejorar":
-  - "textoBreve": resumen breve, claro y humano de lo que podría mejorar.
-  - "evidencias": devuelve 2 evidencias siempre que exista base suficiente en la transcripción, si existen.
-  - Cada evidencia debe tener:
-    - "quote": cita exacta breve de la sesión.
-    - "explanation": explicación breve de por qué eso podría mejorar.
-- "sugerenciaParaMejorar":
-  - "textoBreve": consejo breve y accionable.
-  - "ejemploIntervencion": un solo ejemplo claro, breve y clínicamente realista de cómo sonaría una mejor intervención.
-- "whyThisMatters": una lista breve explicando por qué esto importa clínicamente.
-
-ESTILO OBLIGATORIO DE REDACCIÓN PEDAGÓGICA:
-- Habla como supervisor formativo.
-- Evita frases frías, abstractas o excesivamente técnicas sin explicación.
-- Convierte observación técnica en aprendizaje práctico.
-- No digas solo “fortalece X” o “mejora Y”.
-- Explica brevemente por qué y muestra cómo.
-- Si propones mejora, intenta añadir ejemplo clínico breve y realista.
-- No repitas ideas innecesariamente.
-- No pongas listas largas.
-- No des más de 2 evidencias por bloque.
-- Si no hay evidencia suficiente, deja una sola evidencia explicando que la base observacional fue limitada.
-
-EJEMPLO DEL FORMATO ESPERADO EN studentGuidance:
-{
-  "loQueHicisteBien": {
-    "textoBreve": "En varios momentos lograste mantener una secuencia clara en la conversación y ayudar al paciente a profundizar en su experiencia.",
-    "evidencias": [
-      {
-        "quote": "Antes de empezar con lo que te trae por aquí, me gustaría explicarte brevemente cómo funciona este espacio para que te sientas más cómoda.",
-        "explanation": "Esta intervención organiza el inicio de la sesión y ayuda a establecer un marco claro para la conversación."
-      }
-    ]
-  },
-  "loQuePodriasMejorar": {
-    "textoBreve": "En algunos momentos la conversación cambió de tema rápidamente sin cerrar completamente lo que el paciente estaba expresando.",
-    "evidencias": [
-      {
-        "quote": "¿Y eso cuándo empezó exactamente?",
-        "explanation": "La pregunta ayuda a precisar información, pero se cambió de tema sin cerrar la idea anterior que el paciente estaba explicando."
-      }
-    ]
-  },
-  "sugerenciaParaMejorar": {
-    "textoBreve": "Cuando sientas que una idea importante ya fue explorada, intenta resumirla antes de pasar a un nuevo tema.",
-    "ejemploIntervencion": "Entonces, lo que estoy escuchando es que desde ese momento empezaste a sentir más presión. Ahora me gustaría entender cómo eso ha afectado tu vida diaria."
-  },
-  "whyThisMatters": [
-    "Cerrar una idea antes de cambiar de tema ayuda al paciente a sentirse escuchado y da más coherencia clínica a la sesión."
-  ]
-}
-
-TAREA 2 — EVALUACIÓN DE HERRAMIENTAS:
-Debes evaluar las herramientas clínicas configuradas, NO por técnica terapéutica, sino por:
-1. coherencia clínica interna,
-2. calidad de redacción técnica,
-3. alineación con la transcripción realizada.
-
-Para cada herramienta activa:
-- "score" = puntuación global de calidad.
-- "metrics" = mínimo 3 métricas útiles.
-- "recommendations" = 3 a 6 acciones concretas.
-- "evidence" = 1 a 3 evidencias breves, usando citas o referencias exactas del material o de la transcripción.
-- "studentGuidance" debe explicar:
-  1. qué está bien en la herramienta,
-  2. qué está débil o confuso,
-  3. cómo mejorarla en redacción o coherencia clínica.
-
-REGLAS DE HERRAMIENTAS:
-- Si la herramienta contradice la transcripción, baja el score.
-- Si está incompleta, poco clara o mal redactada, baja el score.
-- Si está bien alineada con lo dicho en sesión y redactada técnicamente, sube el score.
-- No inventes contenido faltante.
-- Si una herramienta no tiene contenido suficiente, dilo claramente.
-- La retroalimentación también debe ser pedagógica, no solo evaluativa.
-
-INTERPRETACIÓN GENERAL:
-- PRAXIS-TH mide desempeño conversacional clínico.
-- evaluacionHerramientas mide coherencia/redacción documental según la transcripción.
-- Son dos evaluaciones distintas y complementarias.
-
-DATOS DE LA SESIÓN (JSON):
-${JSON.stringify(
+  Devuelve SOLO JSON válido con esta estructura EXACTA:
+  
   {
+    "praxisTH": {
+      "praxisNivel": ${JSON.stringify(nivel)},
+      "modeloIntervencion": ${JSON.stringify(modelo)},
+      "ponderaciones": {
+        "ASC": ${weights.ASC},
+        "IIT": ${weights.IIT},
+        "IRI": ${weights.IRI},
+        "MMD": ${weights.MMD},
+        "MLT": ${weights.MLT}
+      },
+      "indiceGlobal": {
+        "bruto": 0,
+        "porcentaje": 0,
+        "nivelDesempeno": "",
+        "summary": ""
+      },
+      "studentSummary": {
+        "opening": "",
+        "whatWentWell": [""],
+        "whatToImprove": [""],
+        "nextStep": "",
+        "closingRecommendation": ""
+      },
+      "dimensiones": {
+        "ASC": {
+          "nivel": 1,
+          "score": 0,
+          "metrics": [ { "key": "", "label": "", "score": 0 } ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "technique": "", "why": "" } ],
+          "studentGuidance": {
+            "loQueHicisteBien": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "loQuePodriasMejorar": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "sugerenciaParaMejorar": {
+              "textoBreve": "",
+              "ejemploIntervencion": ""
+            },
+            "whyThisMatters": [""]
+          }
+        },
+        "IIT": {
+          "nivel": 1,
+          "score": 0,
+          "metrics": [ { "key": "", "label": "", "score": 0 } ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "technique": "", "why": "" } ],
+          "studentGuidance": {
+            "loQueHicisteBien": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "loQuePodriasMejorar": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "sugerenciaParaMejorar": {
+              "textoBreve": "",
+              "ejemploIntervencion": ""
+            },
+            "whyThisMatters": [""]
+          }
+        },
+        "IRI": {
+          "nivel": 1,
+          "score": 0,
+          "metrics": [ { "key": "", "label": "", "score": 0 } ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "technique": "", "why": "" } ],
+          "studentGuidance": {
+            "loQueHicisteBien": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "loQuePodriasMejorar": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "sugerenciaParaMejorar": {
+              "textoBreve": "",
+              "ejemploIntervencion": ""
+            },
+            "whyThisMatters": [""]
+          }
+        },
+        "MMD": {
+          "nivel": 1,
+          "score": 0,
+          "metrics": [ { "key": "", "label": "", "score": 0 } ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "technique": "", "why": "" } ],
+          "studentGuidance": {
+            "loQueHicisteBien": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "loQuePodriasMejorar": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "sugerenciaParaMejorar": {
+              "textoBreve": "",
+              "ejemploIntervencion": ""
+            },
+            "whyThisMatters": [""]
+          }
+        },
+        "MLT": {
+          "nivel": 1,
+          "score": 0,
+          "metrics": [ { "key": "", "label": "", "score": 0 } ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "technique": "", "why": "" } ],
+          "studentGuidance": {
+            "loQueHicisteBien": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "loQuePodriasMejorar": {
+              "textoBreve": "",
+              "evidencias": [
+                { "quote": "", "explanation": "" }
+              ]
+            },
+            "sugerenciaParaMejorar": {
+              "textoBreve": "",
+              "ejemploIntervencion": ""
+            },
+            "whyThisMatters": [""]
+          }
+        }
+      },
+      "retroalimentacionGlobal": {
+        "fortalezas": [""],
+        "areasMejora": [""],
+        "recomendacionCentral": ""
+      }
+    },
+    "evaluacionHerramientas": {
+      "generalScore": 0,
+      "general": {
+        "score": 0,
+        "summary": ""
+      },
+      "studentSummary": {
+        "whatWentWell": [""],
+        "whatToImprove": [""],
+        "howToImprove": [
+          { "explanation": "", "example": "" }
+        ]
+      },
+      "tools": {
+        ${toolList.map(t => `
+        "${t.key}": {
+          "score": 0,
+          "metrics": [
+            { "key": "coherencia", "label": "Coherencia clínica", "score": 0 },
+            { "key": "redaccion", "label": "Redacción técnica", "score": 0 },
+            { "key": "alineacion", "label": "Alineación con transcripción", "score": 0 }
+          ],
+          "recommendations": [""],
+          "evidence": [ { "quote": "", "why": "" } ],
+          "studentGuidance": {
+            "whatWentWell": [""],
+            "whatToImprove": [""],
+            "howToImprove": [
+              { "explanation": "", "example": "" }
+            ]
+          }
+        }`).join(",")}
+      }
+    },
+    "meta": {
+      "praxisNivel": ${JSON.stringify(nivel)},
+      "modeloIntervencion": ${JSON.stringify(modelo)}
+    }
+  }
+  
+  REGLAS DE SALIDA
+  
+  Responde SOLO JSON válido.  
+  No agregues texto fuera del JSON.  
+  Usa evidencia textual real de la transcripción.  
+  No inventes contenido clínico.
+  
+  ---
+  
+  REGLA FUNDAMENTAL DE EVALUACIÓN
+  
+  Evalúa únicamente lo observable.
+  
+  Si la sesión es corta o la fase clínica no permite evaluar una dimensión:
+  
+  NO penalices automáticamente al estudiante.
+  
+  La ausencia de evidencia no significa ausencia de competencia.
+  
+  ---
+  
+  REGLA DE EVIDENCIA
+  
+  No reutilices la misma frase como evidencia principal en múltiples dimensiones.
+  
+  Si la sesión es corta y no hay suficiente evidencia para una dimensión:
+  
+  Indica que la evidencia es limitada y no penalices automáticamente.
+  
+  ---
+  
+  LÓGICA DE NIVEL PRAXIS
+  
+  El nivel PRAXIS configurado indica el mínimo esperado, no el máximo permitido.
+  
+  Si el estudiante:
+  
+  actúa por debajo del nivel → señálalo pedagógicamente  
+  cumple el nivel → reconócelo  
+  supera el nivel → destácalo como fortaleza  
+  
+  Nunca penalices intervenciones más avanzadas.
+  
+  ---
+  
+  MOTOR DE DETECCIÓN DE MICROINTERVENCIONES CLÍNICAS
+  
+  Antes de evaluar PRAXIS analiza las intervenciones del terapeuta.
+  
+  Una microintervención es una acción verbal breve que modifica o guía la conversación terapéutica.
+  
+  Detecta mediante análisis semántico:
+  
+  Reflejo emocional  
+  Paráfrasis  
+  Clarificación  
+  Pregunta abierta  
+  Confrontación terapéutica  
+  Síntesis  
+  Ironía terapéutica  
+  Chiste terapéutico  
+  
+  Los ejemplos siguientes son ilustrativos.  
+  Las intervenciones reales pueden variar.
+  
+  ---
+  
+  Reflejo emocional
+  
+  Detecta cuando el terapeuta devuelve la emoción del paciente.
+  
+  Ejemplos:
+  
+  "Suena como si eso te hubiera dolido mucho."  
+  "Parece que esta situación te genera mucha frustración."
+  
+  ---
+  
+  Paráfrasis
+  
+  Detecta cuando el terapeuta reformula el contenido.
+  
+  Ejemplos:
+  
+  "Entonces lo que ocurrió fue que..."  
+  "Si te entiendo bien, lo que pasó fue..."
+  
+  ---
+  
+  Clarificación
+  
+  Detecta cuando el terapeuta pide precisión.
+  
+  Ejemplos:
+  
+  "¿Qué quieres decir exactamente con eso?"  
+  "¿A qué te refieres cuando dices que fue difícil?"
+  
+  ---
+  
+  Pregunta abierta
+  
+  Ejemplos:
+  
+  "¿Cómo fue esa experiencia para ti?"  
+  "¿Qué pasó después?"
+  
+  ---
+  
+  Confrontación terapéutica
+  
+  Detecta discrepancias.
+  
+  Ejemplo:
+  
+  "Por un lado dices que quieres cambiar, pero parece que sigues evitando esa conversación."
+  
+  ---
+  
+  Síntesis
+  
+  Ejemplo:
+  
+  "Entonces hemos visto que esto afecta tu trabajo, tu familia y tu autoestima."
+  
+  ---
+  
+  Ironía terapéutica
+  
+  Detecta ironía si intenta movilizar conciencia.
+  
+  Ejemplo:
+  
+  "Entonces parece que tu ansiedad también quiere manejar tu agenda."
+  
+  No penalices automáticamente.
+  
+  Evalúa:
+  
+  intención clínica  
+  contexto  
+  impacto terapéutico
+  
+  ---
+  
+  Chiste terapéutico
+  
+  Detecta humor si:
+  
+  reduce tensión  
+  genera rapport  
+  
+  Ejemplo:
+  
+  "Parece que tu cerebro se volvió experto en imaginar catástrofes."
+  
+  No penalices humor automáticamente.
+  
+  ---
+  
+  USO DE MICROINTERVENCIONES
+  
+  Las microintervenciones detectadas deben alimentar las dimensiones PRAXIS.
+  
+  Ejemplo:
+  
+  Reflejo → MMD o IIT  
+  Paráfrasis → ASC o IRI  
+  Clarificación → ASC  
+  Pregunta abierta → ASC o IIT  
+  Confrontación → IIT o MMD  
+  Síntesis → ASC  
+  Ironía → MMD  
+  Chiste → MLT
+  
+  ---
+  
+  ANÁLISIS SEGÚN MODELO TERAPÉUTICO
+  
+  Si modelo = Sin modelo específico  
+  evalúa solo microintervenciones.
+  
+  Si modelo = Terapia Cognitivo Conductual
+  
+  detecta:
+  
+  psicoeducación  
+  reestructuración cognitiva  
+  tareas para casa  
+  activación conductual  
+  exposición  
+  economía de fichas  
+  refuerzos positivos y negativos
+  
+  Si modelo = Humanista
+  
+  empatía profunda  
+  validación emocional  
+  reflejo emocional
+  
+  Si modelo = Sistémico
+  
+  preguntas circulares  
+  reencuadre sistémico  
+  patrones relacionales
+  
+  Si modelo = Psicodinámico
+  
+  interpretación  
+  clarificación  
+  defensas  
+  transferencia
+  
+  No penalices ausencia de técnicas avanzadas si la fase clínica no lo requiere.
+  
+  ---
+  
+  DATOS DE LA SESIÓN (JSON):
+  
+  ${JSON.stringify({
     transcripcion: data?.transcripcion || "",
     transcripcionDiarizada:
       data?.transcripcionDiarizada ||
@@ -626,14 +672,12 @@ ${JSON.stringify(
       tipoRole: data?.tipoRole || "",
       trastorno: data?.trastorno || "",
       consentimiento: data?.consentimiento || false,
-      tipoConsentimiento: data?.tipoConsentimiento || "",
+      tipoConsentimiento: data?.tipoConsentimiento || ""
     },
-    herramientas: toolPayloads,
-  },
-  null,
-  2
-)}
-`.trim();
+    herramientas: toolPayloads
+  }, null, 2)}
+  
+  `.trim();
 }
 
 /* =========================================================
