@@ -22,7 +22,6 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ✅ ESTADOS reales de flujo
     estado: {
       type: String,
       enum: ["bloqueado", "pendiente", "en_progreso", "completado"],
@@ -56,8 +55,7 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
     },
 
     /* =========================================================
-       ✅ ANÁLISIS IA PRINCIPAL
-       Este seguirá guardando la evaluación Praxis-TH
+       ANÁLISIS IA PRINCIPAL — evaluación Praxis-TH
        ========================================================= */
     analisisIA: {
       type: mongoose.Schema.Types.Mixed,
@@ -65,22 +63,39 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
     },
 
     /* =========================================================
-       ✅ NUEVO: evaluación de herramientas
-       Aquí guardaremos la coherencia/redacción de:
-       ficha, hc, examen, diagnóstico, etc.
+       EVALUACIÓN DE HERRAMIENTAS
+       coherencia/redacción de ficha, hc, examen, diagnóstico, etc.
        ========================================================= */
     evaluacionHerramientas: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
 
-    // ✅ Auditoría
+    /* =========================================================
+       ✅ PERFIL TERAPÉUTICO
+       Generado por IA al finalizar cada ejercicio de role playing.
+       Guarda los 6 estilos clínicos (0.0–1.0), resumen narrativo
+       y metadata del análisis.
+       Estructura:
+       {
+         perfilTerapeutico: { validante, directivo, colaborativo,
+                              confrontativo, exploratorio, contenedor },
+         resumenPerfil: string,
+         meta: { perfilDominante, sesionesAnalizadas,
+                 notaDelSupervisor, generadoAt }
+       }
+       ========================================================= */
+    perfilTerapeutico: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
+    // Auditoría
     analisisGeneradoAt: {
       type: Date,
       default: null,
     },
 
-    // ✅ para distinguir si fue IA real o mock (útil en MVP)
     analisisFuente: {
       type: String,
       enum: ["ai", "mock", "unknown", "legacy", "manual", "real"],
@@ -93,33 +108,28 @@ const ejercicioInstanciaSchema = new mongoose.Schema(
     },
 
     /* =========================================================
-       ✅ TIEMPO REAL DE PRÁCTICA
+       TIEMPO REAL DE PRÁCTICA
        ========================================================= */
-
-    // Marca cuando el estudiante inició la sesión actual (si está en progreso)
     startedAt: {
       type: Date,
       default: null,
       index: true,
     },
 
-    // Total acumulado de práctica en segundos
     tiempoAcumuladoSeg: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    // Auditoría opcional
     sesiones: [
       {
         startedAt: { type: Date, required: true },
-        endedAt: { type: Date, required: true },
-        segundos: { type: Number, required: true, min: 0 },
+        endedAt:   { type: Date, required: true },
+        segundos:  { type: Number, required: true, min: 0 },
       },
     ],
 
-    // Marca final al completar
     completedAt: {
       type: Date,
       default: null,

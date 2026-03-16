@@ -1,8 +1,4 @@
 // server/utils/analisisPraxisIA.js
-// =========================================================
-// Evaluación PRAXIS-TH — analiza ÚNICAMENTE la transcripción
-// de la sesión clínica (intervención del terapeuta/estudiante).
-// =========================================================
 
 /* =========================================================
    HELPERS INTERNOS
@@ -33,6 +29,21 @@ function clampText(text, max = 12000) {
     return Math.max(0, Math.min(1, x));
   }
   
+  // ✅ FIX CENTRAL: la IA devuelve scores en escala 0.0–1.0 en lugar de 0–100
+  // Esta función detecta la escala y convierte correctamente
+  function normalizeScoreValue(raw) {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    if (n < 0) return 0;
+    // Si está claramente en escala 0–1 (valor < 2, puede ser 0.0 a 1.0)
+    // Excepción: valores como 0, 1 en escala 0–100 también son posibles,
+    // pero estadísticamente un score de "1/100" no tiene sentido pedagógico.
+    // Regla: si n <= 1, asumir escala 0–1 → multiplicar × 100
+    if (n <= 1.0) return Math.round(n * 100);
+    // Si ya está en escala 0–100
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+  
   /* =========================================================
      CONSTANTES PRAXIS-TH
   ========================================================= */
@@ -41,32 +52,27 @@ function clampText(text, max = 12000) {
     ASC: {
       label: "Organización de la conversación",
       shortLabel: "ASC – Análisis Secuencial Conversacional",
-      description:
-        "Esta dimensión analiza qué tan clara y ordenada fue la conversación durante la sesión.",
+      description: "Esta dimensión analiza qué tan clara y ordenada fue la conversación durante la sesión.",
     },
     IIT: {
       label: "Intención de tus intervenciones",
       shortLabel: "IIT – Intencionalidad de la Intervención Terapéutica",
-      description:
-        "Esta dimensión analiza si tus preguntas e intervenciones tuvieron un propósito claro dentro de la conversación terapéutica y si ayudaron a comprender mejor la situación del paciente.",
+      description: "Esta dimensión analiza si tus preguntas e intervenciones tuvieron un propósito claro dentro de la conversación terapéutica y si ayudaron a comprender mejor la situación del paciente.",
     },
     IRI: {
       label: "Escucha e integración de lo que dice el paciente",
       shortLabel: "IRI – Integración de Referencias Internas",
-      description:
-        "Esta dimensión analiza qué tan bien escuchaste al paciente y cómo utilizaste la información que él o ella fue compartiendo durante la sesión.",
+      description: "Esta dimensión analiza qué tan bien escuchaste al paciente y cómo utilizaste la información que él o ella fue compartiendo durante la sesión.",
     },
     MMD: {
       label: "Capacidad para generar avance en la conversación",
       shortLabel: "MMD – Movilización Micro-Dinámica",
-      description:
-        "Esta dimensión analiza si tus intervenciones ayudaron a que la conversación avanzara hacia una mayor comprensión o reflexión sobre lo que el paciente está viviendo.",
+      description: "Esta dimensión analiza si tus intervenciones ayudaron a que la conversación avanzara hacia una mayor comprensión o reflexión sobre lo que el paciente está viviendo.",
     },
     MLT: {
       label: "Manejo del encuadre terapéutico",
       shortLabel: "MLT – Manejo del Límite Terapéutico",
-      description:
-        "Esta dimensión analiza cómo mantuviste el marco profesional de la sesión y si lograste sostener un espacio terapéutico claro y seguro para el paciente.",
+      description: "Esta dimensión analiza cómo mantuviste el marco profesional de la sesión y si lograste sostener un espacio terapéutico claro y seguro para el paciente.",
     },
   };
   
@@ -77,12 +83,9 @@ function clampText(text, max = 12000) {
   };
   
   const PRAXIS_LEVEL_DESCRIPTIONS = {
-    nivel_1:
-      "Enfoque en habilidades básicas. Se prioriza la organización conversacional y el encuadre básico.",
-    nivel_2:
-      "Integración técnica. Se equilibra la estructura con la integración narrativa y la movilización micro-dinámica.",
-    nivel_3:
-      "Competencia estratégica. Se incrementa el peso de la intencionalidad estratégica y la movilización terapéutica.",
+    nivel_1: "Enfoque en habilidades básicas. Se prioriza la organización conversacional y el encuadre básico.",
+    nivel_2: "Integración técnica. Se equilibra la estructura con la integración narrativa y la movilización micro-dinámica.",
+    nivel_3: "Competencia estratégica. Se incrementa el peso de la intencionalidad estratégica y la movilización terapéutica.",
   };
   
   const PRAXIS_WEIGHTS_BY_LEVEL = {
@@ -105,12 +108,9 @@ function clampText(text, max = 12000) {
   
   function normalizePraxisNivel(raw) {
     const v = String(raw || "").trim().toLowerCase();
-    if (v === "nivel_1" || v === "nivel1" || v === "1" || v.includes("inicial"))
-      return "nivel_1";
-    if (v === "nivel_2" || v === "nivel2" || v === "2" || v.includes("intermedio"))
-      return "nivel_2";
-    if (v === "nivel_3" || v === "nivel3" || v === "3" || v.includes("avanzad"))
-      return "nivel_3";
+    if (v === "nivel_1" || v === "nivel1" || v === "1" || v.includes("inicial")) return "nivel_1";
+    if (v === "nivel_2" || v === "nivel2" || v === "2" || v.includes("intermedio")) return "nivel_2";
+    if (v === "nivel_3" || v === "nivel3" || v === "3" || v.includes("avanzad")) return "nivel_3";
     return "nivel_1";
   }
   
@@ -148,7 +148,7 @@ function clampText(text, max = 12000) {
       metrics = Object.entries(metrics).map(([k, v]) => ({
         key: k,
         label: String(k),
-        score: safeInt(v),
+        score: v,
       }));
     }
     if (!Array.isArray(metrics)) metrics = [];
@@ -156,7 +156,8 @@ function clampText(text, max = 12000) {
       .map((m, i) => ({
         key: m?.key || `m${i + 1}`,
         label: String(m?.label || m?.nombre || `Criterio ${i + 1}`),
-        score: safeInt(m?.score),
+        // ✅ FIX: normalizar score de métricas también (pueden venir en 0-1)
+        score: m?.score != null ? normalizeScoreValue(m.score) : null,
         icon: m?.icon || null,
       }))
       .filter((m) => m.label);
@@ -180,9 +181,7 @@ function clampText(text, max = 12000) {
     return evidence
       .map((ev) => ({
         quote: String(ev?.quote || ev?.cita || "").trim(),
-        explanation: String(
-          ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || ""
-        ).trim(),
+        explanation: String(ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || "").trim(),
       }))
       .filter((ev) => ev.quote || ev.explanation)
       .slice(0, maxItems);
@@ -191,70 +190,37 @@ function clampText(text, max = 12000) {
   function normalizeStudentGuidance(rawGuidance) {
     const g = rawGuidance && typeof rawGuidance === "object" ? rawGuidance : {};
   
-    const loQueHicisteBienRaw =
-      g.loQueHicisteBien || g.goodBlock || g.strengthBlock || {};
-    const loQuePodriasMejorarRaw =
-      g.loQuePodriasMejorar || g.improveBlock || g.weaknessBlock || {};
-    const sugerenciaParaMejorarRaw =
-      g.sugerenciaParaMejorar || g.nextSuggestion || g.improvementSuggestion || {};
+    const loQueHicisteBienRaw = g.loQueHicisteBien || g.goodBlock || g.strengthBlock || {};
+    const loQuePodriasMejorarRaw = g.loQuePodriasMejorar || g.improveBlock || g.weaknessBlock || {};
+    const sugerenciaParaMejorarRaw = g.sugerenciaParaMejorar || g.nextSuggestion || g.improvementSuggestion || {};
   
     return {
       loQueHicisteBien: {
-        textoBreve: String(
-          loQueHicisteBienRaw?.textoBreve ||
-            loQueHicisteBienRaw?.text ||
-            loQueHicisteBienRaw?.summary ||
-            ""
-        ).trim(),
-        evidencias: normalizeSimpleEvidence(
-          loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence,
-          2
-        ),
+        textoBreve: String(loQueHicisteBienRaw?.textoBreve || loQueHicisteBienRaw?.text || loQueHicisteBienRaw?.summary || "").trim(),
+        evidencias: normalizeSimpleEvidence(loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence, 2),
       },
       loQuePodriasMejorar: {
-        textoBreve: String(
-          loQuePodriasMejorarRaw?.textoBreve ||
-            loQuePodriasMejorarRaw?.text ||
-            loQuePodriasMejorarRaw?.summary ||
-            ""
-        ).trim(),
-        evidencias: normalizeSimpleEvidence(
-          loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence,
-          2
-        ),
+        textoBreve: String(loQuePodriasMejorarRaw?.textoBreve || loQuePodriasMejorarRaw?.text || loQuePodriasMejorarRaw?.summary || "").trim(),
+        evidencias: normalizeSimpleEvidence(loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence, 2),
       },
       sugerenciaParaMejorar: {
-        textoBreve: String(
-          sugerenciaParaMejorarRaw?.textoBreve ||
-            sugerenciaParaMejorarRaw?.text ||
-            sugerenciaParaMejorarRaw?.summary ||
-            ""
-        ).trim(),
-        ejemploIntervencion: String(
-          sugerenciaParaMejorarRaw?.ejemploIntervencion ||
-            sugerenciaParaMejorarRaw?.example ||
-            sugerenciaParaMejorarRaw?.ejemplo ||
-            ""
-        ).trim(),
+        textoBreve: String(sugerenciaParaMejorarRaw?.textoBreve || sugerenciaParaMejorarRaw?.text || sugerenciaParaMejorarRaw?.summary || "").trim(),
+        ejemploIntervencion: String(sugerenciaParaMejorarRaw?.ejemploIntervencion || sugerenciaParaMejorarRaw?.example || sugerenciaParaMejorarRaw?.ejemplo || "").trim(),
       },
-      whyThisMatters: normalizeRecommendations(
-        g.whyThisMatters || g.porQueImporta || g.importancia || g.whyItMatters
-      ),
+      whyThisMatters: normalizeRecommendations(g.whyThisMatters || g.porQueImporta || g.importancia || g.whyItMatters),
     };
   }
   
   function normalizePraxisDimension(rawBlock, key, weight) {
     const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
   
-    const nivel =
-      safeLevel(
-        base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel
-      ) ?? 1;
+    const nivel = safeLevel(base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel) ?? 1;
   
-    const score =
-      safeInt(
-        base.score ?? base.porcentaje ?? base.percent ?? base.generalScore
-      ) ?? Math.round((nivel / 5) * 100);
+    // ✅ FIX: normalizar score con detección de escala 0-1 vs 0-100
+    const scoreRaw = base.score ?? base.porcentaje ?? base.percent ?? base.generalScore;
+    const score = scoreRaw != null
+      ? (normalizeScoreValue(scoreRaw) ?? Math.round((nivel / 5) * 100))
+      : Math.round((nivel / 5) * 100);
   
     return {
       key,
@@ -266,15 +232,10 @@ function clampText(text, max = 12000) {
       weight: safeWeight(weight),
       score,
       weightedScore: Number((nivel * safeWeight(weight)).toFixed(4)),
-      metrics: normalizeMetrics(
-        base.metrics || base.criterios || base.items || base.subScores
-      ),
-      recommendations: normalizeRecommendations(
-        base.recommendations || base.recomendaciones || base.tips
-      ),
-      evidence: normalizeEvidence(
-        base.evidence || base.evidencia || base.quotes
-      ),
+      // ✅ normalizeMetrics ya aplica normalizeScoreValue internamente
+      metrics: normalizeMetrics(base.metrics || base.criterios || base.items || base.subScores),
+      recommendations: normalizeRecommendations(base.recommendations || base.recomendaciones || base.tips),
+      evidence: normalizeEvidence(base.evidence || base.evidencia || base.quotes),
       studentGuidance: normalizeStudentGuidance(base.studentGuidance),
     };
   }
@@ -323,18 +284,9 @@ function clampText(text, max = 12000) {
           "recommendations": [""],
           "evidence": [ { "quote": "", "technique": "", "why": "" } ],
           "studentGuidance": {
-            "loQueHicisteBien": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "loQuePodriasMejorar": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "sugerenciaParaMejorar": {
-              "textoBreve": "",
-              "ejemploIntervencion": ""
-            },
+            "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
             "whyThisMatters": [""]
           }
         },
@@ -345,18 +297,9 @@ function clampText(text, max = 12000) {
           "recommendations": [""],
           "evidence": [ { "quote": "", "technique": "", "why": "" } ],
           "studentGuidance": {
-            "loQueHicisteBien": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "loQuePodriasMejorar": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "sugerenciaParaMejorar": {
-              "textoBreve": "",
-              "ejemploIntervencion": ""
-            },
+            "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
             "whyThisMatters": [""]
           }
         },
@@ -367,18 +310,9 @@ function clampText(text, max = 12000) {
           "recommendations": [""],
           "evidence": [ { "quote": "", "technique": "", "why": "" } ],
           "studentGuidance": {
-            "loQueHicisteBien": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "loQuePodriasMejorar": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "sugerenciaParaMejorar": {
-              "textoBreve": "",
-              "ejemploIntervencion": ""
-            },
+            "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
             "whyThisMatters": [""]
           }
         },
@@ -389,18 +323,9 @@ function clampText(text, max = 12000) {
           "recommendations": [""],
           "evidence": [ { "quote": "", "technique": "", "why": "" } ],
           "studentGuidance": {
-            "loQueHicisteBien": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "loQuePodriasMejorar": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "sugerenciaParaMejorar": {
-              "textoBreve": "",
-              "ejemploIntervencion": ""
-            },
+            "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
             "whyThisMatters": [""]
           }
         },
@@ -411,18 +336,9 @@ function clampText(text, max = 12000) {
           "recommendations": [""],
           "evidence": [ { "quote": "", "technique": "", "why": "" } ],
           "studentGuidance": {
-            "loQueHicisteBien": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "loQuePodriasMejorar": {
-              "textoBreve": "",
-              "evidencias": [ { "quote": "", "explanation": "" } ]
-            },
-            "sugerenciaParaMejorar": {
-              "textoBreve": "",
-              "ejemploIntervencion": ""
-            },
+            "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
+            "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
             "whyThisMatters": [""]
           }
         }
@@ -438,6 +354,13 @@ function clampText(text, max = 12000) {
       "modeloIntervencion": ${JSON.stringify(modelo)}
     }
   }
+  
+  ESCALA DE SCORES — MUY IMPORTANTE:
+  Todos los valores de "score" (en dimensiones, métricas e indiceGlobal.porcentaje) deben ser ENTEROS entre 0 y 100.
+  NO uses decimales entre 0 y 1.
+  Ejemplo correcto: "score": 70
+  Ejemplo incorrecto: "score": 0.7
+  El campo indiceGlobal.porcentaje también debe ser un entero entre 0 y 100.
   
   REGLAS DE SALIDA
   
@@ -661,11 +584,7 @@ function clampText(text, max = 12000) {
   ${JSON.stringify(
       {
         transcripcion: data?.transcripcion || "",
-        transcripcionDiarizada:
-          data?.transcripcionDiarizada ||
-          data?.diarizacion ||
-          data?.turnosDiarizados ||
-          null,
+        transcripcionDiarizada: data?.transcripcionDiarizada || data?.diarizacion || data?.turnosDiarizados || null,
         observacionesContexto: {
           tipoRole: data?.tipoRole || "",
           trastorno: data?.trastorno || "",
@@ -704,9 +623,7 @@ function clampText(text, max = 12000) {
       obj?.praxisTH?.praxisNivel || obj?.meta?.praxisNivel || praxisNivel
     );
     const modelo = normalizeModeloIntervencion(
-      obj?.praxisTH?.modeloIntervencion ||
-        obj?.meta?.modeloIntervencion ||
-        modeloIntervencion
+      obj?.praxisTH?.modeloIntervencion || obj?.meta?.modeloIntervencion || modeloIntervencion
     );
     const weights = getPraxisWeights(nivel);
   
@@ -727,21 +644,26 @@ function clampText(text, max = 12000) {
     const indiceBrutoRaw = Object.keys(dimensions).reduce((acc, key) => {
       return acc + Number(dimensions[key]?.nivel || 0) * Number(weights[key] || 0);
     }, 0);
-  
     const indiceBruto = Number(indiceBrutoRaw.toFixed(4));
-    const indicePct =
-      safeInt(
-        obj?.praxisTH?.indiceGlobal?.porcentaje ||
-          obj?.praxisTH?.generalScore ||
-          obj?.generalScore
-      ) ?? Math.round((indiceBruto / 5) * 100);
+  
+    // ✅ FIX: normalizar porcentaje global también (puede venir en escala 0-1)
+    const rawPorcentaje =
+      obj?.praxisTH?.indiceGlobal?.porcentaje ||
+      obj?.praxisTH?.generalScore ||
+      obj?.generalScore;
+  
+    const indicePct = (() => {
+      const n = Number(rawPorcentaje);
+      if (Number.isFinite(n)) return normalizeScoreValue(n) ?? Math.round((indiceBruto / 5) * 100);
+      return Math.round((indiceBruto / 5) * 100);
+    })();
   
     const praxisSummary = String(
       obj?.praxisTH?.indiceGlobal?.summary ||
-        obj?.praxisTH?.general?.summary ||
-        obj?.general?.summary ||
-        obj?.evaluacionGeneral ||
-        ""
+      obj?.praxisTH?.general?.summary ||
+      obj?.general?.summary ||
+      obj?.evaluacionGeneral ||
+      ""
     ).trim();
   
     return {
@@ -756,9 +678,7 @@ function clampText(text, max = 12000) {
       indiceGlobal: {
         bruto: indiceBruto,
         porcentaje: indicePct,
-        nivelDesempeno:
-          String(obj?.praxisTH?.indiceGlobal?.nivelDesempeno || "").trim() ||
-          getPraxisLevelLabelByScore(indicePct),
+        nivelDesempeno: String(obj?.praxisTH?.indiceGlobal?.nivelDesempeno || "").trim() || getPraxisLevelLabelByScore(indicePct),
         summary: praxisSummary,
       },
       studentSummary: {
