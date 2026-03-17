@@ -915,17 +915,18 @@ function computePraxisIndex(dimensions, weights) {
         ? weight * 0.5
         : weight;
 
-    suma += Number(dim?.nivel || 0) * pesoEfectivo;
+    // ✅ FIX: usar score (0-100) en lugar de nivel (1-5)
+    const scoreValue = Number(dim?.score ?? 0);
+    suma += scoreValue * pesoEfectivo;
     pesoTotal += pesoEfectivo;
   }
 
-  const indiceBruto =
-    pesoTotal > 0 ? Number((suma / pesoTotal).toFixed(4)) : 0;
+  // ✅ FIX: el resultado ya es 0-100, no hay que dividir por 5
+  const indicePct = pesoTotal > 0 ? Math.round(suma / pesoTotal) : 0;
 
-  const indicePct = Math.round((indiceBruto / 5) * 100);
-
-  return { indiceBruto, indicePct };
+  return { indiceBruto: indicePct, indicePct };
 }
+
 
 function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion }) {
   const obj = parseRawJson(raw);
