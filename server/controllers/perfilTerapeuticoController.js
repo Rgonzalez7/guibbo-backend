@@ -60,6 +60,16 @@ function extractHerramientasScoreGlobal(evalH) {
   );
 }
 
+// ✅ Helper para calcular nivelLabel desde score
+function getPraxisLevelLabelByScore(scorePct) {
+  const n = Number(scorePct || 0);
+  if (n < 20) return "Incipiente";
+  if (n < 40) return "Básico";
+  if (n < 60) return "Competente";
+  if (n < 80) return "Avanzado";
+  return "Estratégico";
+}
+
 // ✅ Extrae scores por dimensión PRAXIS (ASC, IIT, IRI, MMD, MLT)
 function extractDimensionScores(analisisIA) {
   if (!analisisIA) return null;
@@ -69,21 +79,28 @@ function extractDimensionScores(analisisIA) {
   const sections = obj?.sections;
   if (!sections || typeof sections !== "object") return null;
   const keys = ["ASC", "IIT", "IRI", "MMD", "MLT"];
-  if (!keys.some((k) => sections[k])) return null; // formato viejo
+  if (!keys.some((k) => sections[k])) return null;
   const result = {};
   keys.forEach((k) => {
     const sec = sections[k];
     if (!sec) return;
     const scoreRaw = sec?.score;
     const score = scoreRaw != null ? Number(scoreRaw) : null;
+    const scoreFinite = Number.isFinite(score) ? Math.round(score) : null;
     result[k] = {
-      score: Number.isFinite(score) ? Math.round(score) : null,
+      score: scoreFinite,
       label: sec?.label || k,
-      nivelLabel: sec?.nivelLabel || null,
+      // ✅ FIX: calcular desde score si nivelLabel no existe o es "Incipiente" con score alto
+      nivelLabel: sec?.nivelLabel && scoreFinite !== null
+        ? getPraxisLevelLabelByScore(scoreFinite)  // siempre recalcular desde score
+        : scoreFinite !== null
+        ? getPraxisLevelLabelByScore(scoreFinite)
+        : null,
     };
   });
   return Object.keys(result).length > 0 ? result : null;
 }
+
 
 /* =========================================================
    GET /api/ia/perfil-terapeutico
