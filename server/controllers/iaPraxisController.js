@@ -11,6 +11,7 @@ const {
   extractRPDataFromInstance,
   normalizePraxisNivel,
   normalizeModeloIntervencion,
+  normalizeContextoSesion,
 } = require("../utils/analisisPraxisIA");
 
 const { callLLMJson } = require("../utils/llmClient");
@@ -53,20 +54,22 @@ function setPraxisInInstance(inst, analisisIA, fuente = "real", replace = true) 
   return inst;
 }
 
-async function resolvePraxisConfig({ ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw }) {
+async function resolvePraxisConfig({ ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw, contextoSesionRaw }) {
   let detalle = null;
   if (ejercicioId) {
     try {
       detalle = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
-        .select("praxisNivel modeloIntervencion")
+        .select("praxisNivel modeloIntervencion contextoSesion")
         .lean();
     } catch { detalle = null; }
   }
   return {
     praxisNivel: normalizePraxisNivel(praxisNivelRaw || detalle?.praxisNivel || "nivel_1"),
     modeloIntervencion: normalizeModeloIntervencion(modeloIntervencionRaw || enfoqueRaw || detalle?.modeloIntervencion || ""),
+    contextoSesion: normalizeContextoSesion(contextoSesionRaw || detalle?.contextoSesion || "exploracion_clinica"),
   };
 }
+
 
 async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId }) {
   if (instanciaId) {
@@ -79,7 +82,7 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
   return EjercicioInstancia.findOne(q).sort({ createdAt: -1, updatedAt: -1 });
 }
 
-function buildSafePraxisData(resolvedData = {}) {
+function buildSafePraxisData(resolvedData = {}, contextoSesion = "exploracion_clinica") {
   return {
     transcripcion: clampText(
       resolvedData?.transcripcion || resolvedData?.transcription || resolvedData?.textoTranscripcion || "",
@@ -90,8 +93,10 @@ function buildSafePraxisData(resolvedData = {}) {
     trastorno: resolvedData?.trastorno || "",
     consentimiento: resolvedData?.consentimiento || false,
     tipoConsentimiento: resolvedData?.tipoConsentimiento || "",
+    contextoSesion, 
   };
 }
+
 
 async function callLLMJsonWithRetry(opts, retries = 1) {
   try { return await callLLMJson(opts); }
@@ -108,6 +113,7 @@ module.exports.analizarPraxis = async (req, res) => {
       ejercicioId,
       praxisNivel: praxisNivelRaw,
       modeloIntervencion: modeloIntervencionRaw,
+      contextoSesion: contextoSesionRaw,
       enfoque,
       data,
       instanciaId,
@@ -143,11 +149,15 @@ module.exports.analizarPraxis = async (req, res) => {
       return res.status(400).json({ message: "No hay transcripción disponible para evaluar con PRAXIS. Completa la sesión primero." });
     }
 
-    const { praxisNivel, modeloIntervencion } = await resolvePraxisConfig({
-      ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw: enfoque,
+    const { praxisNivel, modeloIntervencion, contextoSesion } = await resolvePraxisConfig({
+      ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw: enfoque, contextoSesionRaw,
     });
-
-    const prompt = buildPraxisPrompt({ praxisNivel, modeloIntervencion, data: buildSafePraxisData(resolvedData) });
+    
+    const prompt = buildPraxisPrompt({
+      praxisNivel,
+      modeloIntervencion,
+      data: buildSafePraxisData(resolvedData, contextoSesion),
+    });
 
     const raw = await callLLMJsonWithRetry({
       system: "Eres un supervisor clínico experto en entrenamiento formativo. Evalúa la intervención terapéutica usando la metodología PRAXIS-TH. Devuelve SOLO JSON válido, sin texto adicional.",
@@ -156,8 +166,8 @@ module.exports.analizarPraxis = async (req, res) => {
       temperature: 0.2,
     }, 1);
 
-    let analisisIA = normalizePraxisResult(raw, { praxisNivel, modeloIntervencion });
-    analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel });
+    let analisisIA = normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion });
+    analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion });
 
     setPraxisInInstance(inst, analisisIA, fuente, replace);
     await inst.save();
@@ -180,6 +190,7 @@ module.exports.analizarPraxis = async (req, res) => {
         intentosUsados: inst.intentosUsados ?? null,
         praxisNivel,
         modeloIntervencion,
+        contextoSesion,
       },
     });
   } catch (err) {

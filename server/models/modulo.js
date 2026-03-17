@@ -72,6 +72,14 @@ const MODELOS_INTERVENCION = [
   "Mindfulness / Mindfulness-based",
 ];
 
+    // Después de MODELOS_INTERVENCION, agrega:
+const CONTEXTOS_SESION_ENUM = [
+  "exploracion_clinica",
+  "intervencion_terapeutica",
+  "aplicacion_pruebas_psicometricas",
+  "devolucion_resultados",
+];
+
 /* =========================================================
    Helpers
 ========================================================= */
@@ -320,6 +328,16 @@ const ejercicioRolePlaySchema = new Schema(
       trim: true,
     },
 
+    // ✅ Contexto de sesión para orientar la evaluación PRAXIS
+    contextoSesion: {
+      type: String,
+      enum: ["", ...CONTEXTOS_SESION_ENUM],
+      default: "exploracion_clinica",
+      trim: true,
+    },
+
+
+
     /* =========================================================
        ✅ Herramientas / partes del expediente
        Estas se mantienen porque serán evaluadas por
@@ -375,6 +393,11 @@ ejercicioRolePlaySchema.pre("validate", function (next) {
   if (typeof this.modeloIntervencion !== "string") {
     this.modeloIntervencion = "";
   }
+
+  if (!this.contextoSesion) {
+    this.contextoSesion = "exploracion_clinica";
+  }
+  
 
   next();
 });
@@ -492,4 +515,5 @@ module.exports = {
   TIPOS_EJERCICIO,
   PRAXIS_NIVELES,
   MODELOS_INTERVENCION,
+  CONTEXTOS_SESION_ENUM,
 };

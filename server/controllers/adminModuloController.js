@@ -1649,7 +1649,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   ACTUALIZAR EJERCICIO (ADMIN, SOLO LOCAL)
    =========================== */  
   
-  exports.actualizarEjercicioAdmin = async (req, res) => {
+   exports.actualizarEjercicioAdmin = async (req, res) => {
     try {
       const { id } = req.params;
   
@@ -1662,21 +1662,23 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         return res.status(404).json({ message: "Ejercicio no encontrado" });
   
       const {
-          titulo,
-          tiempo,
-          tipoModulo,
-          tipoEjercicio,
+        titulo,
+        tiempo,
+        tipoModulo,
+        tipoEjercicio,
   
-          // RolePlay
-          tipoRole,
-          trastorno,
-          consentimiento,
-          tipoConsentimiento,
-          herramientas,
-          praxisNivel,
-          modeloIntervencion,
+        // RolePlay
+        tipoRole,
+        trastorno,
+        consentimiento,
+        tipoConsentimiento,
+        herramientas,
+        praxisNivel,
+        modeloIntervencion,
+        contextoSesion,   // ✅
+        evaluaciones,     // ✅ destructurado correctamente
   
-        // ✅ unificado
+        // unificado
         pruebasConfig,
   
         // Grabar voz
@@ -1703,7 +1705,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         texto,
       } = req.body || {};
   
-      // ✅ No permitir cambiar el tipo una vez creado (evita romper colecciones detalle)
+      // No permitir cambiar el tipo una vez creado
       if (
         tipoEjercicio !== undefined &&
         String(tipoEjercicio) !== String(ejercicio.tipoEjercicio)
@@ -1718,7 +1720,6 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         ejercicio.tiempo =
           typeof tiempo === "number" ? tiempo : Number(tiempo) || 0;
   
-      // (opcional) si quieres permitir actualizar tipoModulo a nivel ejercicio:
       if (tipoModulo !== undefined) {
         const norm = normalizarTipoModulo(tipoModulo);
         if (!norm) {
@@ -1736,10 +1737,11 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         if (!detalle) detalle = await EjercicioGrabarVoz.create({ ejercicio: id });
   
         if (caso !== undefined) detalle.caso = String(caso || "");
-        if (req.body?.evaluaciones !== undefined) {
-          detalle.evaluaciones = normalizeEvaluacionesIA(req.body.evaluaciones || {});
+        if (evaluaciones !== undefined) {
+          detalle.evaluaciones = normalizeEvaluacionesIA(evaluaciones || {});
         }
         await detalle.save();
+  
       } else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
         if (!detalle)
@@ -1748,8 +1750,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         if (edad !== undefined) detalle.edad = Number(edad);
         if (ocupacion !== undefined) detalle.ocupacion = ocupacion || "";
         if (motivo !== undefined) detalle.motivo = motivo || "";
-        if (historiaPersonal !== undefined)
-          detalle.historiaPersonal = historiaPersonal || "";
+        if (historiaPersonal !== undefined) detalle.historiaPersonal = historiaPersonal || "";
         if (tipo !== undefined) detalle.tipoTest = tipo || "adulto";
         if (Array.isArray(respuestasFrases)) detalle.respuestasFrases = respuestasFrases;
         if (texto !== undefined) detalle.notas = texto || "";
@@ -1758,27 +1759,25 @@ exports.listarEjerciciosAdmin = async (req, res) => {
             typeof intentos === "number" ? intentos : Number(intentos) || 1;
   
         await detalle.save();
-      }
   
-      // ✅ ROLEPLAY
-      else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
+      } else if (isRolePlayTipo(ejercicio.tipoEjercicio)) {
         detalle = await EjercicioRolePlay.findOne({ ejercicio: id });
         if (!detalle) {
           detalle = await EjercicioRolePlay.create({ ejercicio: id });
         }
-
+  
         if (tipoRole !== undefined) {
           detalle.tipoRole = tipoRole === "simulada" ? "simulada" : "real";
         }
-
+  
         if (trastorno !== undefined) {
           detalle.trastorno = String(trastorno || "");
         }
-
+  
         if (consentimiento !== undefined) {
           const consentimientoBool = toBool(consentimiento);
           detalle.consentimiento = consentimientoBool;
-
+  
           if (!consentimientoBool) {
             detalle.tipoConsentimiento = "";
           } else if (tipoConsentimiento !== undefined) {
@@ -1803,30 +1802,49 @@ exports.listarEjerciciosAdmin = async (req, res) => {
           }
           detalle.tipoConsentimiento = tcNorm;
         }
-
+  
         if (praxisNivel !== undefined) {
           detalle.praxisNivel = normalizePraxisNivel(praxisNivel);
         }
-
+  
         if (modeloIntervencion !== undefined) {
           detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
         }
-
+  
+        // ✅ contextoSesion
+        if (contextoSesion !== undefined) {
+          const validContextos = [
+            "exploracion_clinica",
+            "intervencion_terapeutica",
+            "aplicacion_pruebas_psicometricas",
+            "devolucion_resultados",
+          ];
+          detalle.contextoSesion = validContextos.includes(contextoSesion)
+            ? contextoSesion
+            : "exploracion_clinica";
+        }
+  
         if (herramientas !== undefined) {
           detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
         }
-
+  
         if (pruebasConfig !== undefined) {
           detalle.pruebasConfig = normalizePruebasConfigRolePlay(pruebasConfig);
         }
-
-        // compat legacy: ya no se usa como fuente principal
+  
+        // compat legacy
         if (evaluaciones !== undefined) {
           detalle.evaluaciones = null;
         }
-
+  
+        if (typeof detalle.markModified === "function") {
+          detalle.markModified("herramientas");
+          detalle.markModified("pruebasConfig");
+        }
+  
         await detalle.save();
-      }else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
+  
+      } else if (ejercicio.tipoEjercicio === "Criterios de diagnostico") {
         detalle = await EjercicioCriteriosDx.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioCriteriosDx.create({ ejercicio: id });
   
@@ -1837,11 +1855,11 @@ exports.listarEjerciciosAdmin = async (req, res) => {
             typeof intentos === "number" ? intentos : Number(intentos) || 1;
   
         await detalle.save();
+  
       } else if (ejercicio.tipoEjercicio === "Aplicación de pruebas") {
         detalle = await EjercicioPruebas.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioPruebas.create({ ejercicio: id });
   
-        // ✅ FIX: en UPDATE usa "pruebasConfig" (unificado) o "pruebas" como compat
         const cfg =
           pruebasConfig && typeof pruebasConfig === "object"
             ? pruebasConfig
@@ -1851,6 +1869,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   
         detalle.pruebasConfig = cfg;
         await detalle.save();
+  
       } else if (ejercicio.tipoEjercicio === "Pruebas psicometricas") {
         detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id });
         if (!detalle)
@@ -1878,6 +1897,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       });
     }
   };
+  
 
 /* ===========================
    OBTENER EJERCICIO (ADMIN)
