@@ -144,22 +144,25 @@ function normalizePraxisNivel(raw) {
     v === "nivel1" ||
     v === "1" ||
     v.includes("inicial")
-  )
+  ) {
     return "nivel_1";
+  }
   if (
     v === "nivel_2" ||
     v === "nivel2" ||
     v === "2" ||
     v.includes("intermedio")
-  )
+  ) {
     return "nivel_2";
+  }
   if (
     v === "nivel_3" ||
     v === "nivel3" ||
     v === "3" ||
     v.includes("avanzad")
-  )
+  ) {
     return "nivel_3";
+  }
   return "nivel_1";
 }
 
@@ -399,7 +402,9 @@ function normalizePraxisDimension(rawBlock, key, weight) {
       : Math.round((nivel / 5) * 100);
 
   const observabilidad = normalizeObservabilidad(
-    base.observabilidad || base.observability || OBSERVABILIDAD_VALUES.OBSERVABLE
+    base.observabilidad ||
+      base.observability ||
+      OBSERVABILIDAD_VALUES.OBSERVABLE
   );
 
   return {
@@ -826,6 +831,93 @@ No penalices ausencia de técnicas avanzadas si la fase clínica o el nivel no l
 
 ---
 
+CRITERIO AVANZADO DE EVALUACIÓN CLÍNICA (APLICA ESPECIALMENTE A NIVEL 2 Y SUPERIOR)
+
+REGLA DE RESULTADO CLÍNICO (PRIORIDAD ALTA)
+
+Si durante la sesión el paciente:
+
+- expresa un cambio de perspectiva
+- verbaliza comprensión nueva (insight)
+- reformula su situación de manera más adaptativa
+- reconoce algo que antes no había identificado
+
+Entonces:
+
+- considera que hubo movilización terapéutica efectiva
+- aumenta la valoración de MMD (Movilización Micro-Dinámica)
+- aumenta la valoración de IIT (Intencionalidad de la Intervención Terapéutica)
+
+El resultado clínico observable tiene mayor peso que la perfección técnica.
+
+---
+
+JERARQUÍA DE EVIDENCIA CLÍNICA
+
+Al evaluar, prioriza en este orden:
+
+1. Evidencia de cambio en el paciente (mayor peso)
+2. Intervenciones con intención clara
+3. Uso de técnicas específicas
+4. Forma y estilo comunicativo
+
+No reduzcas significativamente la puntuación si hay evidencia de cambio clínico,
+aunque la técnica no sea perfecta.
+
+---
+
+AJUSTE POR DURACIÓN DE LA SESIÓN
+
+Si la sesión es breve (ej. menos de 10 minutos):
+
+- no exijas desarrollo terapéutico profundo
+- valora micro-intervenciones efectivas aunque sean breves
+- evalúa la calidad de lo ocurrido, no la cantidad
+
+La ausencia de profundidad en sesiones cortas no debe penalizar significativamente.
+
+---
+
+CRITERIO ESPECÍFICO PARA NIVEL 2
+
+En nivel 2 se espera:
+
+- exploración con dirección clínica
+- preguntas con intención clara
+- primeras hipótesis suaves o conexiones
+- intervenciones que faciliten reflexión
+- inicio de movilización terapéutica (no profunda, pero observable)
+
+Si el terapeuta:
+
+- guía la conversación hacia comprensión
+- realiza preguntas que abren reflexión
+- conecta elementos del discurso del paciente
+- facilita que el paciente piense diferente sobre su situación
+
+Entonces:
+
+- valora positivamente IIT
+- valora positivamente MMD
+
+Aunque la intervención no sea estructurada o formal.
+
+---
+
+REGLA DE COHERENCIA CONTEXTO VS CONDUCTA
+
+Si el contexto configurado es exploración clínica,
+pero el terapeuta realiza intervenciones terapéuticas efectivas:
+
+- NO penalices automáticamente
+- reconoce la intervención como conducta válida
+- ajusta la evaluación para reflejar lo ocurrido en la sesión
+
+La evaluación debe basarse en la conducta observable,
+no únicamente en lo esperado por el contexto.
+
+---
+
 ESTADO DE OBSERVABILIDAD DE LA DIMENSIÓN
 
 Cada dimensión debe incluir el campo:
@@ -855,8 +947,7 @@ DATOS DE LA SESIÓN (JSON):
 
 ${JSON.stringify(
   {
-    transcripcion:
-      data?.transcripcion || "",
+    transcripcion: data?.transcripcion || "",
     transcripcionDiarizada:
       data?.transcripcionDiarizada ||
       data?.diarizacion ||
@@ -864,7 +955,8 @@ ${JSON.stringify(
       null,
     observacionesContexto: {
       contextoSesion,
-      contextoSesionLabel: CONTEXTOS_SESION[contextoSesion]?.label || contextoSesion,
+      contextoSesionLabel:
+        CONTEXTOS_SESION[contextoSesion]?.label || contextoSesion,
       contextoSesionDescription:
         CONTEXTOS_SESION[contextoSesion]?.description || "",
       tipoRole: data?.tipoRole || "",
@@ -915,20 +1007,20 @@ function computePraxisIndex(dimensions, weights) {
         ? weight * 0.5
         : weight;
 
-    // ✅ FIX: usar score (0-100) en lugar de nivel (1-5)
     const scoreValue = Number(dim?.score ?? 0);
     suma += scoreValue * pesoEfectivo;
     pesoTotal += pesoEfectivo;
   }
 
-  // ✅ FIX: el resultado ya es 0-100, no hay que dividir por 5
   const indicePct = pesoTotal > 0 ? Math.round(suma / pesoTotal) : 0;
 
   return { indiceBruto: indicePct, indicePct };
 }
 
-
-function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion }) {
+function normalizePraxisResult(
+  raw,
+  { praxisNivel, modeloIntervencion, contextoSesion }
+) {
   const obj = parseRawJson(raw);
 
   const nivel = normalizePraxisNivel(
@@ -942,7 +1034,9 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
   );
 
   const contexto = normalizeContextoSesion(
-    obj?.praxisTH?.contextoSesion || obj?.meta?.contextoSesion || contextoSesion
+    obj?.praxisTH?.contextoSesion ||
+      obj?.meta?.contextoSesion ||
+      contextoSesion
   );
 
   const weights = getPraxisWeights(nivel);
@@ -958,7 +1052,11 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
       obj?.[dimKey] ||
       null;
 
-    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey]);
+    dimensions[dimKey] = normalizePraxisDimension(
+      rawDim,
+      dimKey,
+      weights[dimKey]
+    );
   }
 
   const { indiceBruto, indicePct } = computePraxisIndex(dimensions, weights);
@@ -1073,7 +1171,9 @@ function addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion }) {
 
   analisisIA.contextoSesion = contexto;
   analisisIA.contextoSesionLabel =
-    analisisIA.contextoSesionLabel || CONTEXTOS_SESION[contexto]?.label || contexto;
+    analisisIA.contextoSesionLabel ||
+    CONTEXTOS_SESION[contexto]?.label ||
+    contexto;
   analisisIA.contextoSesionDescription =
     analisisIA.contextoSesionDescription ||
     CONTEXTOS_SESION[contexto]?.description ||
@@ -1081,7 +1181,10 @@ function addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion }) {
 
   const recalculated = computePraxisIndex(analisisIA.sections, weights);
   analisisIA.generalScore = recalculated.indicePct;
-  if (!analisisIA.general) analisisIA.general = { score: recalculated.indicePct, summary: "" };
+
+  if (!analisisIA.general) {
+    analisisIA.general = { score: recalculated.indicePct, summary: "" };
+  }
   analisisIA.general.score = recalculated.indicePct;
 
   if (!analisisIA.indiceGlobal) {

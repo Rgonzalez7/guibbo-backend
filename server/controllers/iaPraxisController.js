@@ -54,22 +54,38 @@ function setPraxisInInstance(inst, analisisIA, fuente = "real", replace = true) 
   return inst;
 }
 
-async function resolvePraxisConfig({ ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw, contextoSesionRaw }) {
+// BD tiene prioridad sobre el body para los 3 campos de configuración.
+// El body actúa solo como fallback si la BD no tiene el valor.
+async function resolvePraxisConfig({
+  ejercicioId,
+  praxisNivelRaw,
+  modeloIntervencionRaw,
+  enfoqueRaw,
+  contextoSesionRaw,
+}) {
   let detalle = null;
   if (ejercicioId) {
     try {
       detalle = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
         .select("praxisNivel modeloIntervencion contextoSesion")
         .lean();
-    } catch { detalle = null; }
+    } catch {
+      detalle = null;
+    }
   }
   return {
-    praxisNivel: normalizePraxisNivel(praxisNivelRaw || detalle?.praxisNivel || "nivel_1"),
-    modeloIntervencion: normalizeModeloIntervencion(modeloIntervencionRaw || enfoqueRaw || detalle?.modeloIntervencion || ""),
-    contextoSesion: normalizeContextoSesion(contextoSesionRaw || detalle?.contextoSesion || "exploracion_clinica"),
+    praxisNivel: normalizePraxisNivel(
+      detalle?.praxisNivel || praxisNivelRaw || "nivel_1"
+    ),
+    modeloIntervencion: normalizeModeloIntervencion(
+      detalle?.modeloIntervencion || modeloIntervencionRaw || enfoqueRaw || ""
+    ),
+    // BD primero; body es fallback
+    contextoSesion: normalizeContextoSesion(
+      detalle?.contextoSesion || contextoSesionRaw || "exploracion_clinica"
+    ),
   };
 }
-
 
 async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId }) {
   if (instanciaId) {
@@ -77,30 +93,43 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
     if (inst) return inst;
   }
   if (!userId || !ejercicioId) return null;
-  const q = { ejercicio: ejercicioId, $or: [{ estudiante: userId }, { usuario: userId }] };
+  const q = {
+    ejercicio: ejercicioId,
+    $or: [{ estudiante: userId }, { usuario: userId }],
+  };
   if (moduloInstanciaId) q.moduloInstancia = moduloInstanciaId;
   return EjercicioInstancia.findOne(q).sort({ createdAt: -1, updatedAt: -1 });
 }
 
+// contextoSesion siempre viene del valor ya resuelto (BD > body).
+// Nunca se lee desde resolvedData para evitar que datos de sesión
+// sobreescriban la configuración del ejercicio.
 function buildSafePraxisData(resolvedData = {}, contextoSesion = "exploracion_clinica") {
   return {
     transcripcion: clampText(
-      resolvedData?.transcripcion || resolvedData?.transcription || resolvedData?.textoTranscripcion || "",
+      resolvedData?.transcripcion ||
+        resolvedData?.transcription ||
+        resolvedData?.textoTranscripcion ||
+        "",
       12000
     ),
-    transcripcionDiarizada: resolvedData?.transcripcionDiarizada || resolvedData?.diarizacion || resolvedData?.turnosDiarizados || null,
+    transcripcionDiarizada:
+      resolvedData?.transcripcionDiarizada ||
+      resolvedData?.diarizacion ||
+      resolvedData?.turnosDiarizados ||
+      null,
     tipoRole: resolvedData?.tipoRole || "",
     trastorno: resolvedData?.trastorno || "",
     consentimiento: resolvedData?.consentimiento || false,
     tipoConsentimiento: resolvedData?.tipoConsentimiento || "",
-    contextoSesion, 
+    contextoSesion, // ← siempre el resuelto
   };
 }
 
-
 async function callLLMJsonWithRetry(opts, retries = 1) {
-  try { return await callLLMJson(opts); }
-  catch (e) {
+  try {
+    return await callLLMJson(opts);
+  } catch (e) {
     if (retries <= 0) throw e;
     await sleep(1200);
     return callLLMJsonWithRetry(opts, retries - 1);
@@ -125,58 +154,105 @@ module.exports.analizarPraxis = async (req, res) => {
 
     const replace = toBool(replaceRaw, true);
 
-    if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
+    if (!ejercicioId)
+      return res.status(400).json({ message: "Falta ejercicioId" });
 
     const userId = req.user?._id || req.user?.id || null;
 
-    const inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
+    // 1. Resolver instancia
+    const inst = await resolveInstancia({
+      instanciaId,
+      ejercicioId,
+      moduloInstanciaId,
+      userId,
+    });
 
     if (!inst) {
       return res.status(400).json({
-        message: "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
-        debug: { hasReqUser: Boolean(userId), instanciaId: instanciaId || null, moduloInstanciaId: moduloInstanciaId || null, ejercicioId: ejercicioId || null },
+        message:
+          "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
+        debug: {
+          hasReqUser: Boolean(userId),
+          instanciaId: instanciaId || null,
+          moduloInstanciaId: moduloInstanciaId || null,
+          ejercicioId: ejercicioId || null,
+        },
       });
     }
 
+    // 2. Resolver datos de sesión
     let resolvedData = isObj(data) ? data : extractRPDataFromInstance(inst);
 
     if (!isObj(resolvedData)) {
-      return res.status(400).json({ message: "Falta data (sessionData) o no se pudo obtener desde la instancia." });
+      return res.status(400).json({
+        message:
+          "Falta data (sessionData) o no se pudo obtener desde la instancia.",
+      });
     }
 
-    const transcripcion = resolvedData?.transcripcion || resolvedData?.transcription || resolvedData?.textoTranscripcion || "";
+    const transcripcion =
+      resolvedData?.transcripcion ||
+      resolvedData?.transcription ||
+      resolvedData?.textoTranscripcion ||
+      "";
     if (!safeStr(transcripcion, "").trim()) {
-      return res.status(400).json({ message: "No hay transcripción disponible para evaluar con PRAXIS. Completa la sesión primero." });
+      return res.status(400).json({
+        message:
+          "No hay transcripción disponible para evaluar con PRAXIS. Completa la sesión primero.",
+      });
     }
 
-    const { praxisNivel, modeloIntervencion, contextoSesion } = await resolvePraxisConfig({
-      ejercicioId, praxisNivelRaw, modeloIntervencionRaw, enfoqueRaw: enfoque, contextoSesionRaw,
-    });
-    
+    // 3. Resolver configuración PRAXIS desde BD (BD > body)
+    const { praxisNivel, modeloIntervencion, contextoSesion } =
+      await resolvePraxisConfig({
+        ejercicioId,
+        praxisNivelRaw,
+        modeloIntervencionRaw,
+        enfoqueRaw: enfoque,
+        contextoSesionRaw,
+      });
+
+    // 4. Construir prompt con el contextoSesion correcto
     const prompt = buildPraxisPrompt({
       praxisNivel,
       modeloIntervencion,
       data: buildSafePraxisData(resolvedData, contextoSesion),
     });
 
-    const raw = await callLLMJsonWithRetry({
-      system: "Eres un supervisor clínico experto en entrenamiento formativo. Evalúa la intervención terapéutica usando la metodología PRAXIS-TH. Devuelve SOLO JSON válido, sin texto adicional.",
-      prompt,
-      model: process.env.AI_MODEL || "gpt-4.1-mini",
-      temperature: 0.2,
-    }, 1);
+    // 5. Llamar a la IA
+    const raw = await callLLMJsonWithRetry(
+      {
+        system:
+          "Eres un supervisor clínico experto en entrenamiento formativo. Evalúa la intervención terapéutica usando la metodología PRAXIS-TH. Devuelve SOLO JSON válido, sin texto adicional.",
+        prompt,
+        model: process.env.AI_MODEL || "gpt-4.1-mini",
+        temperature: 0.2,
+      },
+      1
+    );
 
-    let analisisIA = normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion });
-    analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion });
+    // 6. Normalizar con el mismo contextoSesion resuelto
+    let analisisIA = normalizePraxisResult(raw, {
+      praxisNivel,
+      modeloIntervencion,
+      contextoSesion,
+    });
+    analisisIA = addLabelsToPraxisResult(analisisIA, {
+      praxisNivel,
+      contextoSesion,
+    });
 
+    // 7. Persistir en instancia
     setPraxisInInstance(inst, analisisIA, fuente, replace);
     await inst.save();
 
+    // 8. Persistir en sesión si se proporcionó sessionId
     if (sessionId) {
       const ses = await Session.findById(sessionId);
       if (ses) {
         ses.analisisIA = analisisIA;
-        if (typeof ses.markModified === "function") ses.markModified("analisisIA");
+        if (typeof ses.markModified === "function")
+          ses.markModified("analisisIA");
         await ses.save();
       }
     }
@@ -195,7 +271,10 @@ module.exports.analizarPraxis = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error analizarPraxis:", err);
-    const msg = err?.response?.data?.error?.message || err?.message || "Error interno del servidor";
+    const msg =
+      err?.response?.data?.error?.message ||
+      err?.message ||
+      "Error interno del servidor";
     return res.status(500).json({ message: msg });
   }
 };
