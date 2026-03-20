@@ -29,7 +29,6 @@ function safeWeight(n) {
   return Math.max(0, Math.min(1, x));
 }
 
-// Detecta si la IA devolvió score 0-1 o 0-100
 function normalizeScoreValue(raw) {
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
@@ -134,35 +133,17 @@ const OBSERVABILIDAD_VALUES = {
 };
 
 /* =========================================================
-   NORMALIZADORES DE NIVEL / MODELO / CONTEXTO
+   NORMALIZADORES
 ========================================================= */
 
 function normalizePraxisNivel(raw) {
   const v = String(raw || "").trim().toLowerCase();
-  if (
-    v === "nivel_1" ||
-    v === "nivel1" ||
-    v === "1" ||
-    v.includes("inicial")
-  ) {
+  if (v === "nivel_1" || v === "nivel1" || v === "1" || v.includes("inicial"))
     return "nivel_1";
-  }
-  if (
-    v === "nivel_2" ||
-    v === "nivel2" ||
-    v === "2" ||
-    v.includes("intermedio")
-  ) {
+  if (v === "nivel_2" || v === "nivel2" || v === "2" || v.includes("intermedio"))
     return "nivel_2";
-  }
-  if (
-    v === "nivel_3" ||
-    v === "nivel3" ||
-    v === "3" ||
-    v.includes("avanzad")
-  ) {
+  if (v === "nivel_3" || v === "nivel3" || v === "3" || v.includes("avanzad"))
     return "nivel_3";
-  }
   return "nivel_1";
 }
 
@@ -172,75 +153,37 @@ function normalizeModeloIntervencion(raw) {
 
 function normalizeContextoSesion(raw) {
   const v = String(raw || "").trim().toLowerCase();
-
   if (
-    v === "exploracion_clinica" ||
-    v === "exploracion" ||
-    v.includes("entrevista inicial") ||
-    v.includes("evaluacion clinica") ||
-    v.includes("evaluación clínica") ||
-    v.includes("exploracion")
-  ) {
-    return "exploracion_clinica";
-  }
-
+    v === "exploracion_clinica" || v === "exploracion" ||
+    v.includes("entrevista inicial") || v.includes("evaluacion clinica") ||
+    v.includes("evaluación clínica") || v.includes("exploracion")
+  ) return "exploracion_clinica";
   if (
-    v === "intervencion_terapeutica" ||
-    v === "intervencion" ||
+    v === "intervencion_terapeutica" || v === "intervencion" ||
     v.includes("intervención")
-  ) {
-    return "intervencion_terapeutica";
-  }
-
+  ) return "intervencion_terapeutica";
   if (
-    v === "aplicacion_pruebas_psicometricas" ||
-    v === "aplicacion_pruebas" ||
-    v.includes("pruebas psicometricas") ||
-    v.includes("pruebas psicométricas") ||
+    v === "aplicacion_pruebas_psicometricas" || v === "aplicacion_pruebas" ||
+    v.includes("pruebas psicometricas") || v.includes("pruebas psicométricas") ||
     v.includes("aplicacion de pruebas")
-  ) {
-    return "aplicacion_pruebas_psicometricas";
-  }
-
+  ) return "aplicacion_pruebas_psicometricas";
   if (
-    v === "devolucion_resultados" ||
-    v === "devolucion" ||
+    v === "devolucion_resultados" || v === "devolucion" ||
     v.includes("devolución")
-  ) {
-    return "devolucion_resultados";
-  }
-
+  ) return "devolucion_resultados";
   return "exploracion_clinica";
 }
 
 function normalizeObservabilidad(raw) {
   const v = String(raw || "").trim().toLowerCase();
-
-  if (
-    v === OBSERVABILIDAD_VALUES.OBSERVABLE ||
-    v === "observability" ||
-    v === "visible"
-  ) {
+  if (v === OBSERVABILIDAD_VALUES.OBSERVABLE || v === "observability" || v === "visible")
     return OBSERVABILIDAD_VALUES.OBSERVABLE;
-  }
-
-  if (
-    v === OBSERVABILIDAD_VALUES.LIMITADA ||
-    v === "limited" ||
-    v.includes("limitada")
-  ) {
+  if (v === OBSERVABILIDAD_VALUES.LIMITADA || v === "limited" || v.includes("limitada"))
     return OBSERVABILIDAD_VALUES.LIMITADA;
-  }
-
   if (
-    v === OBSERVABILIDAD_VALUES.NO_APLICABLE ||
-    v === "not_applicable" ||
-    v === "na" ||
-    v.includes("no aplicable")
-  ) {
-    return OBSERVABILIDAD_VALUES.NO_APLICABLE;
-  }
-
+    v === OBSERVABILIDAD_VALUES.NO_APLICABLE || v === "not_applicable" ||
+    v === "na" || v.includes("no aplicable")
+  ) return OBSERVABILIDAD_VALUES.NO_APLICABLE;
   return OBSERVABILIDAD_VALUES.OBSERVABLE;
 }
 
@@ -270,17 +213,10 @@ function normalizeRecommendations(rawRec) {
 
 function normalizeMetrics(rawMetrics) {
   let metrics = rawMetrics || [];
-
   if (metrics && !Array.isArray(metrics) && typeof metrics === "object") {
-    metrics = Object.entries(metrics).map(([k, v]) => ({
-      key: k,
-      label: String(k),
-      score: v,
-    }));
+    metrics = Object.entries(metrics).map(([k, v]) => ({ key: k, label: String(k), score: v }));
   }
-
   if (!Array.isArray(metrics)) metrics = [];
-
   return metrics
     .map((m, i) => ({
       key: m?.key || `m${i + 1}`,
@@ -294,7 +230,6 @@ function normalizeMetrics(rawMetrics) {
 function normalizeEvidence(rawEvidence) {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
-
   return evidence
     .map((ev) => ({
       quote: String(ev?.quote || ev?.cita || "").trim(),
@@ -307,16 +242,11 @@ function normalizeEvidence(rawEvidence) {
 function normalizeSimpleEvidence(rawEvidence, maxItems = 2) {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
-
   return evidence
     .map((ev) => ({
       quote: String(ev?.quote || ev?.cita || "").trim(),
       explanation: String(
-        ev?.explanation ||
-          ev?.explicacion ||
-          ev?.why ||
-          ev?.porque ||
-          ""
+        ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || ""
       ).trim(),
     }))
     .filter((ev) => ev.quote || ev.explanation)
@@ -325,56 +255,21 @@ function normalizeSimpleEvidence(rawEvidence, maxItems = 2) {
 
 function normalizeStudentGuidance(rawGuidance) {
   const g = rawGuidance && typeof rawGuidance === "object" ? rawGuidance : {};
-
-  const loQueHicisteBienRaw =
-    g.loQueHicisteBien || g.goodBlock || g.strengthBlock || {};
-  const loQuePodriasMejorarRaw =
-    g.loQuePodriasMejorar || g.improveBlock || g.weaknessBlock || {};
-  const sugerenciaParaMejorarRaw =
-    g.sugerenciaParaMejorar ||
-    g.nextSuggestion ||
-    g.improvementSuggestion ||
-    {};
-
+  const loQueHicisteBienRaw = g.loQueHicisteBien || g.goodBlock || g.strengthBlock || {};
+  const loQuePodriasMejorarRaw = g.loQuePodriasMejorar || g.improveBlock || g.weaknessBlock || {};
+  const sugerenciaParaMejorarRaw = g.sugerenciaParaMejorar || g.nextSuggestion || g.improvementSuggestion || {};
   return {
     loQueHicisteBien: {
-      textoBreve: String(
-        loQueHicisteBienRaw?.textoBreve ||
-          loQueHicisteBienRaw?.text ||
-          loQueHicisteBienRaw?.summary ||
-          ""
-      ).trim(),
-      evidencias: normalizeSimpleEvidence(
-        loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence,
-        2
-      ),
+      textoBreve: String(loQueHicisteBienRaw?.textoBreve || loQueHicisteBienRaw?.text || loQueHicisteBienRaw?.summary || "").trim(),
+      evidencias: normalizeSimpleEvidence(loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence, 2),
     },
     loQuePodriasMejorar: {
-      textoBreve: String(
-        loQuePodriasMejorarRaw?.textoBreve ||
-          loQuePodriasMejorarRaw?.text ||
-          loQuePodriasMejorarRaw?.summary ||
-          ""
-      ).trim(),
-      evidencias: normalizeSimpleEvidence(
-        loQuePodriasMejorarRaw?.evidencias ||
-          loQuePodriasMejorarRaw?.evidence,
-        2
-      ),
+      textoBreve: String(loQuePodriasMejorarRaw?.textoBreve || loQuePodriasMejorarRaw?.text || loQuePodriasMejorarRaw?.summary || "").trim(),
+      evidencias: normalizeSimpleEvidence(loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence, 2),
     },
     sugerenciaParaMejorar: {
-      textoBreve: String(
-        sugerenciaParaMejorarRaw?.textoBreve ||
-          sugerenciaParaMejorarRaw?.text ||
-          sugerenciaParaMejorarRaw?.summary ||
-          ""
-      ).trim(),
-      ejemploIntervencion: String(
-        sugerenciaParaMejorarRaw?.ejemploIntervencion ||
-          sugerenciaParaMejorarRaw?.example ||
-          sugerenciaParaMejorarRaw?.ejemplo ||
-          ""
-      ).trim(),
+      textoBreve: String(sugerenciaParaMejorarRaw?.textoBreve || sugerenciaParaMejorarRaw?.text || sugerenciaParaMejorarRaw?.summary || "").trim(),
+      ejemploIntervencion: String(sugerenciaParaMejorarRaw?.ejemploIntervencion || sugerenciaParaMejorarRaw?.example || sugerenciaParaMejorarRaw?.ejemplo || "").trim(),
     },
     whyThisMatters: normalizeRecommendations(
       g.whyThisMatters || g.porQueImporta || g.importancia || g.whyItMatters
@@ -384,29 +279,15 @@ function normalizeStudentGuidance(rawGuidance) {
 
 function normalizePraxisDimension(rawBlock, key, weight) {
   const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
-
-  const nivel =
-    safeLevel(
-      base.nivel ??
-        base.level ??
-        base.desempeno ??
-        base.dimensionLevel
-    ) ?? 1;
-
-  const scoreRaw =
-    base.score ?? base.porcentaje ?? base.percent ?? base.generalScore;
-
+  const nivel = safeLevel(base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel) ?? 1;
+  const scoreRaw = base.score ?? base.porcentaje ?? base.percent ?? base.generalScore;
   const score =
     scoreRaw != null
       ? normalizeScoreValue(scoreRaw) ?? Math.round((nivel / 5) * 100)
       : Math.round((nivel / 5) * 100);
-
   const observabilidad = normalizeObservabilidad(
-    base.observabilidad ||
-      base.observability ||
-      OBSERVABILIDAD_VALUES.OBSERVABLE
+    base.observabilidad || base.observability || OBSERVABILIDAD_VALUES.OBSERVABLE
   );
-
   return {
     key,
     label: PRAXIS_DIMENSIONS[key]?.label || key,
@@ -418,33 +299,18 @@ function normalizePraxisDimension(rawBlock, key, weight) {
     weight: safeWeight(weight),
     score,
     weightedScore: Number((nivel * safeWeight(weight)).toFixed(4)),
-    metrics: normalizeMetrics(
-      base.metrics || base.criterios || base.items || base.subScores
-    ),
-    recommendations: normalizeRecommendations(
-      base.recommendations || base.recomendaciones || base.tips
-    ),
-    evidence: normalizeEvidence(
-      base.evidence || base.evidencia || base.quotes
-    ),
+    metrics: normalizeMetrics(base.metrics || base.criterios || base.items || base.subScores),
+    recommendations: normalizeRecommendations(base.recommendations || base.recomendaciones || base.tips),
+    evidence: normalizeEvidence(base.evidence || base.evidencia || base.quotes),
     studentGuidance: normalizeStudentGuidance(base.studentGuidance),
   };
 }
 
 /* =========================================================
-   PROMPT PRAXIS-TH
+   PROMPT — BASE (CORE) — no cambia entre niveles
 ========================================================= */
 
-function buildPraxisPrompt({
-  praxisNivel,
-  modeloIntervencion,
-  data,
-}) {
-  const nivel = normalizePraxisNivel(praxisNivel);
-  const modelo = normalizeModeloIntervencion(modeloIntervencion);
-  const weights = getPraxisWeights(nivel);
-  const contextoSesion = normalizeContextoSesion(data?.contextoSesion);
-
+function buildBasePrompt({ nivel, modelo, weights, contextoSesion, data }) {
   return `
 Devuelve SOLO JSON válido con esta estructura EXACTA:
 
@@ -475,9 +341,7 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
     },
     "dimensiones": {
       "ASC": {
-        "nivel": 1,
-        "score": 0,
-        "observabilidad": "observable",
+        "nivel": 1, "score": 0, "observabilidad": "observable",
         "metrics": [ { "key": "", "label": "", "score": 0 } ],
         "recommendations": [""],
         "evidence": [ { "quote": "", "technique": "", "why": "" } ],
@@ -489,9 +353,7 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
         }
       },
       "IIT": {
-        "nivel": 1,
-        "score": 0,
-        "observabilidad": "observable",
+        "nivel": 1, "score": 0, "observabilidad": "observable",
         "metrics": [ { "key": "", "label": "", "score": 0 } ],
         "recommendations": [""],
         "evidence": [ { "quote": "", "technique": "", "why": "" } ],
@@ -503,9 +365,7 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
         }
       },
       "IRI": {
-        "nivel": 1,
-        "score": 0,
-        "observabilidad": "observable",
+        "nivel": 1, "score": 0, "observabilidad": "observable",
         "metrics": [ { "key": "", "label": "", "score": 0 } ],
         "recommendations": [""],
         "evidence": [ { "quote": "", "technique": "", "why": "" } ],
@@ -517,9 +377,7 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
         }
       },
       "MMD": {
-        "nivel": 1,
-        "score": 0,
-        "observabilidad": "observable",
+        "nivel": 1, "score": 0, "observabilidad": "observable",
         "metrics": [ { "key": "", "label": "", "score": 0 } ],
         "recommendations": [""],
         "evidence": [ { "quote": "", "technique": "", "why": "" } ],
@@ -531,9 +389,7 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
         }
       },
       "MLT": {
-        "nivel": 1,
-        "score": 0,
-        "observabilidad": "observable",
+        "nivel": 1, "score": 0, "observabilidad": "observable",
         "metrics": [ { "key": "", "label": "", "score": 0 } ],
         "recommendations": [""],
         "evidence": [ { "quote": "", "technique": "", "why": "" } ],
@@ -559,221 +415,117 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
 }
 
 ESCALA DE SCORES — MUY IMPORTANTE:
-Todos los valores de "score" (en dimensiones, métricas e indiceGlobal.porcentaje) deben ser ENTEROS entre 0 y 100.
+Todos los valores de "score" deben ser ENTEROS entre 0 y 100.
 NO uses decimales entre 0 y 1.
 Ejemplo correcto: "score": 70
 Ejemplo incorrecto: "score": 0.7
-El campo indiceGlobal.porcentaje también debe ser un entero entre 0 y 100.
-
-REGLAS DE SALIDA
-
-Responde SOLO JSON válido.
-No agregues texto fuera del JSON.
-Usa evidencia textual real de la transcripción.
-No inventes contenido clínico.
 
 ---
 
-REGLA FUNDAMENTAL DE EVALUACIÓN
+ROL
+
+Eres un supervisor clínico experto en psicoterapia.
+Tu tarea es evaluar el desempeño del terapeuta basándote únicamente en la transcripción proporcionada.
+
+---
+
+REGLA FUNDAMENTAL
 
 Evalúa únicamente lo observable en la transcripción.
 
-Si la sesión es corta o la fase clínica no permite evaluar una dimensión:
-NO penalices automáticamente al estudiante.
-
-La ausencia de evidencia no significa ausencia de competencia.
-
----
-
-CONTEXTO DE LA SESIÓN
-
-El contexto orienta qué se espera clínicamente del ejercicio.
-
-exploracion_clinica
-Incluye entrevista inicial, encuadre breve, motivo de consulta, preguntas abiertas, clarificación y comprensión del problema.
-No se exige intervención terapéutica profunda.
-
-intervencion_terapeutica
-Se esperan intervenciones con intención de cambio, movilización o reestructuración.
-Aquí sí puede observarse más claramente MMD.
-
-aplicacion_pruebas_psicometricas
-Se espera explicación clara de consignas, neutralidad, manejo del procedimiento, respeto del encuadre evaluativo y claridad secuencial.
-No se exige movilización terapéutica profunda.
-IRI puede ser limitada o no aplicable según el fragmento.
-MMD puede ser no aplicable según el fragmento.
-
-devolucion_resultados
-Se espera comunicación clara, comprensible y empática de hallazgos, con buen manejo emocional del paciente y recomendaciones comprensibles.
+- No inventes contenido
+- No asumas intenciones no expresadas
+- La ausencia de evidencia no es evidencia de ausencia
 
 ---
 
-NIVEL PRAXIS
+MODULADORES EXTERNOS (CRÍTICO)
 
-El nivel PRAXIS configurado indica el mínimo esperado, no el máximo permitido.
+Recibirás variables externas que afectan la evaluación:
 
-Si el estudiante:
-actúa por debajo del nivel → señálalo pedagógicamente
-cumple el nivel → reconócelo
-supera el nivel → destácalo como fortaleza
+- nivel PRAXIS
+- contexto de sesión
+- duración
+- modelo terapéutico
 
-Nunca penalices intervenciones más avanzadas.
-
-Nivel 1
-Se esperan habilidades básicas:
-- preguntas abiertas
-- escucha activa
-- clarificación
-- validación emocional
-- encuadre
-- psicoeducación simple
-- analogías básicas
-- reencuadres simples
-
-No se exigen:
-- interpretaciones profundas
-- insight complejo
-- formulación clínica avanzada
-
-Nivel 2
-Se esperan intervenciones terapéuticas más activas:
-- paráfrasis
-- integración de información
-- confrontación suave
-- reformulación conceptual
-- exploración cognitiva
-- intervenciones dirigidas
-
-Nivel 3
-Se esperan intervenciones estratégicas:
-- insight terapéutico
-- interpretación clínica
-- reencuadre profundo
-- formulación clínica
+Debes ajustar tu evaluación en función de estas variables.
+Nunca evalúes en abstracto. Siempre evalúa en función del contexto recibido.
 
 ---
 
-DIMENSIONES PRAXIS
+ESTRUCTURA DE EVALUACIÓN
 
-ASC → organización conversacional y secuencia clínica
-IIT → intención clínica de las intervenciones
-IRI → integración de información previa del paciente
-MMD → generación de reflexión, insight o ampliación de significado
-MLT → manejo del encuadre terapéutico y rol profesional
+Dimensiones PRAXIS:
 
----
-
-REGLA DE EVIDENCIA
-
-No reutilices la misma frase como evidencia principal en múltiples dimensiones,
-a menos que sea clínicamente imprescindible.
-
-Si la sesión es corta y no hay suficiente evidencia para una dimensión:
-indica evidencia limitada o no aplicable según corresponda.
+ASC → Organización de la conversación
+IIT → Intencionalidad de la intervención
+IRI → Integración de información del paciente
+MMD → Movilización micro-dinámica
+MLT → Manejo del encuadre terapéutico
 
 ---
 
-FASE CLÍNICA DENTRO DE LA SESIÓN
+REGLA ESTRICTA DE EVIDENCIA
 
-Aunque el contexto principal esté configurado, la conversación puede contener subfases como:
-apertura
-exploración
-intervención
-cierre
+Toda evaluación debe estar respaldada por evidencia textual directa.
 
-Detecta estas subfases cuando aparezcan y utilízalas para interpretar correctamente las intervenciones.
+Para cada dimensión:
+- Incluye al menos 1 cita textual real si la dimensión es "observable"
+- La cita debe ser exacta (no parafraseada)
+- Explica explícitamente por qué esa cita justifica la evaluación
 
-No critiques preguntas exploratorias válidas por no generar insight.
+Si no hay evidencia suficiente:
+- usa "evidencia_limitada" o "no_aplicable"
+- NO completes con suposiciones
+
+---
+
+OBSERVABILIDAD
+
+Cada dimensión debe clasificarse como:
+- "observable"
+- "evidencia_limitada"
+- "no_aplicable"
+
+NO penalices automáticamente si una dimensión no es observable.
+
+---
+
+INTERPRETACIÓN DE INTERVENCIONES CLÍNICAS (CLAVE)
+
+No necesitas identificar todas las técnicas con nombre formal.
+
+Tu tarea es:
+1. reconocer el tipo de intervención
+2. entender su intención clínica
+3. evaluar su impacto en el paciente
+
+Las intervenciones pueden ser híbridas.
+Clasifica por lo que la intervención HACE en la conversación, no por su nombre técnico exacto.
+
+---
+
+REGLA DE CLASIFICACIÓN (CRÍTICA)
+
+Clasifica cada intervención según su FUNCIÓN PRINCIPAL:
+
+1. MMD → si genera cambio, insight o nueva perspectiva
+2. IRI → si integra o refleja sin cambiar significado
+3. MLT → si regula encuadre o rol
+4. IIT → si dirige la conversación
+5. ASC → si organiza o estructura
+
+REGLA CRÍTICA:
+Si una intervención introduce una idea nueva, reinterpretación o cambio de significado → NO es IRI.
 
 ---
 
 MOTOR DE DETECCIÓN DE MICROINTERVENCIONES CLÍNICAS
 
 Antes de evaluar PRAXIS analiza las intervenciones del terapeuta.
-Usa la transcripción diarizada si está disponible para distinguir con mayor precisión quién habla.
+Usa la transcripción diarizada si está disponible.
 
 Detecta mediante análisis semántico:
-Reflejo emocional
-Paráfrasis
-Clarificación
-Pregunta abierta
-Confrontación terapéutica
-Síntesis
-Ironía terapéutica
-Chiste terapéutico
-Psicoeducación
-Analogía terapéutica
-Reencuadre
-
-Los ejemplos siguientes son ilustrativos.
-Las intervenciones reales pueden variar.
-
-Reflejo emocional
-Detecta cuando el terapeuta devuelve la emoción del paciente.
-Ejemplos:
-"Suena como si eso te hubiera dolido mucho."
-"Parece que esta situación te genera mucha frustración."
-
-Paráfrasis
-Detecta cuando el terapeuta reformula el contenido.
-Ejemplos:
-"Entonces lo que ocurrió fue que..."
-"Si te entiendo bien, lo que pasó fue..."
-
-Clarificación
-Detecta cuando el terapeuta pide precisión.
-Ejemplos:
-"¿Qué quieres decir exactamente con eso?"
-"¿A qué te refieres cuando dices que fue difícil?"
-
-Pregunta abierta
-Ejemplos:
-"¿Cómo fue esa experiencia para ti?"
-"¿Qué pasó después?"
-
-Confrontación terapéutica
-Detecta discrepancias.
-Ejemplo:
-"Por un lado dices que quieres cambiar, pero parece que sigues evitando esa conversación."
-
-Síntesis
-Ejemplo:
-"Entonces hemos visto que esto afecta tu trabajo, tu familia y tu autoestima."
-
-Ironía terapéutica
-Detecta ironía si intenta movilizar conciencia.
-Ejemplo:
-"Entonces parece que tu ansiedad también quiere manejar tu agenda."
-No penalices automáticamente.
-Evalúa intención clínica, contexto e impacto terapéutico.
-
-Chiste terapéutico
-Detecta humor si reduce tensión o genera rapport.
-Ejemplo:
-"Parece que tu cerebro se volvió experto en imaginar catástrofes."
-No penalices humor automáticamente.
-
-Psicoeducación
-Detecta explicaciones psicológicas breves y pertinentes.
-Ejemplo:
-"En procesos de duelo muchas personas sienten culpa o confusión."
-
-Analogía terapéutica
-Detecta uso de comparaciones o metáforas para facilitar comprensión.
-Ejemplo:
-"¿La pintura tiene algo malo en sí?"
-
-Reencuadre
-Detecta nuevas perspectivas clínicas sencillas o profundas según el nivel.
-Ejemplo:
-"Tal vez esto no habla de que fallaste, sino de una situación muy difícil para ti."
-
----
-
-REGLAS DE ASIGNACIÓN DE MICROINTERVENCIONES
-
-Cada intervención debe contribuir principalmente a UNA dimensión PRAXIS.
-Usa estas prioridades:
 
 Reflejo emocional → MMD
 Paráfrasis → IRI
@@ -787,188 +539,538 @@ Psicoeducación → IIT
 Analogía terapéutica → MMD
 Reencuadre → MMD
 
-Si una intervención también aporta secundariamente a otra dimensión, puedes reconocerlo en el análisis,
+Si una intervención aporta secundariamente a otra dimensión, puedes reconocerlo,
 pero evita usar la misma cita como evidencia principal de muchas dimensiones.
 
 ---
 
-ANÁLISIS SEGÚN MODELO TERAPÉUTICO
+REGLAS DE ANÁLISIS CLÍNICO
 
-Si modelo = Sin modelo específico
-evalúa solo microintervenciones y dimensiones PRAXIS.
+Prioriza en este orden:
+1. Cambio observable en el paciente
+2. Intención de la intervención
+3. Técnica utilizada
+4. Forma comunicativa
 
-Si modelo = Terapia Cognitivo Conductual
-detecta:
-psicoeducación
-reestructuración cognitiva
-tareas para casa
-activación conductual
-exposición
-economía de fichas
-refuerzos positivos y negativos
-
-Si modelo = Humanista
-detecta:
-empatía profunda
-validación emocional
-reflejo emocional
-exploración experiencial
-
-Si modelo = Sistémico
-detecta:
-preguntas circulares
-reencuadre sistémico
-patrones relacionales
-
-Si modelo = Psicodinámico
-detecta:
-interpretación
-clarificación
-defensas
-transferencia
-
-No penalices ausencia de técnicas avanzadas si la fase clínica o el nivel no lo requieren.
+Si el paciente muestra insight, nueva comprensión o cambio de perspectiva:
+→ aumenta la valoración de MMD e IIT
 
 ---
 
-CRITERIO AVANZADO DE EVALUACIÓN CLÍNICA (APLICA ESPECIALMENTE A NIVEL 2 Y SUPERIOR)
+REGLA DE COHERENCIA CLÍNICA
 
-REGLA DE RESULTADO CLÍNICO (PRIORIDAD ALTA)
-
-Si durante la sesión el paciente:
-
-- expresa un cambio de perspectiva
-- verbaliza comprensión nueva (insight)
-- reformula su situación de manera más adaptativa
-- reconoce algo que antes no había identificado
-
-Entonces:
-
-- considera que hubo movilización terapéutica efectiva
-- aumenta la valoración de MMD (Movilización Micro-Dinámica)
-- aumenta la valoración de IIT (Intencionalidad de la Intervención Terapéutica)
-
-El resultado clínico observable tiene mayor peso que la perfección técnica.
+No critiques una intervención por lo que NO es,
+sino por lo que logra o no logra en el contexto real.
 
 ---
 
-JERARQUÍA DE EVIDENCIA CLÍNICA
+REGLA DE CONTEXTO Y DURACIÓN
 
-Al evaluar, prioriza en este orden:
+Evalúa considerando la fase clínica real dentro de la conversación.
 
-1. Evidencia de cambio en el paciente (mayor peso)
-2. Intervenciones con intención clara
-3. Uso de técnicas específicas
-4. Forma y estilo comunicativo
+No penalices:
+- sesiones breves por falta de profundidad
+- fases exploratorias por falta de intervención
 
-No reduzcas significativamente la puntuación si hay evidencia de cambio clínico,
-aunque la técnica no sea perfecta.
+Evalúa calidad, no cantidad.
 
 ---
 
-AJUSTE POR DURACIÓN DE LA SESIÓN
+REGLA DE MODELO TERAPÉUTICO
 
-Si la sesión es breve (ej. menos de 10 minutos):
-
-- no exijas desarrollo terapéutico profundo
-- valora micro-intervenciones efectivas aunque sean breves
-- evalúa la calidad de lo ocurrido, no la cantidad
-
-La ausencia de profundidad en sesiones cortas no debe penalizar significativamente.
+Si hay un modelo definido:
+- úsalo como lente interpretativo, NO como obligación rígida
+- No penalices ausencia de técnicas si no eran necesarias según contexto, fase o duración
 
 ---
 
-CRITERIO ESPECÍFICO PARA NIVEL 2
+REGLAS PARA RECOMENDACIONES Y EJEMPLOS
 
-En nivel 2 se espera:
-
-- exploración con dirección clínica
-- preguntas con intención clara
-- primeras hipótesis suaves o conexiones
-- intervenciones que faciliten reflexión
-- inicio de movilización terapéutica (no profunda, pero observable)
-
-Si el terapeuta:
-
-- guía la conversación hacia comprensión
-- realiza preguntas que abren reflexión
-- conecta elementos del discurso del paciente
-- facilita que el paciente piense diferente sobre su situación
-
-Entonces:
-
-- valora positivamente IIT
-- valora positivamente MMD
-
-Aunque la intervención no sea estructurada o formal.
+Las sugerencias deben ser específicas, accionables y basadas en evidencia.
+Cada sugerencia debe incluir un ejemplo de intervención mejorada que:
+- sea clínicamente realista
+- mejore claramente la intervención original
+- esté adaptado al contexto de la sesión
+- suene como algo que el terapeuta realmente diría
 
 ---
 
-REGLA DE COHERENCIA CONTEXTO VS CONDUCTA
+REGLA ANTI-GENERICIDAD
 
-Si el contexto configurado es exploración clínica,
-pero el terapeuta realiza intervenciones terapéuticas efectivas:
-
-- NO penalices automáticamente
-- reconoce la intervención como conducta válida
-- ajusta la evaluación para reflejar lo ocurrido en la sesión
-
-La evaluación debe basarse en la conducta observable,
-no únicamente en lo esperado por el contexto.
+Evita lenguaje vacío como "buen trabajo" o "puedes mejorar".
+Di: qué ocurrió exactamente, qué impacto tuvo, cómo mejorarlo concretamente.
 
 ---
 
-ESTADO DE OBSERVABILIDAD DE LA DIMENSIÓN
+COHERENCIA ENTRE DIMENSIONES
 
-Cada dimensión debe incluir el campo:
-"observabilidad"
-
-Valores posibles:
-
-observable
-La dimensión pudo evaluarse claramente con suficiente evidencia en la sesión.
-
-evidencia_limitada
-Hay algunos indicios, pero la sesión no ofrece suficiente material para evaluarla con seguridad.
-
-no_aplicable
-El contexto de la sesión o la fase clínica no permiten evaluar esta dimensión de manera justa.
-
-Usa:
-- observable cuando exista base suficiente
-- evidencia_limitada cuando la base observacional sea parcial
-- no_aplicable cuando el contexto, la fase o el tipo de sesión no permitan evaluar esa dimensión con justicia
-
-La ausencia de evidencia no debe penalizar automáticamente al estudiante.
+- No valores alto MMD sin evidencia de movilización
+- No penalices IRI si hubo buena escucha
+- No confundas escucha con intervención
 
 ---
 
 DATOS DE LA SESIÓN (JSON):
 
 ${JSON.stringify(
-  {
-    transcripcion: data?.transcripcion || "",
-    transcripcionDiarizada:
-      data?.transcripcionDiarizada ||
-      data?.diarizacion ||
-      data?.turnosDiarizados ||
-      null,
-    observacionesContexto: {
-      contextoSesion,
-      contextoSesionLabel:
-        CONTEXTOS_SESION[contextoSesion]?.label || contextoSesion,
-      contextoSesionDescription:
-        CONTEXTOS_SESION[contextoSesion]?.description || "",
-      tipoRole: data?.tipoRole || "",
-      trastorno: data?.trastorno || "",
-      consentimiento: data?.consentimiento || false,
-      tipoConsentimiento: data?.tipoConsentimiento || "",
+    {
+      transcripcion: data?.transcripcion || "",
+      transcripcionDiarizada:
+        data?.transcripcionDiarizada || data?.diarizacion || data?.turnosDiarizados || null,
+      observacionesContexto: {
+        contextoSesion,
+        contextoSesionLabel: CONTEXTOS_SESION[contextoSesion]?.label || contextoSesion,
+        contextoSesionDescription: CONTEXTOS_SESION[contextoSesion]?.description || "",
+        tipoRole: data?.tipoRole || "",
+        trastorno: data?.trastorno || "",
+        consentimiento: data?.consentimiento || false,
+        tipoConsentimiento: data?.tipoConsentimiento || "",
+      },
     },
-  },
-  null,
-  2
-)}
+    null,
+    2
+  )}
 `.trim();
+}
+
+/* =========================================================
+   PROMPT — EXTENSIONES POR NIVEL
+========================================================= */
+
+const NIVEL_PROMPT = {
+  nivel_1: `
+---
+
+AJUSTES ESPECÍFICOS — NIVEL 1 (FORMACIÓN INICIAL)
+
+Este es un nivel de inicio.
+
+Tu objetivo principal NO es evaluar desempeño técnico,
+sino facilitar aprendizaje, confianza y seguridad clínica.
+
+Evalúa con enfoque altamente pedagógico y no punitivo.
+
+---
+
+PRINCIPIO PEDAGÓGICO CENTRAL
+
+El estudiante está comenzando.
+
+La retroalimentación debe:
+- reforzar seguridad
+- validar lo que sí está haciendo bien
+- dar pasos simples y claros de mejora
+
+El objetivo es que el estudiante sienta: "puedo hacerlo mejor en el siguiente intento"
+
+---
+
+EXPECTATIVA GENERAL DEL NIVEL
+
+En este nivel se espera:
+- escucha básica
+- preguntas abiertas
+- interés genuino
+- respeto por el paciente
+- orden básico en la conversación
+
+LO QUE SÍ SE ESPERA:
+- preguntas abiertas
+- intentos de comprensión
+- respuestas coherentes
+- mantener la conversación activa
+- mínima conexión con el paciente
+
+LO QUE NO SE EXIGE:
+- intervención terapéutica
+- insight clínico
+- reencuadre
+- confrontación
+- hipótesis clínicas
+
+No penalices ausencia de estos elementos.
+
+---
+
+REGLA FORMATIVA PRINCIPAL
+
+Cualquier intento adecuado de interacción clínica debe ser valorado positivamente,
+aunque sea simple o imperfecto.
+
+---
+
+NIVELES DE IMPACTO CLÍNICO (ADAPTADO A NIVEL 1)
+
+1. Impacto positivo básico
+- el paciente responde, la conversación fluye, hay conexión mínima
+→ 60–100
+
+2. Impacto bajo pero adecuado
+- intervención simple, respuesta limitada
+→ 40–59
+
+3. Sin impacto claro
+- interacción muy superficial, poca conexión
+→ 20–39
+
+---
+
+CALIBRACIÓN EN NIVEL 1
+
+Las puntuaciones altas (80–100) representan buena ejecución dentro del nivel inicial.
+NO representan dominio clínico avanzado.
+
+---
+
+RESISTENCIA DEL PACIENTE
+
+Si el paciente responde poco o es cerrado:
+NO penalices automáticamente.
+Evalúa si el terapeuta mantiene intento de conexión.
+
+---
+
+CRITERIO DE TIMING (SIMPLIFICADO)
+
+No penalices timing imperfecto.
+Solo señala si interrumpe constantemente o corta el proceso de forma evidente.
+
+---
+
+REGLA CALIDAD SOBRE CANTIDAD
+
+Valora intención, coherencia y claridad básica. No el número de intervenciones.
+
+---
+
+AJUSTE DINÁMICO POR CONTEXTO Y DURACIÓN
+
+Sesión corta (<10 min): suficiente si hay interacción básica
+Sesión media (10–25 min): espera continuidad simple
+Sesión larga (>25 min): espera consistencia en la interacción
+
+---
+
+AJUSTE POR CONTEXTO
+
+EXPLORACIÓN CLÍNICA: preguntas abiertas, comprensión básica, escucha
+INTERVENCIÓN TERAPÉUTICA (EN NIVEL 1): NO exigir intervención real. SÍ valorar intención de ayudar y preguntas que inviten a pensar
+APLICACIÓN DE PRUEBAS PSICOMÉTRICAS: Evalúa claridad al explicar consignas, orden del proceso, instrucciones comprensibles. NO evaluar habilidades terapéuticas.
+DEVOLUCIÓN DE RESULTADOS: Evalúa claridad del lenguaje, explicación sencilla, empatía básica. No exigir profundidad clínica.
+
+---
+
+AJUSTE POR MODELO TERAPÉUTICO
+
+El modelo funciona como orientación, no como exigencia técnica.
+
+Si modelo = Humanista: Valora empatía básica, validación emocional, tono cálido
+Si modelo = TCC: Valora claridad, preguntas simples sobre situaciones o pensamientos, explicación básica
+Si modelo = Sistémico: Valora interés por relaciones, preguntas sobre contexto interpersonal
+Si modelo = Psicodinámico: Valora curiosidad por la experiencia interna, apertura emocional
+
+---
+
+CRITERIO CLAVE DE NIVEL 1
+
+Si el terapeuta logra sostener la conversación, mostrar interés y hacer preguntas abiertas:
+→ ya es desempeño adecuado
+
+REGLA FINAL: Este nivel trata de PASAR DE NO SABER → A INTENTAR
+Evalúa si el estudiante está dando ese paso.
+`.trim(),
+
+  nivel_2: `
+---
+
+AJUSTES ESPECÍFICOS — NIVEL 2 (DESARROLLO INTERMEDIO)
+
+Este es un nivel formativo.
+
+Tu objetivo NO es castigar errores,
+sino ayudar al estudiante a avanzar clínicamente.
+
+Evalúa con criterio pedagógico, no punitivo.
+
+---
+
+PRINCIPIO PEDAGÓGICO CENTRAL
+
+La evaluación debe sentirse como guía, no como juicio.
+El objetivo es que el estudiante quiera volver a intentarlo.
+
+---
+
+EXPECTATIVA GENERAL DEL NIVEL
+
+En este nivel se espera que el terapeuta:
+- mantenga buena escucha (IRI)
+- empiece a integrar información del paciente
+- realice intervenciones con intención clínica
+- guíe la conversación (no solo la siga)
+- genere reflexión inicial (no profunda, pero observable)
+
+LO QUE SÍ SE ESPERA:
+- preguntas con intención (no solo exploratorias)
+- conexión entre elementos del discurso del paciente
+- primeras hipótesis suaves
+- intervenciones que abran reflexión
+- inicio de movilización
+
+LO QUE NO SE EXIGE:
+- insight profundo
+- interpretación compleja
+- formulación clínica estructurada
+
+No penalices ausencia de estos elementos.
+
+---
+
+REGLA FORMATIVA PRINCIPAL
+
+Si el terapeuta muestra intención clínica aunque imperfecta:
+→ VALÓRALO POSITIVAMENTE (sin sobrepuntuar automáticamente)
+
+---
+
+NIVELES DE IMPACTO CLÍNICO
+
+1. Impacto alto: insight claro, cambio de perspectiva → 80–100
+2. Impacto medio: reflexión, duda o cuestionamiento → 60–79
+3. Impacto bajo: intervención adecuada sin efecto observable inmediato → 40–59
+
+Dentro de cada rango ajusta según:
+- claridad de la intervención
+- pertinencia clínica
+- timing
+- respuesta del paciente
+
+---
+
+RESISTENCIA DEL PACIENTE
+
+Si el paciente evita, minimiza o responde de forma cerrada:
+NO penalices automáticamente.
+Evalúa si la intervención fue adecuada y oportuna.
+
+---
+
+CRITERIO DE TIMING CLÍNICO
+
+Evalúa no solo qué se dice, sino cuándo se dice.
+Una intervención correcta en mal momento pierde efectividad y reduce ligeramente la puntuación.
+
+---
+
+REGLA DE CONSISTENCIA
+
+- No asignes MMD alto sin evidencia de movilización
+- IIT puede ser alto sin MMD alto
+- IRI alto no implica MMD alto
+
+---
+
+CRITERIO DE DIRECCIÓN CLÍNICA
+
+Evalúa si el terapeuta guía la conversación, conecta ideas y construye sobre lo anterior.
+No sobrevalores control excesivo, imposición de temas o interrupciones innecesarias.
+
+---
+
+AJUSTE POR CONTEXTO
+
+EXPLORACIÓN CLÍNICA: Prioriza ASC, IRI, IIT. No exijas movilización profunda.
+INTERVENCIÓN TERAPÉUTICA: Prioriza IIT, MMD, IRI. Aquí sí se espera reflexión.
+APLICACIÓN DE PRUEBAS PSICOMÉTRICAS:
+  - Este contexto NO es terapéutico
+  - Evalúa ASC (claridad de consignas, secuencia), MLT (neutralidad, encuadre evaluativo), IIT (claridad en explicación)
+  - NO penalices falta de insight o movilización
+  - MMD: usar "no_aplicable" o "evidencia_limitada"
+  - Penalizar por no movilizar en este contexto es un ERROR CRÍTICO
+DEVOLUCIÓN DE RESULTADOS: Prioriza claridad, empatía, comprensión del paciente.
+
+---
+
+AJUSTE POR DURACIÓN
+
+Sesión corta (<10 min): no exijas profundidad, valora micro-intervenciones
+Sesión media (10–25 min): evalúa continuidad
+Sesión larga (>25 min): evalúa progresión clínica
+
+---
+
+ANÁLISIS SEGÚN MODELO TERAPÉUTICO
+
+Si modelo = TCC: exploración de pensamientos, cuestionamiento cognitivo, psicoeducación, activación conductual
+Si modelo = Humanista: empatía, validación emocional, reflejo emocional
+Si modelo = Sistémico: conexiones relacionales, preguntas circulares, reencuadre sistémico
+Si modelo = Psicodinámico: exploración de significado, defensas, interpretación leve
+
+---
+
+CRITERIO CLAVE DE NIVEL 2
+
+Si el terapeuta logra que el paciente piense diferente, conecte ideas o amplíe su visión:
+→ eso ya es movilización válida, aunque no sea profunda
+
+REGLA FINAL: Este nivel trata de PASAR DE ESCUCHAR → A GUIAR
+Evalúa si el terapeuta está dando ese paso, aunque aún no lo haga perfectamente.
+`.trim(),
+
+  nivel_3: `
+---
+
+AJUSTES ESPECÍFICOS — NIVEL 3 (FORMACIÓN AVANZADA / ESTRATÉGICA)
+
+Este es un nivel avanzado.
+
+El objetivo es evaluar pensamiento clínico estratégico, no solo ejecución técnica.
+
+---
+
+PRINCIPIO CENTRAL
+
+Evalúa:
+- profundidad clínica
+- coherencia entre intervenciones
+- intención terapéutica clara
+- impacto en el proceso del paciente
+
+---
+
+EXPECTATIVA GENERAL
+
+Se espera que el terapeuta:
+- formule implícitamente el caso
+- intervenga con intención clara
+- genere movilización terapéutica
+- construya sobre lo que el paciente trae
+- mantenga coherencia en la sesión
+
+LO QUE SÍ SE ESPERA:
+- intervenciones dirigidas
+- integración de información
+- hipótesis clínicas implícitas
+- reencuadres
+- momentos de insight
+- dirección terapéutica clara
+
+LO QUE NO ES SUFICIENTE:
+- solo escuchar
+- solo preguntar
+- repetir contenido sin transformación
+- intervenciones sin dirección
+
+---
+
+NIVELES DE IMPACTO CLÍNICO
+
+1. Impacto alto: insight claro, cambio de perspectiva, reconfiguración del problema → 85–100
+2. Impacto medio: reflexión significativa, conexión de ideas → 65–84
+3. Impacto bajo: intervención adecuada sin movilización → 40–64
+
+Calibra dentro del rango según: precisión clínica, profundidad, timing, respuesta del paciente, coherencia global.
+
+---
+
+RESISTENCIA DEL PACIENTE
+
+Si hay resistencia:
+- evalúa si el terapeuta la detecta
+- evalúa cómo la maneja
+Ignorar resistencia reduce puntuación. Trabajarla adecuadamente la aumenta.
+
+---
+
+CRITERIO DE TIMING CLÍNICO
+
+El timing es crítico.
+- intervención en momento adecuado → aumenta puntuación
+- intervención desfasada → reduce impacto
+
+---
+
+REGLA DE CONSISTENCIA
+
+Debe haber coherencia entre discurso del paciente e intervención del terapeuta.
+Incoherencias reducen puntuación.
+
+---
+
+CRITERIO DE DIRECCIÓN CLÍNICA
+
+Se espera que el terapeuta guíe activamente, priorice y seleccione intervenciones relevantes.
+
+ERROR CRÍTICO: intervención sin intención, discurso vacío, pseudo-terapia.
+
+---
+
+SEÑALAMIENTO DE ERRORES
+
+Puede ser directo. Explica qué falló, por qué clínicamente y cómo corregirlo.
+
+---
+
+AJUSTE POR CONTEXTO
+
+EXPLORACIÓN CLÍNICA: organización avanzada, hipótesis implícitas, lectura del caso. No exigir transformación completa si la sesión es exploratoria.
+INTERVENCIÓN TERAPÉUTICA: intervención dirigida, movilización clara, impacto clínico observable o en proceso.
+APLICACIÓN DE PRUEBAS PSICOMÉTRICAS:
+  - Evalúa precisión en instrucciones, claridad de consignas, control del proceso, encuadre evaluativo, neutralidad
+  - NO evaluar insight o movilización emocional
+  - Penalizar por no movilizar en este contexto es incorrecto
+DEVOLUCIÓN DE RESULTADOS: traducción clara de resultados, adaptación al paciente, contención emocional, generación de comprensión.
+
+---
+
+AJUSTE POR DURACIÓN
+
+Sesión corta (<10 min): evaluar precisión, no exigir progresión completa
+Sesión media (10–25 min): evaluar coherencia y dirección
+Sesión larga (>25 min): evaluar progresión terapéutica y continuidad del proceso
+
+---
+
+ANÁLISIS SEGÚN MODELO TERAPÉUTICO
+
+El modelo define el tipo de intervención esperada. Evalúa coherencia entre modelo e intervención.
+
+Si modelo = TCC: identificación de pensamientos, reestructuración cognitiva, diálogo socrático, psicoeducación estructurada, activación conductual, tareas terapéuticas
+Si modelo = Humanista: empatía profunda, validación experiencial, reflejo emocional complejo, autenticidad terapéutica
+Si modelo = Sistémico: preguntas circulares, patrones relacionales, reencuadre sistémico, cambio de perspectiva relacional
+Si modelo = Psicodinámico: interpretación, defensas, conflicto interno, insight dinámico, elementos transferenciales
+
+CRITERIO DE VALORACIÓN DE TÉCNICAS:
+- técnica bien aplicada → aumenta puntuación
+- técnica mal aplicada o forzada → reduce puntuación
+- ausencia de técnica cuando el contexto lo requiere → limita puntuación alta
+
+---
+
+REGLA FINAL DE INTEGRACIÓN
+
+La puntuación debe reflejar qué tan bien el terapeuta se adaptó al contexto, duración y modelo.
+No solo la calidad técnica aislada.
+
+REGLA FINAL: Este nivel trata de PASAR DE GUIAR → A TRANSFORMAR
+Evalúa si el terapeuta logra generar cambio clínico real.
+`.trim(),
+};
+
+/* =========================================================
+   PROMPT PRAXIS-TH — ENSAMBLADO FINAL (BASE + NIVEL)
+========================================================= */
+
+function buildPraxisPrompt({ praxisNivel, modeloIntervencion, data }) {
+  const nivel = normalizePraxisNivel(praxisNivel);
+  const modelo = normalizeModeloIntervencion(modeloIntervencion);
+  const weights = getPraxisWeights(nivel);
+  const contextoSesion = normalizeContextoSesion(data?.contextoSesion);
+
+  const basePrompt = buildBasePrompt({ nivel, modelo, weights, contextoSesion, data });
+  const nivelPrompt = NIVEL_PROMPT[nivel] || NIVEL_PROMPT.nivel_1;
+
+  return `${basePrompt}\n\n${nivelPrompt}`;
 }
 
 /* =========================================================
@@ -992,55 +1094,32 @@ function parseRawJson(raw) {
 function computePraxisIndex(dimensions, weights) {
   let suma = 0;
   let pesoTotal = 0;
-
   for (const key of Object.keys(dimensions || {})) {
     const dim = dimensions[key];
     const weight = Number(weights[key] || 0);
     const observabilidad = normalizeObservabilidad(dim?.observabilidad);
-
-    if (observabilidad === OBSERVABILIDAD_VALUES.NO_APLICABLE) {
-      continue;
-    }
-
+    if (observabilidad === OBSERVABILIDAD_VALUES.NO_APLICABLE) continue;
     const pesoEfectivo =
-      observabilidad === OBSERVABILIDAD_VALUES.LIMITADA
-        ? weight * 0.5
-        : weight;
-
-    const scoreValue = Number(dim?.score ?? 0);
-    suma += scoreValue * pesoEfectivo;
+      observabilidad === OBSERVABILIDAD_VALUES.LIMITADA ? weight * 0.5 : weight;
+    suma += Number(dim?.score ?? 0) * pesoEfectivo;
     pesoTotal += pesoEfectivo;
   }
-
   const indicePct = pesoTotal > 0 ? Math.round(suma / pesoTotal) : 0;
-
   return { indiceBruto: indicePct, indicePct };
 }
 
-function normalizePraxisResult(
-  raw,
-  { praxisNivel, modeloIntervencion, contextoSesion }
-) {
+function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion }) {
   const obj = parseRawJson(raw);
-
   const nivel = normalizePraxisNivel(
     obj?.praxisTH?.praxisNivel || obj?.meta?.praxisNivel || praxisNivel
   );
-
   const modelo = normalizeModeloIntervencion(
-    obj?.praxisTH?.modeloIntervencion ||
-      obj?.meta?.modeloIntervencion ||
-      modeloIntervencion
+    obj?.praxisTH?.modeloIntervencion || obj?.meta?.modeloIntervencion || modeloIntervencion
   );
-
   const contexto = normalizeContextoSesion(
-    obj?.praxisTH?.contextoSesion ||
-      obj?.meta?.contextoSesion ||
-      contextoSesion
+    obj?.praxisTH?.contextoSesion || obj?.meta?.contextoSesion || contextoSesion
   );
-
   const weights = getPraxisWeights(nivel);
-
   const dimensions = {};
   for (const dimKey of Object.keys(PRAXIS_DIMENSIONS)) {
     const rawDim =
@@ -1051,16 +1130,9 @@ function normalizePraxisResult(
       obj?.sections?.[dimKey] ||
       obj?.[dimKey] ||
       null;
-
-    dimensions[dimKey] = normalizePraxisDimension(
-      rawDim,
-      dimKey,
-      weights[dimKey]
-    );
+    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey]);
   }
-
   const { indiceBruto, indicePct } = computePraxisIndex(dimensions, weights);
-
   const praxisSummary = String(
     obj?.praxisTH?.indiceGlobal?.summary ||
       obj?.praxisTH?.general?.summary ||
@@ -1068,7 +1140,6 @@ function normalizePraxisResult(
       obj?.evaluacionGeneral ||
       ""
   ).trim();
-
   return {
     tipo: "praxis_th",
     praxisNivel: nivel,
@@ -1077,8 +1148,7 @@ function normalizePraxisResult(
     modeloIntervencion: modelo,
     contextoSesion: contexto,
     contextoSesionLabel: CONTEXTOS_SESION[contexto]?.label || contexto,
-    contextoSesionDescription:
-      CONTEXTOS_SESION[contexto]?.description || "",
+    contextoSesionDescription: CONTEXTOS_SESION[contexto]?.description || "",
     ponderaciones: weights,
     generalScore: indicePct,
     general: { score: indicePct, summary: praxisSummary },
@@ -1092,101 +1162,55 @@ function normalizePraxisResult(
     },
     studentSummary: {
       opening: String(obj?.praxisTH?.studentSummary?.opening || "").trim(),
-      whatWentWell: normalizeRecommendations(
-        obj?.praxisTH?.studentSummary?.whatWentWell
-      ),
-      whatToImprove: normalizeRecommendations(
-        obj?.praxisTH?.studentSummary?.whatToImprove
-      ),
+      whatWentWell: normalizeRecommendations(obj?.praxisTH?.studentSummary?.whatWentWell),
+      whatToImprove: normalizeRecommendations(obj?.praxisTH?.studentSummary?.whatToImprove),
       nextStep: String(obj?.praxisTH?.studentSummary?.nextStep || "").trim(),
-      closingRecommendation: String(
-        obj?.praxisTH?.studentSummary?.closingRecommendation || ""
-      ).trim(),
+      closingRecommendation: String(obj?.praxisTH?.studentSummary?.closingRecommendation || "").trim(),
     },
     sections: dimensions,
     retroalimentacionGlobal: {
-      fortalezas: normalizeRecommendations(
-        obj?.praxisTH?.retroalimentacionGlobal?.fortalezas
-      ),
-      areasMejora: normalizeRecommendations(
-        obj?.praxisTH?.retroalimentacionGlobal?.areasMejora
-      ),
-      recomendacionCentral: String(
-        obj?.praxisTH?.retroalimentacionGlobal?.recomendacionCentral || ""
-      ).trim(),
+      fortalezas: normalizeRecommendations(obj?.praxisTH?.retroalimentacionGlobal?.fortalezas),
+      areasMejora: normalizeRecommendations(obj?.praxisTH?.retroalimentacionGlobal?.areasMejora),
+      recomendacionCentral: String(obj?.praxisTH?.retroalimentacionGlobal?.recomendacionCentral || "").trim(),
     },
-    meta: {
-      tipo: "praxis_th",
-      createdAt: new Date().toISOString(),
-    },
+    meta: { tipo: "praxis_th", createdAt: new Date().toISOString() },
   };
 }
 
 function addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion }) {
   if (!analisisIA || typeof analisisIA !== "object") return analisisIA;
   if (!analisisIA.sections) analisisIA.sections = {};
-
   const weights = getPraxisWeights(praxisNivel || analisisIA.praxisNivel);
-  const contexto = normalizeContextoSesion(
-    contextoSesion || analisisIA.contextoSesion
-  );
-
+  const contexto = normalizeContextoSesion(contextoSesion || analisisIA.contextoSesion);
   Object.keys(PRAXIS_DIMENSIONS).forEach((k) => {
     if (!analisisIA.sections[k]) {
       analisisIA.sections[k] = normalizePraxisDimension({}, k, weights[k]);
     }
-
-    analisisIA.sections[k].label =
-      analisisIA.sections[k].label || PRAXIS_DIMENSIONS[k].label;
-    analisisIA.sections[k].shortLabel =
-      analisisIA.sections[k].shortLabel || PRAXIS_DIMENSIONS[k].shortLabel;
-    analisisIA.sections[k].description =
-      analisisIA.sections[k].description || PRAXIS_DIMENSIONS[k].description;
-    analisisIA.sections[k].observabilidad = normalizeObservabilidad(
-      analisisIA.sections[k].observabilidad
-    );
-
+    analisisIA.sections[k].label = analisisIA.sections[k].label || PRAXIS_DIMENSIONS[k].label;
+    analisisIA.sections[k].shortLabel = analisisIA.sections[k].shortLabel || PRAXIS_DIMENSIONS[k].shortLabel;
+    analisisIA.sections[k].description = analisisIA.sections[k].description || PRAXIS_DIMENSIONS[k].description;
+    analisisIA.sections[k].observabilidad = normalizeObservabilidad(analisisIA.sections[k].observabilidad);
     if (!analisisIA.sections[k].studentGuidance) {
       analisisIA.sections[k].studentGuidance = {
         loQueHicisteBien: { textoBreve: "", evidencias: [] },
         loQuePodriasMejorar: { textoBreve: "", evidencias: [] },
-        sugerenciaParaMejorar: {
-          textoBreve: "",
-          ejemploIntervencion: "",
-        },
+        sugerenciaParaMejorar: { textoBreve: "", ejemploIntervencion: "" },
         whyThisMatters: [],
       };
     }
   });
-
   if (!analisisIA.studentSummary) {
     analisisIA.studentSummary = {
-      opening: "",
-      whatWentWell: [],
-      whatToImprove: [],
-      nextStep: "",
-      closingRecommendation: "",
+      opening: "", whatWentWell: [], whatToImprove: [], nextStep: "", closingRecommendation: "",
     };
   }
-
   analisisIA.contextoSesion = contexto;
-  analisisIA.contextoSesionLabel =
-    analisisIA.contextoSesionLabel ||
-    CONTEXTOS_SESION[contexto]?.label ||
-    contexto;
-  analisisIA.contextoSesionDescription =
-    analisisIA.contextoSesionDescription ||
-    CONTEXTOS_SESION[contexto]?.description ||
-    "";
-
+  analisisIA.contextoSesionLabel = analisisIA.contextoSesionLabel || CONTEXTOS_SESION[contexto]?.label || contexto;
+  analisisIA.contextoSesionDescription = analisisIA.contextoSesionDescription || CONTEXTOS_SESION[contexto]?.description || "";
   const recalculated = computePraxisIndex(analisisIA.sections, weights);
   analisisIA.generalScore = recalculated.indicePct;
-
-  if (!analisisIA.general) {
-    analisisIA.general = { score: recalculated.indicePct, summary: "" };
-  }
+  if (!analisisIA.general) analisisIA.general = { score: recalculated.indicePct, summary: "" };
   analisisIA.general.score = recalculated.indicePct;
-
   if (!analisisIA.indiceGlobal) {
     analisisIA.indiceGlobal = {
       bruto: recalculated.indiceBruto,
@@ -1198,12 +1222,9 @@ function addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion }) {
     analisisIA.indiceGlobal.bruto = recalculated.indiceBruto;
     analisisIA.indiceGlobal.porcentaje = recalculated.indicePct;
     if (!analisisIA.indiceGlobal.nivelDesempeno) {
-      analisisIA.indiceGlobal.nivelDesempeno = getPraxisLevelLabelByScore(
-        recalculated.indicePct
-      );
+      analisisIA.indiceGlobal.nivelDesempeno = getPraxisLevelLabelByScore(recalculated.indicePct);
     }
   }
-
   return analisisIA;
 }
 

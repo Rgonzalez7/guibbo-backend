@@ -54,8 +54,7 @@ function setPraxisInInstance(inst, analisisIA, fuente = "real", replace = true) 
   return inst;
 }
 
-// BD tiene prioridad sobre el body para los 3 campos de configuración.
-// El body actúa solo como fallback si la BD no tiene el valor.
+// BD tiene prioridad sobre el body. Body es solo fallback.
 async function resolvePraxisConfig({
   ejercicioId,
   praxisNivelRaw,
@@ -74,13 +73,10 @@ async function resolvePraxisConfig({
     }
   }
   return {
-    praxisNivel: normalizePraxisNivel(
-      detalle?.praxisNivel || praxisNivelRaw || "nivel_1"
-    ),
+    praxisNivel: normalizePraxisNivel(detalle?.praxisNivel || praxisNivelRaw || "nivel_1"),
     modeloIntervencion: normalizeModeloIntervencion(
       detalle?.modeloIntervencion || modeloIntervencionRaw || enfoqueRaw || ""
     ),
-    // BD primero; body es fallback
     contextoSesion: normalizeContextoSesion(
       detalle?.contextoSesion || contextoSesionRaw || "exploracion_clinica"
     ),
@@ -101,9 +97,8 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
   return EjercicioInstancia.findOne(q).sort({ createdAt: -1, updatedAt: -1 });
 }
 
-// contextoSesion siempre viene del valor ya resuelto (BD > body).
-// Nunca se lee desde resolvedData para evitar que datos de sesión
-// sobreescriban la configuración del ejercicio.
+// contextoSesion siempre viene del valor resuelto (BD > body).
+// Nunca se lee desde resolvedData.
 function buildSafePraxisData(resolvedData = {}, contextoSesion = "exploracion_clinica") {
   return {
     transcripcion: clampText(
@@ -122,7 +117,7 @@ function buildSafePraxisData(resolvedData = {}, contextoSesion = "exploracion_cl
     trastorno: resolvedData?.trastorno || "",
     consentimiento: resolvedData?.consentimiento || false,
     tipoConsentimiento: resolvedData?.tipoConsentimiento || "",
-    contextoSesion, // ← siempre el resuelto
+    contextoSesion,
   };
 }
 
@@ -185,8 +180,7 @@ module.exports.analizarPraxis = async (req, res) => {
 
     if (!isObj(resolvedData)) {
       return res.status(400).json({
-        message:
-          "Falta data (sessionData) o no se pudo obtener desde la instancia.",
+        message: "Falta data (sessionData) o no se pudo obtener desde la instancia.",
       });
     }
 
@@ -212,7 +206,7 @@ module.exports.analizarPraxis = async (req, res) => {
         contextoSesionRaw,
       });
 
-    // 4. Construir prompt con el contextoSesion correcto
+    // 4. Construir prompt: BASE_PROMPT + NIVEL_PROMPT
     const prompt = buildPraxisPrompt({
       praxisNivel,
       modeloIntervencion,
@@ -237,10 +231,7 @@ module.exports.analizarPraxis = async (req, res) => {
       modeloIntervencion,
       contextoSesion,
     });
-    analisisIA = addLabelsToPraxisResult(analisisIA, {
-      praxisNivel,
-      contextoSesion,
-    });
+    analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion });
 
     // 7. Persistir en instancia
     setPraxisInInstance(inst, analisisIA, fuente, replace);
@@ -251,8 +242,7 @@ module.exports.analizarPraxis = async (req, res) => {
       const ses = await Session.findById(sessionId);
       if (ses) {
         ses.analisisIA = analisisIA;
-        if (typeof ses.markModified === "function")
-          ses.markModified("analisisIA");
+        if (typeof ses.markModified === "function") ses.markModified("analisisIA");
         await ses.save();
       }
     }
