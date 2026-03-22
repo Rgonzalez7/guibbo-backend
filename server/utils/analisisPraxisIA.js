@@ -645,8 +645,8 @@ AJUSTES ESPECÍFICOS — NIVEL 1 (FORMACIÓN INICIAL)
 
 Este es un nivel de inicio.
 
-Tu objetivo principal NO es evaluar desempeño técnico,
-sino facilitar aprendizaje, confianza y seguridad clínica.
+Tu objetivo principal NO es evaluar desempeño terapéutico,
+sino habilidades básicas de entrevista clínica.
 
 Evalúa con enfoque altamente pedagógico y no punitivo.
 
@@ -656,128 +656,300 @@ PRINCIPIO PEDAGÓGICO CENTRAL
 
 El estudiante está comenzando.
 
-La retroalimentación debe:
+La evaluación debe:
+
 - reforzar seguridad
 - validar lo que sí está haciendo bien
 - dar pasos simples y claros de mejora
 
-El objetivo es que el estudiante sienta: "puedo hacerlo mejor en el siguiente intento"
+El objetivo es que el estudiante sienta:
+
+"puedo hacerlo mejor en el siguiente intento"
 
 ---
 
-EXPECTATIVA GENERAL DEL NIVEL
+DEFINICIÓN CLAVE DEL NIVEL (CRÍTICO)
 
-En este nivel se espera:
+En este nivel NO se evalúa terapia.
+
+Se evalúa:
+
+HABILIDAD DE ENTREVISTA CLÍNICA BÁSICA
+
+Esto incluye:
+
+- encuadre
+- preguntas abiertas
+- exploración del motivo de consulta
 - escucha básica
+- orden conversacional
+- cierre simple
+
+---
+
+LO QUE SÍ SE ESPERA
+
 - preguntas abiertas
+- seguimiento coherente del discurso
 - interés genuino
-- respeto por el paciente
-- orden básico en la conversación
-
-LO QUE SÍ SE ESPERA:
-- preguntas abiertas
-- intentos de comprensión
-- respuestas coherentes
+- respuestas acordes a lo que el paciente dice
+- exploración básica del problema
+- mínima validación emocional
 - mantener la conversación activa
-- mínima conexión con el paciente
 
-LO QUE NO SE EXIGE:
+---
+
+LO QUE NO SE EXIGE (CRÍTICO)
+
+NO evaluar ni penalizar por ausencia de:
+
 - intervención terapéutica
 - insight clínico
 - reencuadre
 - confrontación
 - hipótesis clínicas
-
-No penalices ausencia de estos elementos.
-
----
-
-REGLA FORMATIVA PRINCIPAL
-
-Cualquier intento adecuado de interacción clínica debe ser valorado positivamente,
-aunque sea simple o imperfecto.
+- cambio profundo en el paciente
 
 ---
 
-NIVELES DE IMPACTO CLÍNICO (ADAPTADO A NIVEL 1)
+REGLA FUNDAMENTAL DE NO PENALIZACIÓN
 
-1. Impacto positivo básico
-- el paciente responde, la conversación fluye, hay conexión mínima
-→ 60–100
+La ausencia de:
 
-2. Impacto bajo pero adecuado
-- intervención simple, respuesta limitada
-→ 40–59
+- insight
+- cambio emocional
+- movilización profunda
 
-3. Sin impacto claro
-- interacción muy superficial, poca conexión
-→ 20–39
+NO debe reducir la puntuación
+si el contexto es de apertura o exploración inicial.
 
 ---
 
-CALIBRACIÓN EN NIVEL 1
+REDEFINICIÓN DE MMD (CRÍTICO)
 
-Las puntuaciones altas (80–100) representan buena ejecución dentro del nivel inicial.
+En nivel 1, MMD NO significa movilización terapéutica profunda.
+
+Debe evaluarse como:
+
+- facilitación de la expresión emocional
+- permitir que el paciente se exprese
+- ayudar a organizar lo que está sintiendo
+- permitir que el relato fluya
+
+Ejemplo de MMD válida en este nivel:
+
+- el paciente logra explicar mejor su situación
+- pasa de respuestas vagas a más claras
+- expresa emociones básicas
+
+NO exigir:
+
+- insight
+- cambio de perspectiva
+- reflexión profunda
+
+---
+
+REDEFINICIÓN DE IRI (IMPORTANTE)
+
+En este nivel NO se exige integración compleja.
+
+Se considera adecuada si:
+
+- el terapeuta responde coherentemente
+- mantiene el hilo
+- no contradice al paciente
+- muestra comprensión básica
+
+NO exigir reformulación avanzada.
+
+---
+
+REDEFINICIÓN DE MLT (ENCUEADRE)
+
+En nivel 1, MLT es altamente relevante.
+
+Debe valorarse positivamente si hay:
+
+- explicación de confidencialidad
+- espacio seguro
+- permiso para no responder
+- tono respetuoso
+- cierre básico de sesión
+
+Si estos elementos están presentes → NO puntuar bajo.
+
+---
+
+CRITERIO DE EVALUACIÓN EN APERTURA (CLAVE)
+
+En contexto de apertura o exploración:
+
+Un desempeño ALTO puede consistir únicamente en:
+
+- encuadre claro
+- preguntas abiertas adecuadas
+- exploración ordenada del motivo de consulta
+- escucha coherente
+- validación básica
+- resumen final simple
+
+Esto es suficiente para puntuar alto (80–100).
+
+---
+
+NIVELES DE DESEMPEÑO EN NIVEL 1
+
+ALTO (80–100):
+- conversación fluida
+- preguntas adecuadas
+- buena exploración
+- encuadre presente
+- escucha coherente
+
+MEDIO (60–79):
+- interacción funcional
+- preguntas básicas
+- exploración limitada pero válida
+
+BAJO (0–59):
+- preguntas cerradas constantes
+- desorden
+- desconexión con el paciente
+- falta de seguimiento
+
+---
+
+REGLA DE CALIBRACIÓN
+
+Las puntuaciones altas representan:
+
+- buen desempeño DENTRO del nivel inicial
+
 NO representan dominio clínico avanzado.
 
 ---
 
 RESISTENCIA DEL PACIENTE
 
-Si el paciente responde poco o es cerrado:
-NO penalices automáticamente.
-Evalúa si el terapeuta mantiene intento de conexión.
+Si el paciente es:
+
+- cerrado
+- poco expresivo
+
+NO penalizar automáticamente.
+
+Evaluar:
+
+- si el terapeuta intenta conectar
+- si sostiene la interacción
 
 ---
 
-CRITERIO DE TIMING (SIMPLIFICADO)
+REGLA CLAVE
 
-No penalices timing imperfecto.
-Solo señala si interrumpe constantemente o corta el proceso de forma evidente.
+Valora más:
+
+la capacidad de sostener la entrevista
+
+que la calidad técnica avanzada.
+
+---
+
+CRITERIO DE DIRECCIÓN CLÍNICA
+
+NO se exige dirección clínica.
+
+Solo evaluar:
+
+- que no haya desorden extremo
+- que el terapeuta no pierda completamente el hilo
+
+---
+
+CRITERIO DE TIMING
+
+NO penalizar timing imperfecto.
+
+Solo señalar si:
+
+- interrumpe repetidamente
+- corta el proceso de forma abrupta
 
 ---
 
 REGLA CALIDAD SOBRE CANTIDAD
 
-Valora intención, coherencia y claridad básica. No el número de intervenciones.
+Valorar:
 
----
+- claridad
+- coherencia
+- intención básica
 
-AJUSTE DINÁMICO POR CONTEXTO Y DURACIÓN
-
-Sesión corta (<10 min): suficiente si hay interacción básica
-Sesión media (10–25 min): espera continuidad simple
-Sesión larga (>25 min): espera consistencia en la interacción
+NO el número de intervenciones.
 
 ---
 
 AJUSTE POR CONTEXTO
 
-EXPLORACIÓN CLÍNICA: preguntas abiertas, comprensión básica, escucha
-INTERVENCIÓN TERAPÉUTICA (EN NIVEL 1): NO exigir intervención real. SÍ valorar intención de ayudar y preguntas que inviten a pensar
-APLICACIÓN DE PRUEBAS PSICOMÉTRICAS: Evalúa claridad al explicar consignas, orden del proceso, instrucciones comprensibles. NO evaluar habilidades terapéuticas.
-DEVOLUCIÓN DE RESULTADOS: Evalúa claridad del lenguaje, explicación sencilla, empatía básica. No exigir profundidad clínica.
+EXPLORACIÓN CLÍNICA:
+- foco en preguntas abiertas
+- comprensión básica
+- escucha
+
+INTERVENCIÓN:
+- solo valorar intención, NO exigir técnica
+
+PRUEBAS PSICOMÉTRICAS:
+- evaluar claridad de consignas
+- NO evaluar habilidades terapéuticas
+
+DEVOLUCIÓN:
+- claridad
+- lenguaje sencillo
+- empatía básica
 
 ---
 
-AJUSTE POR MODELO TERAPÉUTICO
+AJUSTE POR DURACIÓN
 
-El modelo funciona como orientación, no como exigencia técnica.
+<10 min:
+- interacción básica es suficiente
 
-Si modelo = Humanista: Valora empatía básica, validación emocional, tono cálido
-Si modelo = TCC: Valora claridad, preguntas simples sobre situaciones o pensamientos, explicación básica
-Si modelo = Sistémico: Valora interés por relaciones, preguntas sobre contexto interpersonal
-Si modelo = Psicodinámico: Valora curiosidad por la experiencia interna, apertura emocional
+10–25 min:
+- continuidad simple
+
+>25 min:
+- consistencia en la interacción
 
 ---
 
-CRITERIO CLAVE DE NIVEL 1
+AJUSTE POR MODELO
 
-Si el terapeuta logra sostener la conversación, mostrar interés y hacer preguntas abiertas:
-→ ya es desempeño adecuado
+El modelo orienta, NO exige.
 
-REGLA FINAL: Este nivel trata de PASAR DE NO SABER → A INTENTAR
-Evalúa si el estudiante está dando ese paso.
+Humanista:
+- empatía básica
+
+TCC:
+- claridad en preguntas
+
+Sistémico:
+- interés en relaciones
+
+Psicodinámico:
+- apertura emocional
+
+---
+
+REGLA FINAL
+
+Este nivel trata de:
+
+PASAR DE NO SABER → A SOSTENER UNA ENTREVISTA
+
+Evalúa si el estudiante logra hacer eso,
+aunque sea de forma simple.
 `.trim(),
 
   nivel_2: `
