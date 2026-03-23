@@ -47,6 +47,7 @@ const TIPOS_EJERCICIO = [
 const TIPOS_EJERCICIO = [
   "Role playing persona",
   "Role Playing IA",
+  "Grabar voz",
 ];
 
 /* =========================================================
@@ -223,6 +224,24 @@ const ejercicioGrabarVozSchema = new Schema(
       metafora: { type: Boolean, default: false },
       resumen: { type: Boolean, default: false },
       practicarConsignasPruebas: { type: Boolean, default: false },
+    },
+
+    praxisNivel: {
+      type: String,
+      enum: PRAXIS_NIVELES,
+      default: "nivel_1",
+    },
+    modeloIntervencion: {
+      type: String,
+      enum: ["", ...MODELOS_INTERVENCION],
+      default: "",
+      trim: true,
+    },
+    contextoSesion: {
+      type: String,
+      enum: ["", ...CONTEXTOS_SESION_ENUM],
+      default: "exploracion_clinica",
+      trim: true,
     },
 
     transcripcionRespuesta: {

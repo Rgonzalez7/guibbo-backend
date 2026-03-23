@@ -1540,21 +1540,17 @@ exports.listarEjerciciosAdmin = async (req, res) => {
           evaluaciones: normalizeEvaluacionesIA(req.body?.evaluaciones || {}),
         });
       } else if (tipoEjercicio === "Interpretación de frases incompletas") {
-        detalle = await EjercicioInterpretacionFrases.create({
+        detalle = await EjercicioGrabarVoz.create({
           ejercicio: ejercicio._id,
-          edad: edad ? Number(edad) : undefined,
-          ocupacion: ocupacion || "",
-          motivo: motivo || "",
-          historiaPersonal: historiaPersonal || "",
-          tipoTest: tipo || "adulto",
-          respuestasFrases: Array.isArray(respuestasFrases) ? respuestasFrases : [],
-          notas: texto || "",
-          intentos:
-            typeof intentos === "number"
-              ? intentos
-              : intentos
-              ? Number(intentos)
-              : 1,
+          caso: String(caso),
+          evaluaciones: normalizeEvaluacionesIA(req.body?.evaluaciones || {}),
+          praxisNivel: normalizePraxisNivel(req.body?.praxisNivel || "nivel_1"),
+          modeloIntervencion: normalizeModeloIntervencion(req.body?.modeloIntervencion || ""),
+          contextoSesion: (() => {
+            const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
+            const v = String(req.body?.contextoSesion || "exploracion_clinica");
+            return valid.includes(v) ? v : "exploracion_clinica";
+          })(),
         });
       }
   
@@ -1735,14 +1731,26 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       if (ejercicio.tipoEjercicio === "Grabar voz") {
         detalle = await EjercicioGrabarVoz.findOne({ ejercicio: id });
         if (!detalle) detalle = await EjercicioGrabarVoz.create({ ejercicio: id });
-  
+      
         if (caso !== undefined) detalle.caso = String(caso || "");
         if (evaluaciones !== undefined) {
           detalle.evaluaciones = normalizeEvaluacionesIA(evaluaciones || {});
         }
+        // ✅ AGREGAR estos tres:
+        if (praxisNivel !== undefined) {
+          detalle.praxisNivel = normalizePraxisNivel(praxisNivel);
+        }
+        if (modeloIntervencion !== undefined) {
+          detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
+        }
+        if (contextoSesion !== undefined) {
+          const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
+          detalle.contextoSesion = valid.includes(contextoSesion) ? contextoSesion : "exploracion_clinica";
+        }
+      
         await detalle.save();
-  
-      } else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
+      }
+       else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
         if (!detalle)
           detalle = await EjercicioInterpretacionFrases.create({ ejercicio: id });
