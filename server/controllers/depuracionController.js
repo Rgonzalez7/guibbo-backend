@@ -154,11 +154,22 @@ function normalizeSpeakerManual(value) {
   return "unknown";
 }
 
+// ✅ FIX: soporta formato { hablante, texto } del hook useSesionRecorder
 function normalizeTurnManual(raw, idx = 0) {
   if (!raw || typeof raw !== "object") return null;
   const id = safeStr(raw.id, "") || safeStr(raw._id, "") || safeStr(raw.turnId, "") || `t_${idx + 1}`;
-  const text = safeStr(raw.text, "") || safeStr(raw.content, "") || safeStr(raw.message, "") || "";
-  const speaker = normalizeSpeakerManual(raw.speaker || raw.role || raw.rol || raw.label || raw.participant);
+
+  // ✅ agregar raw.texto y raw.hablante como fallbacks
+  const text = safeStr(raw.text, "")
+    || safeStr(raw.texto, "")
+    || safeStr(raw.content, "")
+    || safeStr(raw.message, "")
+    || "";
+
+  const speaker = normalizeSpeakerManual(
+    raw.speaker || raw.role || raw.rol || raw.label || raw.participant || raw.hablante || ""
+  );
+
   const cleanedText = safeStr(text, "").trim();
   if (!cleanedText) return null;
   return {
@@ -203,7 +214,9 @@ function parseTurnsFromRawText(rawText) {
 }
 
 function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
+  // ✅ FIX: diarizacionTurnos es el nombre real que usa useSesionRecorder — va primero
   const candidates = [
+    rpData?.diarizacionTurnos,
     deepGet(rpData, "transcripcionDiarizada.turns", null),
     deepGet(rpData, "transcripcionDiarizada", null),
     deepGet(rpData, "diarizacion.turns", null),
@@ -219,6 +232,9 @@ function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion", null),
     deepGet(inst, "respuestas.rolePlaying.turnosDiarizados", null),
     deepGet(inst, "respuestas.rolePlaying.turnos", null),
+    // ✅ FIX: buscar también en el payload anidado del borrador
+    deepGet(inst, "respuestas.rolePlaying.payload.diarizacionTurnos", null),
+    deepGet(inst, "respuestas.rolePlaying.payload.turnos", null),
   ];
 
   for (const item of candidates) {
