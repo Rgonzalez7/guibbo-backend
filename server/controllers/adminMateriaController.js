@@ -365,31 +365,41 @@ exports.eliminarMateriaAdmin = async (req, res) => {
 /* =========================================================
    ASIGNAR MÓDULOS A UNA MATERIA (solo director)
    ========================================================= */
-exports.asignarModulosMateriaAdmin = async (req, res) => {
-  try {
-    const adminId = req.user?.id || req.user?._id;
-    const materiaId = req.params.id;
-
-    const { modulosGlobalesIds = [], modulosLocalesIds = [] } = req.body;
-
-    const universidadId = await findUniversidadForAdmin(adminId);
-    if (!universidadId) {
-      return res.status(400).json({
-        message:
-          "El admin no tiene una universidad válida asociada. No se pueden asignar módulos.",
-      });
-    }
-
-    const materia = await Materia.findOne({
-      _id: materiaId,
-      universidad: universidadId,
-    });
-
-    if (!materia) {
-      return res.status(404).json({
-        message: "Materia no encontrada en tu universidad.",
-      });
-    }
+   exports.asignarModulosMateriaAdmin = async (req, res) => {
+    try {
+      // ✅ CAMBIO: usar findUniversidadForUser en lugar de findUniversidadForAdmin
+      const userId = req.user?.id || req.user?._id;
+      const materiaId = req.params.id;
+  
+      const { modulosGlobalesIds = [], modulosLocalesIds = [] } = req.body;
+  
+      const universidadId = await findUniversidadForUser(userId); // ✅
+      if (!universidadId) {
+        return res.status(400).json({
+          message: "El usuario no tiene una universidad válida asociada. No se pueden asignar módulos.",
+        });
+      }
+  
+      const materia = await Materia.findOne({
+        _id: materiaId,
+        universidad: universidadId,
+      }).populate({ path: "profesor", select: "_id" });
+  
+      if (!materia) {
+        return res.status(404).json({
+          message: "Materia no encontrada en tu universidad.",
+        });
+      }
+  
+      // ✅ NUEVO: Si es profesor, validar que sea SU materia
+      if (req.user?.rol === "profesor") {
+        const materiaProfesorId = String(materia.profesor?._id || materia.profesor);
+        if (materiaProfesorId !== String(userId)) {
+          return res.status(403).json({
+            message: "Acceso denegado. Esta materia no está asignada a este profesor.",
+          });
+        }
+      }
 
     const cleanGlobales = [...new Set((modulosGlobalesIds || []).filter(Boolean))];
     const cleanLocales = [...new Set((modulosLocalesIds || []).filter(Boolean))];

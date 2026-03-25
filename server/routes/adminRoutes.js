@@ -292,7 +292,7 @@ router.delete(
 
 router.post(
   "/materias/:id/modulos",
-  requireRole("director"),
+  requireRole("director", "profesor"),
   adminMateriaController.asignarModulosMateriaAdmin
 );
 
