@@ -307,7 +307,7 @@ function normalizePraxisDimension(rawBlock, key, weight) {
 }
 
 /* =========================================================
-   PROMPT — BASE (CORE) — no cambia entre niveles
+   PROMPT — BASE (CORE)
 ========================================================= */
 
 function buildBasePrompt({ nivel, modelo, weights, contextoSesion, data }) {
@@ -474,7 +474,7 @@ Devolución → explicar, contener, comunicar
 
 # 🔥 REGLAS ESPECÍFICAS — CONTEXTO INTERVENCIÓN
 
-SI contextoSesion = "intervencion_clinica":
+SI contextoSesion = "intervencion_terapeutica":
 
 Evaluar con criterio de CALIDAD, no solo presencia de intervención.
 
@@ -489,7 +489,7 @@ Intervenciones adecuadas:
 - respetan el ritmo del paciente
 
 Intervenciones inadecuadas:
-- imponen (“tienes que…”, “deberías…”)
+- imponen ("tienes que…", "deberías…")
 - corrigen sin explorar
 - minimizan emoción
 - presionan o dirigen excesivamente
@@ -524,7 +524,7 @@ No exigir encuadre formal.
 
 # 🚨 REGLAS DE NO COMPENSACIÓN (CRÍTICO)
 
-En intervención clínica:
+En intervención terapéutica:
 
 NO compensar mala intervención con buena forma.
 
@@ -544,6 +544,30 @@ La nota final debe reflejar:
 
 - calidad de intervención  
 - no solo estructura o fluidez  
+
+---
+
+# 🚨 REGLA DE TECHO — INTERVENCIÓN TERAPÉUTICA
+
+Esta regla aplica SOLO cuando contextoSesion = "intervencion_terapeutica".
+NO aplica a exploración clínica ni otros contextos.
+
+Interpretación operativa:
+- Intervención mala: IIT < 60
+- Intervención regular: IIT 60–75
+- Intervención buena: IIT 76–89
+
+Si IIT < 60 Y MMD < 60 → índice global NO puede superar 58.
+Si solo IIT < 60 → índice global NO puede superar 62.
+Si solo MMD < 60 → índice global NO puede superar 70.
+
+Objetivo de distribución en intervención nivel 1:
+- caso malo → aprox. 50–60
+- caso medio → aprox. 65–75
+- caso bueno → aprox. 80–90
+
+Cuando asignes scores de IIT y MMD, ya considera esta restricción.
+El sistema aplicará el techo automáticamente en el cálculo final.
 
 ---
 
@@ -855,7 +879,7 @@ También debe evaluarse si esa ayuda es adecuada o inadecuada.
 
 ---
 
-REDEFINICIÓN DE MLT (ENCUEADRE)
+REDEFINICIÓN DE MLT (ENCUADRE)
 
 Valorar positivamente si hay:
 
@@ -999,7 +1023,7 @@ INTERVENCIÓN:
   - abre reflexión básica
   - respeta el ritmo del paciente
 - reducir puntaje si:
-  - impone (“tienes que…”, “deberías…”)
+  - impone ("tienes que…", "deberías…")
   - corrige sin explorar
   - minimiza emoción
   - presiona o dirige excesivamente
@@ -1040,7 +1064,7 @@ DEVOLUCIÓN:
 
 REGLA ESPECÍFICA — INTERVENCIÓN NIVEL 1
 
-En contexto de intervención clínica, diferencia claramente entre:
+En contexto de intervención terapéutica, diferencia claramente entre:
 
 Intervenciones adecuadas:
 - validan la experiencia
@@ -1073,6 +1097,9 @@ Usa una diferenciación más clara:
 - buen desempeño → 80–90
 
 Un caso medio y uno alto NO deben terminar con puntuaciones casi iguales.
+
+RECUERDA: el sistema aplica un techo automático cuando IIT o MMD están bajo 60.
+Asigna esos scores con precisión ya que determinan el rango final posible.
 
 ---
 
@@ -1421,9 +1448,42 @@ function parseRawJson(raw) {
   return obj && typeof obj === "object" ? obj : {};
 }
 
-function computePraxisIndex(dimensions, weights) {
+/* =========================================================
+   ✅ REGLA DE TECHO — INTERVENCIÓN TERAPÉUTICA
+   Solo aplica cuando contextoSesion = "intervencion_terapeutica".
+   NO aplica a exploración clínica ni otros contextos.
+
+   Interpretación operativa:
+   - IIT < 60 = intervención mala o inadecuada
+   - MMD < 60 = no hubo apertura, claridad ni avance básico
+
+   Si ambos bajos → techo de 58 (caso malo, aprox. 50–60)
+   Si solo IIT bajo → techo de 62
+   Si solo MMD bajo → techo de 70
+
+   Objetivo de distribución:
+   - caso malo  → aprox. 50–60
+   - caso medio → aprox. 65–75
+   - caso bueno → aprox. 80–90
+========================================================= */
+function aplicarTechoIntervencion(indicePct, dimensions, contextoSesion) {
+  const contextoNorm = normalizeContextoSesion(contextoSesion || "");
+  if (contextoNorm !== "intervencion_terapeutica") return indicePct;
+
+  const IIT = Number(dimensions?.IIT?.score ?? 100);
+  const MMD = Number(dimensions?.MMD?.score ?? 100);
+
+  if (IIT < 60 && MMD < 60) return Math.min(indicePct, 58);
+  if (IIT < 60)              return Math.min(indicePct, 62);
+  if (MMD < 60)              return Math.min(indicePct, 70);
+
+  return indicePct;
+}
+
+function computePraxisIndex(dimensions, weights, contextoSesion) {
   let suma = 0;
   let pesoTotal = 0;
+
   for (const key of Object.keys(dimensions || {})) {
     const dim = dimensions[key];
     const weight = Number(weights[key] || 0);
@@ -1434,7 +1494,12 @@ function computePraxisIndex(dimensions, weights) {
     suma += Number(dim?.score ?? 0) * pesoEfectivo;
     pesoTotal += pesoEfectivo;
   }
-  const indicePct = pesoTotal > 0 ? Math.round(suma / pesoTotal) : 0;
+
+  let indicePct = pesoTotal > 0 ? Math.round(suma / pesoTotal) : 0;
+
+  // ✅ Aplicar techo solo en intervención terapéutica
+  indicePct = aplicarTechoIntervencion(indicePct, dimensions, contextoSesion);
+
   return { indiceBruto: indicePct, indicePct };
 }
 
@@ -1462,7 +1527,10 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
       null;
     dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey]);
   }
-  const { indiceBruto, indicePct } = computePraxisIndex(dimensions, weights);
+
+  // ✅ Pasar contexto para aplicar regla de techo
+  const { indiceBruto, indicePct } = computePraxisIndex(dimensions, weights, contexto);
+
   const praxisSummary = String(
     obj?.praxisTH?.indiceGlobal?.summary ||
       obj?.praxisTH?.general?.summary ||
@@ -1470,6 +1538,7 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
       obj?.evaluacionGeneral ||
       ""
   ).trim();
+
   return {
     tipo: "praxis_th",
     praxisNivel: nivel,
@@ -1512,49 +1581,57 @@ function addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion }) {
   if (!analisisIA.sections) analisisIA.sections = {};
   const weights = getPraxisWeights(praxisNivel || analisisIA.praxisNivel);
   const contexto = normalizeContextoSesion(contextoSesion || analisisIA.contextoSesion);
+
   Object.keys(PRAXIS_DIMENSIONS).forEach((k) => {
     if (!analisisIA.sections[k]) {
       analisisIA.sections[k] = normalizePraxisDimension({}, k, weights[k]);
     }
-    analisisIA.sections[k].label = analisisIA.sections[k].label || PRAXIS_DIMENSIONS[k].label;
-    analisisIA.sections[k].shortLabel = analisisIA.sections[k].shortLabel || PRAXIS_DIMENSIONS[k].shortLabel;
+    analisisIA.sections[k].label       = analisisIA.sections[k].label       || PRAXIS_DIMENSIONS[k].label;
+    analisisIA.sections[k].shortLabel  = analisisIA.sections[k].shortLabel  || PRAXIS_DIMENSIONS[k].shortLabel;
     analisisIA.sections[k].description = analisisIA.sections[k].description || PRAXIS_DIMENSIONS[k].description;
     analisisIA.sections[k].observabilidad = normalizeObservabilidad(analisisIA.sections[k].observabilidad);
     if (!analisisIA.sections[k].studentGuidance) {
       analisisIA.sections[k].studentGuidance = {
-        loQueHicisteBien: { textoBreve: "", evidencias: [] },
-        loQuePodriasMejorar: { textoBreve: "", evidencias: [] },
+        loQueHicisteBien:      { textoBreve: "", evidencias: [] },
+        loQuePodriasMejorar:   { textoBreve: "", evidencias: [] },
         sugerenciaParaMejorar: { textoBreve: "", ejemploIntervencion: "" },
-        whyThisMatters: [],
+        whyThisMatters:        [],
       };
     }
   });
+
   if (!analisisIA.studentSummary) {
     analisisIA.studentSummary = {
       opening: "", whatWentWell: [], whatToImprove: [], nextStep: "", closingRecommendation: "",
     };
   }
-  analisisIA.contextoSesion = contexto;
-  analisisIA.contextoSesionLabel = analisisIA.contextoSesionLabel || CONTEXTOS_SESION[contexto]?.label || contexto;
+
+  analisisIA.contextoSesion            = contexto;
+  analisisIA.contextoSesionLabel       = analisisIA.contextoSesionLabel       || CONTEXTOS_SESION[contexto]?.label       || contexto;
   analisisIA.contextoSesionDescription = analisisIA.contextoSesionDescription || CONTEXTOS_SESION[contexto]?.description || "";
-  const recalculated = computePraxisIndex(analisisIA.sections, weights);
+
+  // ✅ Pasar contexto para aplicar regla de techo en el recálculo
+  const recalculated = computePraxisIndex(analisisIA.sections, weights, contexto);
+
   analisisIA.generalScore = recalculated.indicePct;
   if (!analisisIA.general) analisisIA.general = { score: recalculated.indicePct, summary: "" };
   analisisIA.general.score = recalculated.indicePct;
+
   if (!analisisIA.indiceGlobal) {
     analisisIA.indiceGlobal = {
-      bruto: recalculated.indiceBruto,
-      porcentaje: recalculated.indicePct,
+      bruto:          recalculated.indiceBruto,
+      porcentaje:     recalculated.indicePct,
       nivelDesempeno: getPraxisLevelLabelByScore(recalculated.indicePct),
-      summary: "",
+      summary:        "",
     };
   } else {
-    analisisIA.indiceGlobal.bruto = recalculated.indiceBruto;
+    analisisIA.indiceGlobal.bruto      = recalculated.indiceBruto;
     analisisIA.indiceGlobal.porcentaje = recalculated.indicePct;
     if (!analisisIA.indiceGlobal.nivelDesempeno) {
       analisisIA.indiceGlobal.nivelDesempeno = getPraxisLevelLabelByScore(recalculated.indicePct);
     }
   }
+
   return analisisIA;
 }
 
@@ -1581,4 +1658,5 @@ module.exports = {
   normalizeObservabilidad,
   getPraxisWeights,
   computePraxisIndex,
+  aplicarTechoIntervencion,
 };
