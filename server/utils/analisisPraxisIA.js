@@ -522,6 +522,31 @@ No exigir encuadre formal.
 
 ---
 
+# 🚨 REGLAS DE NO COMPENSACIÓN (CRÍTICO)
+
+En intervención clínica:
+
+NO compensar mala intervención con buena forma.
+
+Si NO hay evidencia de avance:
+
+- MMD ≤ 65  
+- índice global ≤ 75  
+
+Si intervención es inadecuada:
+
+- IIT ≤ 65  
+
+Fluidez, empatía superficial o conversación activa
+NO elevan el score si no hay calidad clínica.
+
+La nota final debe reflejar:
+
+- calidad de intervención  
+- no solo estructura o fluidez  
+
+---
+
 REGLA DE DISTRIBUCIÓN:
 
 - Bajo → 40–60
@@ -665,7 +690,7 @@ ${JSON.stringify(
 
 const NIVEL_PROMPT = {
   nivel_1: `
-  ---
+---
 
 AJUSTES ESPECÍFICOS — NIVEL 1 (FORMACIÓN INICIAL)
 
@@ -978,6 +1003,28 @@ INTERVENCIÓN:
   - corrige sin explorar
   - minimiza emoción
   - presiona o dirige excesivamente
+
+---
+
+# 🚨 AJUSTE DE CALIBRACIÓN (NUEVO)
+
+En intervención nivel 1:
+
+- NO elevar la puntuación solo por intento de ayuda
+- diferenciar claramente entre intervención adecuada e inadecuada
+
+Si la intervención:
+
+- acompaña pero no genera apertura → desempeño medio
+- es impositiva o mal ajustada → desempeño bajo
+
+Para considerar buen desempeño:
+
+- debe existir acompañamiento adecuado
+- respeto del ritmo del paciente
+- al menos apertura o mayor claridad básica
+
+---
 
 PRUEBAS:
 - claridad en instrucciones
