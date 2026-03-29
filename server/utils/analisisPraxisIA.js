@@ -472,6 +472,66 @@ Devolución → explicar, contener, comunicar
 
 ---
 
+# 🔥 REGLAS ESPECÍFICAS — CONTEXTO INTERVENCIÓN
+
+SI contextoSesion = "intervencion_clinica":
+
+Evaluar con criterio de CALIDAD, no solo presencia de intervención.
+
+---
+
+Diferenciar entre:
+
+Intervenciones adecuadas:
+- validan la experiencia del paciente
+- acompañan sin imponer
+- generan reflexión o apertura
+- respetan el ritmo del paciente
+
+Intervenciones inadecuadas:
+- imponen (“tienes que…”, “deberías…”)
+- corrigen sin explorar
+- minimizan emoción
+- presionan o dirigen excesivamente
+
+Las intervenciones inadecuadas deben REDUCIR el score,
+aunque exista intención de ayudar.
+
+---
+
+REGLA IIT:
+Evaluar si la intención es clínicamente adecuada.
+Intención impositiva → score medio o bajo.
+
+---
+
+REGLA IRI:
+Puntuar alto SOLO si integra contenido del paciente.
+
+---
+
+REGLA MMD:
+Movilización SOLO si hay apertura o mayor claridad.
+Consejo o presión ≠ movilización.
+
+---
+
+REGLA MLT:
+En nivel 1, valorar respeto y no invasión.
+No exigir encuadre formal.
+
+---
+
+REGLA DE DISTRIBUCIÓN:
+
+- Bajo → 40–60
+- Medio → 65–75
+- Alto → 80–90
+
+Evitar concentrar todo en 70–80.
+
+---
+
 # 🔥 NIVEL MODULA EXIGENCIA
 
 Nivel NO cambia la tarea.
@@ -483,22 +543,11 @@ Solo cambia qué tan bien debe ejecutarse.
 
 Puedes reconocer esfuerzo o intención SIN subir el score.
 
-El score refleja SOLO:
-
-- calidad observable  
-- adecuación al contexto  
-
 ---
 
 # 🚨 REGLA ANTI-INFLACIÓN
 
 Interacción ≠ calidad clínica
-
-Debe existir:
-
-- coherencia  
-- intención  
-- sentido  
 
 ---
 
@@ -506,9 +555,9 @@ Debe existir:
 
 En nivel 1:
 
-- preguntar bien = desempeño válido  
-- escuchar bien = desempeño válido  
-- NO exigir insight ni cambio  
+- preguntar bien = válido  
+- escuchar bien = válido  
+- NO exigir insight  
 
 ---
 
@@ -556,10 +605,7 @@ Clasifica por función, no por nombre técnico.
 
 REGLA DE CONTEXTO Y DURACIÓN
 
-No penalizar:
-
-- falta de profundidad en exploración  
-- sesiones cortas  
+No penalizar sesiones cortas.
 
 ---
 
@@ -621,310 +667,400 @@ const NIVEL_PROMPT = {
   nivel_1: `
   ---
 
-  AJUSTES ESPECÍFICOS — NIVEL 1 (FORMACIÓN INICIAL)
-  
-  Este es un nivel de inicio.
-  
-  Tu objetivo principal NO es evaluar desempeño terapéutico,
-  sino evaluar habilidades básicas de ENTREVISTA CLÍNICA,
-  según el contexto de la sesión.
-  
-  Evalúa con enfoque pedagógico, formativo y NO punitivo.
-  
-  ---
-  
-  PRINCIPIO PEDAGÓGICO CENTRAL
-  
-  El estudiante está comenzando.
-  
-  La evaluación debe:
-  
-  - reforzar seguridad
-  - validar lo que sí está presente
-  - señalar mejoras simples y accionables
-  
-  El objetivo es que el estudiante sienta:
-  
-  "puedo hacerlo mejor en el siguiente intento"
-  
-  ---
-  
-  DEFINICIÓN CLAVE DEL NIVEL (CRÍTICO)
-  
-  En este nivel NO se evalúa terapia.
-  
-  Se evalúa:
-  
-  CAPACIDAD DE SOSTENER UNA INTERACCIÓN CLÍNICA BÁSICA
-  ACORDE AL CONTEXTO
-  
-  Esto incluye:
-  
-  - encuadre básico (cuando aplica)
-  - preguntas abiertas
-  - exploración del motivo de consulta
-  - escucha básica
-  - coherencia conversacional
-  - cierre simple (cuando aplica)
-  
-  ---
-  
-  REGLA CRÍTICA DE CONTEXTO
-  
-  Antes de evaluar, define:
-  
-  ¿Qué era lo que este estudiante debía hacer en ESTE tipo de sesión?
-  
-  Ejemplos:
-  
-  Exploración → preguntar, escuchar, entender  
-  Intervención → intentar ayudar (sin exigir técnica)  
-  Pruebas → explicar y aplicar  
-  Devolución → explicar resultados con claridad  
-  
-  Evalúa SOLO eso.
-  
-  ---
-  
-  LO QUE SÍ SE ESPERA
-  
-  - preguntas abiertas o intentos de abrir
-  - seguimiento básico del discurso
-  - interés genuino
-  - coherencia con lo que el paciente dice
-  - mantener la conversación activa
-  - mínima validación emocional
-  
-  ---
-  
-  LO QUE NO SE EXIGE (CRÍTICO)
-  
-  NO evaluar ni penalizar por ausencia de:
-  
-  - intervención terapéutica
-  - insight clínico
-  - reencuadre
-  - confrontación
-  - hipótesis clínicas
-  - cambio profundo en el paciente
-  
-  ---
-  
-  REGLA FUNDAMENTAL DE NO PENALIZACIÓN
-  
-  La ausencia de:
-  
-  - insight
-  - cambio emocional
-  - movilización profunda
-  
-  NO debe reducir la puntuación
-  si el contexto es exploratorio o inicial.
-  
-  ---
-  
-  REDEFINICIÓN DE MMD (CRÍTICO)
-  
-  En nivel 1, MMD NO significa cambio terapéutico.
-  
-  Evalúa MMD como:
-  
-  - facilitar que el paciente hable
-  - permitir mayor claridad en el relato
-  - ayudar a organizar lo que dice
-  
-  Ejemplos válidos:
-  
-  - el paciente amplía su respuesta
-  - pasa de vago → más claro
-  - expresa emoción básica
-  
-  NO exigir:
-  
-  - insight
-  - cambio de perspectiva
-  - profundidad emocional
-  
-  ---
-  
-  REDEFINICIÓN DE IRI
-  
-  En nivel 1 es adecuada si:
-  
-  - responde coherentemente
-  - no pierde el hilo
-  - no contradice
-  - muestra comprensión básica
-  
-  NO exigir integración compleja.
-  
-  ---
-  
-  REDEFINICIÓN DE IIT (MUY IMPORTANTE)
-  
-  En este nivel, IIT incluye:
-  
-  - preguntas abiertas
-  - intentos de explorar
-  - guiar suavemente la conversación
-  
-  Pregunta bien hecha = intención clínica válida
-  
-  ---
-  
-  REDEFINICIÓN DE MLT (ENCUEADRE)
-  
-  Valorar positivamente si hay:
-  
-  - explicación básica del espacio
-  - tono respetuoso
-  - seguridad mínima
-  - cierre simple
-  
-  Si está presente → NO puntuar bajo
-  
-  ---
-  
-  CRITERIO DE EVALUACIÓN EN APERTURA
-  
-  Un desempeño ALTO puede ser SOLO:
-  
-  - encuadre claro
-  - preguntas abiertas
-  - exploración ordenada
-  - escucha coherente
-  - validación básica
-  
-  NO se requiere intervención.
-  
-  ---
-  
-  REGLA CLAVE DE CALIDAD
-  
-  Hablar más NO es hacerlo mejor.
-  
-  Evaluar:
-  
-  - coherencia
-  - sentido
-  - adecuación al contexto
-  
-  ---
-  
-  NIVELES DE DESEMPEÑO EN NIVEL 1
-  
-  ALTO (80–100):
-  - sostiene la entrevista
-  - preguntas adecuadas
-  - coherencia
-  - exploración clara
-  
-  MEDIO (60–79):
-  - interacción funcional
-  - preguntas básicas
-  - seguimiento limitado pero válido
-  
-  BAJO (0–59):
-  - desorden
-  - preguntas cerradas constantes
-  - desconexión
-  - no logra sostener la conversación
-  
-  ---
-  
-  REGLA DE CALIBRACIÓN
-  
-  Puntajes altos significan:
-  
-  BUEN DESEMPEÑO DENTRO DEL NIVEL INICIAL
-  
-  NO dominio clínico avanzado.
-  
-  ---
-  
-  RESISTENCIA DEL PACIENTE
-  
-  NO penalizar automáticamente.
-  
-  Evaluar si el terapeuta:
-  
-  - intenta conectar
-  - sostiene la interacción
-  
-  ---
-  
-  CRITERIO DE DIRECCIÓN
-  
-  NO se exige dirección clínica.
-  
-  Solo evitar:
-  
-  - pérdida total del hilo
-  - desorganización evidente
-  
-  ---
-  
-  CRITERIO DE TIMING
-  
-  NO penalizar errores leves.
-  
-  Solo si:
-  
-  - interrumpe constantemente
-  - corta el proceso abruptamente
-  
-  ---
-  
-  REGLA CALIDAD SOBRE CANTIDAD
-  
-  Valorar:
-  
-  - claridad
-  - coherencia
-  - intención básica
-  
-  NO cantidad de intervenciones.
-  
-  ---
-  
-  AJUSTE POR CONTEXTO
-  
-  EXPLORACIÓN:
-  - foco en preguntar y escuchar
-  
-  INTERVENCIÓN:
-  - valorar intención, no técnica
-  
-  PRUEBAS:
-  - claridad en instrucciones
-  
-  DEVOLUCIÓN:
-  - claridad + empatía básica
-  
-  ---
-  
-  AJUSTE POR DURACIÓN
-  
-  <10 min → interacción básica suficiente  
-  10–25 min → continuidad  
-  >25 min → consistencia  
-  
-  ---
-  
-  AJUSTE POR MODELO
-  
-  El modelo orienta, no exige.
-  
-  ---
-  
-  REGLA FINAL
-  
-  Este nivel trata de:
-  
-  PASAR DE NO SABER → A SOSTENER UNA ENTREVISTA
-  
-  Evalúa si el estudiante logra eso,
-  aunque sea de forma simple.
+AJUSTES ESPECÍFICOS — NIVEL 1 (FORMACIÓN INICIAL)
+
+Este es un nivel de inicio.
+
+Tu objetivo principal NO es evaluar desempeño terapéutico,
+sino evaluar habilidades básicas de ENTREVISTA CLÍNICA,
+según el contexto de la sesión.
+
+Evalúa con enfoque pedagógico, formativo y NO punitivo.
+
+---
+
+PRINCIPIO PEDAGÓGICO CENTRAL
+
+El estudiante está comenzando.
+
+La evaluación debe:
+
+- reforzar seguridad
+- validar lo que sí está presente
+- señalar mejoras simples y accionables
+
+El objetivo es que el estudiante sienta:
+
+"puedo hacerlo mejor en el siguiente intento"
+
+---
+
+DEFINICIÓN CLAVE DEL NIVEL (CRÍTICO)
+
+En este nivel NO se evalúa terapia.
+
+Se evalúa:
+
+CAPACIDAD DE SOSTENER UNA INTERACCIÓN CLÍNICA BÁSICA
+ACORDE AL CONTEXTO
+
+Esto incluye:
+
+- encuadre básico (cuando aplica)
+- preguntas abiertas
+- exploración del motivo de consulta
+- escucha básica
+- coherencia conversacional
+- cierre simple (cuando aplica)
+
+---
+
+REGLA CRÍTICA DE CONTEXTO
+
+Antes de evaluar, define:
+
+¿Qué era lo que este estudiante debía hacer en ESTE tipo de sesión?
+
+Ejemplos:
+
+Exploración → preguntar, escuchar, entender  
+Intervención → intentar ayudar de manera básica y adecuada, sin exigir técnica  
+Pruebas → explicar y aplicar  
+Devolución → explicar resultados con claridad  
+
+Evalúa SOLO eso.
+
+---
+
+LO QUE SÍ SE ESPERA
+
+- preguntas abiertas o intentos de abrir
+- seguimiento básico del discurso
+- interés genuino
+- coherencia con lo que el paciente dice
+- mantener la conversación activa
+- mínima validación emocional
+
+---
+
+LO QUE NO SE EXIGE (CRÍTICO)
+
+NO evaluar ni penalizar por ausencia de:
+
+- intervención terapéutica avanzada
+- insight clínico
+- reencuadre
+- confrontación
+- hipótesis clínicas
+- cambio profundo en el paciente
+
+---
+
+REGLA FUNDAMENTAL DE NO PENALIZACIÓN
+
+La ausencia de:
+
+- insight
+- cambio emocional profundo
+- movilización compleja
+
+NO debe reducir la puntuación
+si el contexto es exploratorio o inicial.
+
+---
+
+REDEFINICIÓN DE MMD (CRÍTICO)
+
+En nivel 1, MMD NO significa cambio terapéutico profundo.
+
+Evalúa MMD como:
+
+- facilitar que el paciente hable
+- permitir mayor claridad en el relato
+- ayudar a organizar lo que dice
+- generar una apertura básica
+
+Ejemplos válidos:
+
+- el paciente amplía su respuesta
+- pasa de vago → más claro
+- expresa emoción básica
+- muestra mayor apertura o claridad
+
+NO exigir:
+
+- insight
+- cambio de perspectiva profundo
+- profundidad emocional avanzada
+
+IMPORTANTE:
+Consejo, presión o directividad NO equivalen a avance.
+Presión ≠ movilización.
+
+---
+
+REDEFINICIÓN DE IRI
+
+En nivel 1 es adecuada si:
+
+- responde coherentemente
+- no pierde el hilo
+- no contradice
+- muestra comprensión básica
+- retoma de forma simple algo importante del paciente
+
+NO exigir integración compleja.
+
+---
+
+REDEFINICIÓN DE IIT (MUY IMPORTANTE)
+
+En este nivel, IIT incluye:
+
+- preguntas abiertas
+- intentos de explorar
+- guiar suavemente la conversación
+- intención básica de ayudar cuando el contexto es intervención
+
+Pregunta bien hecha = intención clínica válida.
+
+Pero en contexto de intervención,
+NO basta con que exista intención de ayudar.
+También debe evaluarse si esa ayuda es adecuada o inadecuada.
+
+---
+
+REDEFINICIÓN DE MLT (ENCUEADRE)
+
+Valorar positivamente si hay:
+
+- explicación básica del espacio
+- tono respetuoso
+- seguridad mínima
+- cierre simple
+
+Si está presente → NO puntuar bajo.
+
+En intervención nivel 1, NO exigir encuadre formal completo,
+pero sí valorar:
+
+- respeto
+- no invasión
+- tono no impositivo
+- sensación básica de seguridad
+
+---
+
+CRITERIO DE EVALUACIÓN EN APERTURA
+
+Un desempeño ALTO puede ser SOLO:
+
+- encuadre claro
+- preguntas abiertas
+- exploración ordenada
+- escucha coherente
+- validación básica
+
+NO se requiere intervención.
+
+---
+
+REGLA CLAVE DE CALIDAD
+
+Hablar más NO es hacerlo mejor.
+
+Evaluar:
+
+- coherencia
+- sentido
+- adecuación al contexto
+
+---
+
+NIVELES DE DESEMPEÑO EN NIVEL 1
+
+ALTO (80–100):
+- sostiene la tarea del contexto de forma clara
+- preguntas o respuestas adecuadas
+- coherencia
+- buena apertura o acompañamiento básico
+
+MEDIO (60–79):
+- interacción funcional
+- preguntas o respuestas básicas
+- seguimiento limitado pero válido
+
+BAJO (0–59):
+- desorden
+- respuestas cerradas o pobres
+- desconexión
+- no logra sostener bien la tarea del contexto
+
+---
+
+REGLA DE CALIBRACIÓN
+
+Puntajes altos significan:
+
+BUEN DESEMPEÑO DENTRO DEL NIVEL INICIAL
+
+NO dominio clínico avanzado.
+
+---
+
+RESISTENCIA DEL PACIENTE
+
+NO penalizar automáticamente.
+
+Evaluar si el terapeuta:
+
+- intenta conectar
+- sostiene la interacción
+- mantiene respeto
+
+---
+
+CRITERIO DE DIRECCIÓN
+
+NO se exige dirección clínica avanzada.
+
+Solo evitar:
+
+- pérdida total del hilo
+- desorganización evidente
+- presión innecesaria
+
+---
+
+CRITERIO DE TIMING
+
+NO penalizar errores leves.
+
+Solo si:
+
+- interrumpe constantemente
+- corta el proceso abruptamente
+- responde de forma precipitada sin escuchar
+
+---
+
+REGLA CALIDAD SOBRE CANTIDAD
+
+Valorar:
+
+- claridad
+- coherencia
+- intención básica
+- adecuación de la respuesta
+
+NO cantidad de intervenciones.
+
+---
+
+AJUSTE POR CONTEXTO
+
+EXPLORACIÓN:
+- foco en preguntar y escuchar
+- proteger esta lógica: no exigir intervención
+- valorar alto si la entrevista básica está bien hecha
+
+INTERVENCIÓN:
+- valorar intención de ayudar, pero también la CALIDAD de esa ayuda
+- distinguir entre acompañar e imponer
+- NO exigir técnica formal
+- puntuar alto si:
+  - valida
+  - acompaña
+  - abre reflexión básica
+  - respeta el ritmo del paciente
+- reducir puntaje si:
+  - impone (“tienes que…”, “deberías…”)
+  - corrige sin explorar
+  - minimiza emoción
+  - presiona o dirige excesivamente
+
+PRUEBAS:
+- claridad en instrucciones
+- orden del proceso
+- neutralidad básica
+
+DEVOLUCIÓN:
+- claridad + empatía básica
+- lenguaje sencillo
+- explicación comprensible
+
+---
+
+REGLA ESPECÍFICA — INTERVENCIÓN NIVEL 1
+
+En contexto de intervención clínica, diferencia claramente entre:
+
+Intervenciones adecuadas:
+- validan la experiencia
+- acompañan sin imponer
+- ofrecen pequeñas aperturas
+- ayudan a pensar sin presionar
+
+Intervenciones inadecuadas:
+- imponen
+- sermonean
+- corrigen demasiado rápido
+- minimizan lo que el paciente siente
+- presionan a actuar sin suficiente acompañamiento
+
+No agrupar ambas como "intento de ayuda".
+
+Una intervención inadecuada debe bajar la puntuación,
+aunque exista intención positiva.
+
+---
+
+REGLA DE DISTRIBUCIÓN — SOLO PARA INTERVENCIÓN NIVEL 1
+
+En intervención nivel 1, evita comprimir todos los casos en la franja 70–80.
+
+Usa una diferenciación más clara:
+
+- bajo desempeño → 40–60
+- desempeño medio → 65–75
+- buen desempeño → 80–90
+
+Un caso medio y uno alto NO deben terminar con puntuaciones casi iguales.
+
+---
+
+AJUSTE POR DURACIÓN
+
+<10 min → interacción básica suficiente  
+10–25 min → continuidad  
+>25 min → consistencia  
+
+---
+
+AJUSTE POR MODELO
+
+El modelo orienta, no exige.
+
+En nivel 1:
+- NO exigir aplicación técnica formal del modelo
+- usarlo solo como matiz del estilo
+
+---
+
+REGLA FINAL
+
+Este nivel trata de:
+
+PASAR DE NO SABER → A SOSTENER UNA INTERACCIÓN CLÍNICA BÁSICA SEGÚN EL CONTEXTO
+
+En exploración:
+preguntar, escuchar y entender.
+
+En intervención:
+acompañar y ayudar de forma básica, sin imponer.
+
+Evalúa si el estudiante logra eso,
+aunque todavía lo haga de forma simple.
 `.trim(),
 
   nivel_2: `
