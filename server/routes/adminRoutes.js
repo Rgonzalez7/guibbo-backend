@@ -112,6 +112,13 @@ router.post(
 );
 
 router.post(
+  "/ejercicios/grabar-voz/generar-casos",
+  requireRole("director", "profesor"),
+  adminModuloController.generarCasosGrabarVoz
+);
+
+
+router.post(
   "/submodulos/:submoduloId/ejercicios/interp-frases",
   requireRole("director", "profesor"),
   adminModuloController.crearEjercicioInterpretacionFrasesAdmin

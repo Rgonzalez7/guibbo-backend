@@ -14,6 +14,12 @@ const {
   TIPOS_MODULO,
   PRAXIS_NIVELES,
   MODELOS_INTERVENCION,
+  CONTEXTOS_GV,
+  ESCENARIOS_GV,
+  NIVELES_GV,
+  TIPOS_ENTRENAMIENTO,
+  ESCENARIOS_POR_CONTEXTO,
+  INTERVENCIONES_POR_NIVEL,
 } = require("../models/modulo");
 
 const Universidad = require('../models/university');
@@ -295,9 +301,132 @@ function normalizeEvaluacionesIA(ev = {}) {
   };
 }
 
+
+// ── Helper para ejericios de Grabar Voz: calcula intervenciones según contexto+escenario+nivel ──
+function calcularIntervenciones(contexto, escenario, nivel) {
+  const base = INTERVENCIONES_POR_NIVEL[nivel] || INTERVENCIONES_POR_NIVEL["nivel_1"];
+
+  // Filtros específicos por contexto+escenario
+  const filtros = {
+    clinico: {
+      exploracion:        ["pregunta_abierta","clarificacion","reflejo_simple","escucha_activa","validacion_basica","exploracion_dirigida","resumen_parcial","focalizacion"],
+      intervencion:       ["reencuadre_simple","reencuadre_complejo","confrontacion_suave","interpretacion","desarrollo_insight","integracion_emocional","plan_intervencion","analisis_funcional_basico"],
+      devolucion:         ["resumen_parcial","psicoeducacion_breve","normalizacion","mensaje_directo","organizacion_pensamiento","derivacion"],
+      aplicacion_pruebas: ["presencia","establecimiento_limites","orientacion","manejo_conducta","reduccion_ansiedad"],
+    },
+    educativo: {
+      exploracion_estudiante:    ["pregunta_abierta","escucha_activa","validacion_basica","clarificacion","reflejo_simple","exploracion_dirigida"],
+      intervencion_estudiante:   ["psicoeducacion_breve","normalizacion","reencuadre_simple","manejo_conducta","orientacion","redireccion_suave"],
+      comunicacion_padres:       ["mensaje_directo","psicoeducacion_breve","feedback_constructivo","normalizacion","orientacion"],
+    },
+    laboral: {
+      entrevista_laboral:  ["pregunta_abierta","escucha_activa","clarificacion","exploracion_dirigida","resumen_parcial","focalizacion"],
+      feedback:            ["feedback_constructivo","mensaje_directo","normalizacion","reencuadre_simple","establecimiento_limites"],
+      manejo_conflictos:   ["mediacion_basica","negociacion","establecimiento_limites","redireccion_suave","validacion_emocional"],
+      burnout:             ["validacion_emocional","contencion_basica","psicoeducacion_breve","normalizacion","reduccion_ansiedad","plan_intervencion"],
+      acoso_laboral:       ["contencion_basica","establecimiento_limites","plan_proteccion","derivacion","validacion_emocional","mensaje_directo"],
+    },
+  };
+
+  const especificas = filtros[contexto]?.[escenario] || [];
+
+  // Intersección: solo las que son válidas para el nivel Y el escenario/contexto
+  const resultado = base.filter((i) => especificas.includes(i));
+
+  // Si quedaron pocas, completar con las del nivel que no estén ya
+  if (resultado.length < 4) {
+    for (const i of base) {
+      if (!resultado.includes(i)) resultado.push(i);
+      if (resultado.length >= 6) break;
+    }
+  }
+
+  return resultado;
+}
+
+// ── Helper: normaliza campos Grabar Voz ──────────────────
+function normalizeGrabarVozFields(body) {
+  const contexto = CONTEXTOS_GV.includes(body?.contexto) ? body.contexto : "clinico";
+
+  const escenariosValidos = ESCENARIOS_POR_CONTEXTO[contexto] || [];
+  const escenario = escenariosValidos.includes(body?.escenario)
+    ? body.escenario
+    : escenariosValidos[0] || "exploracion";
+
+  const nivel = NIVELES_GV.includes(body?.nivel) ? body.nivel : "nivel_1";
+
+  const tipoEntrenamiento = TIPOS_ENTRENAMIENTO.includes(body?.tipoEntrenamiento)
+    ? body.tipoEntrenamiento
+    : "habilidad_especifica";
+
+  const intervenciones = calcularIntervenciones(contexto, escenario, nivel);
+
+  return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones };
+}
+
 /* =========================================================
    ✅ WRAPPERS para endpoints específicos (lo que usa tu front)
    ========================================================= */
+
+// ── Endpoint: generar casos con IA ──────────────────────
+exports.generarCasosGrabarVoz = async (req, res) => {
+  try {
+    const { contexto, escenario, nivel, tipoEntrenamiento, intervenciones } = req.body || {};
+
+    if (!contexto || !escenario || !nivel) {
+      return res.status(400).json({ message: "contexto, escenario y nivel son obligatorios." });
+    }
+
+    const OpenAI = require("openai");
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const intervencionesLabel = (intervenciones || [])
+      .slice(0, 8)
+      .join(", ");
+
+    const prompt = `Eres un diseñador de ejercicios clínicos para estudiantes de psicología.
+
+Genera exactamente 3 casos clínicos breves (microintervenciones) para el siguiente ejercicio de grabación de voz:
+
+- Contexto: ${contexto}
+- Escenario: ${escenario}
+- Nivel: ${nivel}
+- Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
+- Intervenciones objetivo: ${intervencionesLabel}
+
+Reglas estrictas:
+1. Cada caso debe tener máximo 2 oraciones.
+2. El caso describe la situación que el paciente/persona presenta; NO incluye la respuesta del terapeuta.
+3. Los casos deben ser concretos, realistas y variados entre sí.
+4. El lenguaje debe ser claro y directo, adecuado para el nivel indicado.
+5. Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown:
+
+{"casos": ["caso 1 aquí", "caso 2 aquí", "caso 3 aquí"]}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.8,
+      max_tokens: 500,
+    });
+
+    const raw = completion.choices?.[0]?.message?.content || "";
+    const clean = raw.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+
+    if (!Array.isArray(parsed?.casos) || parsed.casos.length === 0) {
+      return res.status(500).json({ message: "La IA no generó casos válidos." });
+    }
+
+    return res.json({ casos: parsed.casos.slice(0, 3) });
+  } catch (err) {
+    console.error("❌ Error generando casos Grabar Voz:", err);
+    return res.status(500).json({
+      message: "Error al generar casos con IA.",
+      error: err.message,
+    });
+  }
+};   
 
 // --- CREATE por tipo (POST /submodulos/:id/ejercicios/<tipo>) ---
 exports.crearEjercicioGrabarVozAdmin = async (req, res) => {
@@ -1533,13 +1662,24 @@ exports.listarEjerciciosAdmin = async (req, res) => {
             message: "El caso/enunciado es obligatorio para Grabar voz.",
           });
         }
-  
+
+        const gvFields = normalizeGrabarVozFields(req.body);
+
         detalle = await EjercicioGrabarVoz.create({
           ejercicio: ejercicio._id,
-          caso: String(caso),
-          evaluaciones: normalizeEvaluacionesIA(req.body?.evaluaciones || {}),
+          caso: String(caso).trim(),
+          ...gvFields,
+          // compat legacy
+          praxisNivel:       normalizePraxisNivel(req.body?.praxisNivel || gvFields.nivel),
+          modeloIntervencion: normalizeModeloIntervencion(req.body?.modeloIntervencion || ""),
+          contextoSesion:    (() => {
+            const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
+            const v = String(req.body?.contextoSesion || "exploracion_clinica");
+            return valid.includes(v) ? v : "exploracion_clinica";
+          })(),
         });
-      } else if (tipoEjercicio === "Interpretación de frases incompletas") {
+      }
+      else if (tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioGrabarVoz.create({
           ejercicio: ejercicio._id,
           caso: String(caso),
@@ -1730,24 +1870,26 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   
       if (ejercicio.tipoEjercicio === "Grabar voz") {
         detalle = await EjercicioGrabarVoz.findOne({ ejercicio: id });
-        if (!detalle) detalle = await EjercicioGrabarVoz.create({ ejercicio: id });
-      
-        if (caso !== undefined) detalle.caso = String(caso || "");
-        if (evaluaciones !== undefined) {
-          detalle.evaluaciones = normalizeEvaluacionesIA(evaluaciones || {});
-        }
-        // ✅ AGREGAR estos tres:
-        if (praxisNivel !== undefined) {
-          detalle.praxisNivel = normalizePraxisNivel(praxisNivel);
-        }
-        if (modeloIntervencion !== undefined) {
-          detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
-        }
+        if (!detalle) detalle = new EjercicioGrabarVoz({ ejercicio: id });
+
+        if (caso !== undefined) detalle.caso = String(caso || "").trim();
+
+        // Recalcular si cambia contexto, escenario o nivel
+        const gvFields = normalizeGrabarVozFields(req.body);
+        detalle.contexto          = gvFields.contexto;
+        detalle.escenario         = gvFields.escenario;
+        detalle.nivel             = gvFields.nivel;
+        detalle.tipoEntrenamiento = gvFields.tipoEntrenamiento;
+        detalle.intervenciones    = gvFields.intervenciones;
+
+        // compat legacy
+        if (praxisNivel !== undefined)       detalle.praxisNivel       = normalizePraxisNivel(praxisNivel);
+        if (modeloIntervencion !== undefined) detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
         if (contextoSesion !== undefined) {
           const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
           detalle.contextoSesion = valid.includes(contextoSesion) ? contextoSesion : "exploracion_clinica";
         }
-      
+
         await detalle.save();
       }
        else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {

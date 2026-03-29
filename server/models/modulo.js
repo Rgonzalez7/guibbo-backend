@@ -81,6 +81,48 @@ const CONTEXTOS_SESION_ENUM = [
   "devolucion_resultados",
 ];
 
+// ── Enums para ejericio de grabrar voz ──────────────────────────────────────────
+const CONTEXTOS_GV  = ["clinico", "educativo", "laboral"];
+const ESCENARIOS_GV = [
+  // clínico
+  "exploracion", "intervencion", "devolucion", "aplicacion_pruebas",
+  // educativo
+  "exploracion_estudiante", "intervencion_estudiante", "comunicacion_padres",
+  // laboral
+  "entrevista_laboral", "feedback", "manejo_conflictos", "burnout", "acoso_laboral",
+];
+const NIVELES_GV         = ["nivel_1", "nivel_2", "nivel_3"];
+const TIPOS_ENTRENAMIENTO = ["habilidad_especifica", "discriminacion_clinica", "mixto"];
+
+// Mapa de escenarios válidos por contexto
+const ESCENARIOS_POR_CONTEXTO = {
+  clinico:    ["exploracion", "intervencion", "devolucion", "aplicacion_pruebas"],
+  educativo:  ["exploracion_estudiante", "intervencion_estudiante", "comunicacion_padres"],
+  laboral:    ["entrevista_laboral", "feedback", "manejo_conflictos", "burnout", "acoso_laboral"],
+};
+
+// Mapa de intervenciones por nivel (autofill)
+const INTERVENCIONES_POR_NIVEL = {
+  nivel_1: [
+    "pregunta_abierta","clarificacion","reflejo_simple","validacion_basica",
+    "validacion_emocional","escucha_activa","contencion_basica","redireccion_suave",
+    "presencia","mensaje_directo",
+  ],
+  nivel_2: [
+    "exploracion_dirigida","resumen_parcial","psicoeducacion_breve","reencuadre_simple",
+    "normalizacion","focalizacion","establecimiento_limites","orientacion",
+    "manejo_conducta","feedback_constructivo","mediacion_basica","organizacion_pensamiento",
+    "reduccion_ansiedad",
+  ],
+  nivel_3: [
+    "reencuadre_complejo","confrontacion_suave","interpretacion","desarrollo_insight",
+    "integracion_emocional","plan_intervencion","analisis_funcional_basico",
+    "identificacion_patrones","hipotesis_inicial_suave","intervencion_conductual",
+    "negociacion","deteccion_incongruencias","derivacion","plan_proteccion",
+  ],
+};
+
+
 /* =========================================================
    Helpers
 ========================================================= */
@@ -202,30 +244,40 @@ const ejercicioGrabarVozSchema = new Schema(
       unique: true,
     },
 
+    contexto: {
+      type: String,
+      enum: CONTEXTOS_GV,
+      default: "clinico",
+    },
+    escenario: {
+      type: String,
+      enum: ESCENARIOS_GV,
+      default: "exploracion",
+    },
+    nivel: {
+      type: String,
+      enum: NIVELES_GV,
+      default: "nivel_1",
+    },
+    tipoEntrenamiento: {
+      type: String,
+      enum: TIPOS_ENTRENAMIENTO,
+      default: "habilidad_especifica",
+    },
+    // Intervenciones autofill (calculadas por sistema, guardadas para el prompt)
+    intervenciones: {
+      type: [String],
+      default: [],
+    },
+
+    // Caso clínico (puede ser escrito por el profesor o generado por IA)
     caso: {
       type: String,
-      required: true,
       trim: true,
       default: "",
     },
 
-    evaluaciones: {
-      rapport: { type: Boolean, default: false },
-      preguntasAbiertas: { type: Boolean, default: false },
-      encuadre: { type: Boolean, default: false },
-      alianzaTerapeutica: { type: Boolean, default: false },
-      parafrasis: { type: Boolean, default: false },
-      reflejo: { type: Boolean, default: false },
-      clarificacion: { type: Boolean, default: false },
-      chisteTerapeutico: { type: Boolean, default: false },
-      sarcasmoTerapeutico: { type: Boolean, default: false },
-      empatia: { type: Boolean, default: false },
-      revelacion: { type: Boolean, default: false },
-      metafora: { type: Boolean, default: false },
-      resumen: { type: Boolean, default: false },
-      practicarConsignasPruebas: { type: Boolean, default: false },
-    },
-
+    // ── Compat legacy (se mantienen) ────────────────────
     praxisNivel: {
       type: String,
       enum: PRAXIS_NIVELES,
@@ -243,15 +295,12 @@ const ejercicioGrabarVozSchema = new Schema(
       default: "exploracion_clinica",
       trim: true,
     },
-
-    transcripcionRespuesta: {
-      type: String,
-      default: "",
+    evaluaciones: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
-    analisisRespuesta: {
-      type: String,
-      default: "",
-    },
+    transcripcionRespuesta: { type: String, default: "" },
+    analisisRespuesta:      { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -535,4 +584,10 @@ module.exports = {
   PRAXIS_NIVELES,
   MODELOS_INTERVENCION,
   CONTEXTOS_SESION_ENUM,
+  CONTEXTOS_GV,
+  ESCENARIOS_GV,
+  NIVELES_GV,
+  TIPOS_ENTRENAMIENTO,
+  ESCENARIOS_POR_CONTEXTO,
+  INTERVENCIONES_POR_NIVEL,
 };
