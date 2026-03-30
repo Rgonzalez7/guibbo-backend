@@ -340,66 +340,11 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
       "closingRecommendation": ""
     },
     "dimensiones": {
-      "ASC": {
-        "nivel": 1, "score": 0, "observabilidad": "observable",
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
-          "whyThisMatters": [""]
-        }
-      },
-      "IIT": {
-        "nivel": 1, "score": 0, "observabilidad": "observable",
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
-          "whyThisMatters": [""]
-        }
-      },
-      "IRI": {
-        "nivel": 1, "score": 0, "observabilidad": "observable",
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
-          "whyThisMatters": [""]
-        }
-      },
-      "MMD": {
-        "nivel": 1, "score": 0, "observabilidad": "observable",
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
-          "whyThisMatters": [""]
-        }
-      },
-      "MLT": {
-        "nivel": 1, "score": 0, "observabilidad": "observable",
-        "metrics": [ { "key": "", "label": "", "score": 0 } ],
-        "recommendations": [""],
-        "evidence": [ { "quote": "", "technique": "", "why": "" } ],
-        "studentGuidance": {
-          "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] },
-          "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" },
-          "whyThisMatters": [""]
-        }
-      }
+      "ASC": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "IIT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "IRI": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "MMD": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "MLT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } }
     },
     "retroalimentacionGlobal": {
       "fortalezas": [""],
@@ -424,8 +369,6 @@ Todos los scores deben ser ENTEROS entre 0 y 100.
 
 NIVEL DE DESEMPEÑO (OBLIGATORIO)
 
-Asigna "nivelDesempeno" según:
-
 0–39 → "Incipiente"  
 40–59 → "En desarrollo"  
 60–74 → "Competente"  
@@ -446,242 +389,61 @@ Evalúa SOLO lo observable.
 
 ---
 
-# 🔥 JERARQUÍA DE EVALUACIÓN
-
-Evalúa en este orden:
-
-1. CONTEXTO → define la tarea  
-2. NIVEL → define exigencia  
-3. MODELO → ajusta estilo  
-4. DURACIÓN → ajusta profundidad  
-
-Nunca evalúes en abstracto.
-
----
-
 # 🔥 PRIMACÍA DEL CONTEXTO
 
-Define primero:
-
-¿Cuál era la tarea de esta sesión?
-
-Exploración → preguntar, escuchar, ordenar  
-Intervención → influir, ayudar, generar reflexión  
-Pruebas → explicar, aplicar, ordenar  
-Devolución → explicar, contener, comunicar  
+Exploración → preguntar, escuchar  
+Intervención → ayudar adecuadamente  
+Pruebas → aplicar  
+Devolución → explicar  
 
 ---
 
-# 🔥 REGLAS ESPECÍFICAS — CONTEXTO INTERVENCIÓN
+# 🔥 REGLAS — INTERVENCIÓN CLÍNICA
 
-SI contextoSesion = "intervencion_terapeutica":
-
-Evaluar con criterio de CALIDAD, no solo presencia de intervención.
-
----
-
-Diferenciar entre:
+Evaluar CALIDAD, no solo intención.
 
 Intervenciones adecuadas:
-- validan la experiencia del paciente
-- acompañan sin imponer
-- generan reflexión o apertura
-- respetan el ritmo del paciente
+•⁠  ⁠validan
+•⁠  ⁠acompañan
+•⁠  ⁠abren reflexión
 
 Intervenciones inadecuadas:
-- imponen ("tienes que…", "deberías…")
-- corrigen sin explorar
-- minimizan emoción
-- presionan o dirigen excesivamente
-
-Las intervenciones inadecuadas deben REDUCIR el score,
-aunque exista intención de ayudar.
+•⁠  ⁠imponen
+•⁠  ⁠corrigen sin explorar
+•⁠  ⁠minimizan emoción
 
 ---
 
-REGLA IIT:
-Evaluar si la intención es clínicamente adecuada.
-Intención impositiva → score medio o bajo.
+# 🚨 REGLA CRÍTICA — CONSEJO Y DIRECTIVIDAD
+
+En intervención clínica:
+
+•⁠  ⁠consejo prematuro = intervención inadecuada  
+•⁠  ⁠"tienes que", "deberías", "todo depende de ti" = intervención inadecuada  
+•⁠  ⁠moralizar o corregir rápido = intervención inadecuada  
+•⁠  ⁠minimizar emoción = intervención inadecuada  
+
+Estas intervenciones:
+
+•⁠  ⁠NO son ayuda válida  
+•⁠  ⁠bajan IIT a 40–55  
+•⁠  ⁠bajan MMD si generan cierre  
+
+NO subir score por intención.
 
 ---
 
-REGLA IRI:
-Puntuar alto SOLO si integra contenido del paciente.
+# 🚨 NO COMPENSACIÓN
+
+No compensar mala intervención con buena fluidez.
 
 ---
 
-REGLA MMD:
-Movilización SOLO si hay apertura o mayor claridad.
-Consejo o presión ≠ movilización.
-
----
-
-REGLA MLT:
-En nivel 1, valorar respeto y no invasión.
-No exigir encuadre formal.
-
----
-
-# 🚨 REGLAS DE NO COMPENSACIÓN (CRÍTICO)
-
-En intervención terapéutica:
-
-NO compensar mala intervención con buena forma.
-
-Si NO hay evidencia de avance:
-
-- MMD ≤ 65  
-- índice global ≤ 75  
-
-Si intervención es inadecuada:
-
-- IIT ≤ 65  
-
-Fluidez, empatía superficial o conversación activa
-NO elevan el score si no hay calidad clínica.
-
-La nota final debe reflejar:
-
-- calidad de intervención  
-- no solo estructura o fluidez  
-
----
-
-# 🚨 REGLA DE TECHO — INTERVENCIÓN TERAPÉUTICA
-
-Esta regla aplica SOLO cuando contextoSesion = "intervencion_terapeutica".
-NO aplica a exploración clínica ni otros contextos.
-
-Interpretación operativa:
-- Intervención mala: IIT < 60
-- Intervención regular: IIT 60–75
-- Intervención buena: IIT 76–89
-
-Si IIT < 60 Y MMD < 60 → índice global NO puede superar 58.
-Si solo IIT < 60 → índice global NO puede superar 62.
-Si solo MMD < 60 → índice global NO puede superar 70.
-
-Objetivo de distribución en intervención nivel 1:
-- caso malo → aprox. 50–60
-- caso medio → aprox. 65–75
-- caso bueno → aprox. 80–90
-
-Cuando asignes scores de IIT y MMD, ya considera esta restricción.
-El sistema aplicará el techo automáticamente en el cálculo final.
-
----
-
-REGLA DE DISTRIBUCIÓN:
-
-- Bajo → 40–60
-- Medio → 65–75
-- Alto → 80–90
-
-Evitar concentrar todo en 70–80.
-
----
-
-# 🔥 NIVEL MODULA EXIGENCIA
-
-Nivel NO cambia la tarea.
-Solo cambia qué tan bien debe ejecutarse.
-
----
-
-# 🔥 SEPARACIÓN CRÍTICA
-
-Puedes reconocer esfuerzo o intención SIN subir el score.
-
----
-
-# 🚨 REGLA ANTI-INFLACIÓN
-
-Interacción ≠ calidad clínica
-
----
-
-# 🔥 AJUSTE PARA NIVELES INICIALES
-
-En nivel 1:
-
-- preguntar bien = válido  
-- escuchar bien = válido  
-- NO exigir insight  
-
----
-
-ESTRUCTURA PRAXIS
-
-ASC → organización  
-IIT → intención  
-IRI → integración  
-MMD → impacto  
-MLT → encuadre  
-
----
-
-REGLA DE EVIDENCIA
-
-Cada dimensión debe incluir evidencia textual.
-
----
-
-OBSERVABILIDAD
-
-- observable  
-- evidencia_limitada  
-- no_aplicable  
-
----
-
-# 🔥 REGLA DE ANÁLISIS CORREGIDA
-
-Prioriza:
-
-1. adecuación al contexto  
-2. calidad de intervención o pregunta  
-3. coherencia  
-4. organización  
-5. impacto (solo si aplica)
-
----
-
-INTERPRETACIÓN DE INTERVENCIONES
-
-Clasifica por función, no por nombre técnico.
-
----
-
-REGLA DE CONTEXTO Y DURACIÓN
-
-No penalizar sesiones cortas.
-
----
-
-REGLA DE MODELO
-
-El modelo orienta, no obliga.
-
----
-
-RECOMENDACIONES
-
-- específicas  
-- accionables  
-- con ejemplo realista  
-
----
-
-REGLA ANTI-GENERICIDAD
-
-Evitar frases vacías.
-
----
-
-COHERENCIA ENTRE DIMENSIONES
-
-- No alto MMD sin evidencia  
-- No confundir escucha con intervención  
+# 🔥 PRIORIDAD
+
+1.⁠ ⁠calidad clínica  
+2.⁠ ⁠coherencia  
+3.⁠ ⁠organización  
 
 ---
 
@@ -694,13 +456,9 @@ ${JSON.stringify(
       data?.transcripcionDiarizada || data?.diarizacion || data?.turnosDiarizados || null,
     observacionesContexto: {
       contextoSesion,
-      contextoSesionLabel: CONTEXTOS_SESION[contextoSesion]?.label || contextoSesion,
-      contextoSesionDescription: CONTEXTOS_SESION[contextoSesion]?.description || "",
       tipoRole: data?.tipoRole || "",
-      trastorno: data?.trastorno || "",
-      consentimiento: data?.consentimiento || false,
-      tipoConsentimiento: data?.tipoConsentimiento || "",
-    },
+      trastorno: data?.trastorno || ""
+    }
   },
   null,
   2
@@ -877,9 +635,18 @@ Pero en contexto de intervención,
 NO basta con que exista intención de ayudar.
 También debe evaluarse si esa ayuda es adecuada o inadecuada.
 
+IMPORTANTE:
+
+En nivel 1, intervenciones basadas en consejo prematuro, juicio o directividad
+NO deben considerarse intención clínica adecuada.
+
+Aunque el estudiante intente ayudar,
+si la forma es impositiva o desajustada,
+el score de IIT debe ubicarse en rango bajo (≈40–55).
+
 ---
 
-REDEFINICIÓN DE MLT (ENCUADRE)
+REDEFINICIÓN DE MLT (ENCUEADRE)
 
 Valorar positivamente si hay:
 
@@ -1023,32 +790,12 @@ INTERVENCIÓN:
   - abre reflexión básica
   - respeta el ritmo del paciente
 - reducir puntaje si:
-  - impone ("tienes que…", "deberías…")
+  - impone (“tienes que…”, “deberías…”)
   - corrige sin explorar
   - minimiza emoción
   - presiona o dirige excesivamente
-
----
-
-# 🚨 AJUSTE DE CALIBRACIÓN (NUEVO)
-
-En intervención nivel 1:
-
-- NO elevar la puntuación solo por intento de ayuda
-- diferenciar claramente entre intervención adecuada e inadecuada
-
-Si la intervención:
-
-- acompaña pero no genera apertura → desempeño medio
-- es impositiva o mal ajustada → desempeño bajo
-
-Para considerar buen desempeño:
-
-- debe existir acompañamiento adecuado
-- respeto del ritmo del paciente
-- al menos apertura o mayor claridad básica
-
----
+  - da consejos prematuros sin suficiente exploración
+  - moraliza o responsabiliza prematuramente al paciente
 
 PRUEBAS:
 - claridad en instrucciones
@@ -1062,9 +809,29 @@ DEVOLUCIÓN:
 
 ---
 
+# 🚨 AJUSTE DE CALIBRACIÓN (INTERVENCIÓN NIVEL 1)
+
+En intervención nivel 1:
+
+- NO elevar la puntuación solo por intento de ayuda
+- diferenciar claramente entre intervención adecuada e inadecuada
+
+Si la intervención:
+
+- acompaña pero no genera apertura → desempeño medio
+- es impositiva, juiciosa o mal ajustada → desempeño bajo
+
+Para considerar buen desempeño:
+
+- debe existir acompañamiento adecuado
+- respeto del ritmo del paciente
+- al menos apertura o mayor claridad básica
+
+---
+
 REGLA ESPECÍFICA — INTERVENCIÓN NIVEL 1
 
-En contexto de intervención terapéutica, diferencia claramente entre:
+En contexto de intervención clínica, diferencia claramente entre:
 
 Intervenciones adecuadas:
 - validan la experiencia
@@ -1078,6 +845,9 @@ Intervenciones inadecuadas:
 - corrigen demasiado rápido
 - minimizan lo que el paciente siente
 - presionan a actuar sin suficiente acompañamiento
+- dan consejos prematuros sin suficiente exploración
+- usan juicio o moralización
+- promueven cambio sin comprensión previa
 
 No agrupar ambas como "intento de ayuda".
 
@@ -1097,9 +867,6 @@ Usa una diferenciación más clara:
 - buen desempeño → 80–90
 
 Un caso medio y uno alto NO deben terminar con puntuaciones casi iguales.
-
-RECUERDA: el sistema aplica un techo automático cuando IIT o MMD están bajo 60.
-Asigna esos scores con precisión ya que determinan el rango final posible.
 
 ---
 
