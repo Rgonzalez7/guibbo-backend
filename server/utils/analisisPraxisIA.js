@@ -1449,22 +1449,26 @@ function parseRawJson(raw) {
 }
 
 /* =========================================================
-   ✅ REGLA DE TECHO — INTERVENCIÓN TERAPÉUTICA
+   ✅ REGLA DE TECHO — INTERVENCIÓN TERAPÉUTICA (AJUSTADA)
    Solo aplica cuando contextoSesion = "intervencion_terapeutica".
    NO aplica a exploración clínica ni otros contextos.
 
-   Interpretación operativa:
-   - IIT < 60 = intervención mala o inadecuada
-   - MMD < 60 = no hubo apertura, claridad ni avance básico
+   🔥 AJUSTE CLAVE:
+   - Se cambia < 60 → <= 60
+   - Porque 60 sigue siendo intervención débil (borderline)
 
-   Si ambos bajos → techo de 58 (caso malo, aprox. 50–60)
+   Interpretación operativa:
+   - IIT <= 60 = intervención mala o débil
+   - MMD <= 60 = no hubo apertura ni avance suficiente
+
+   Si ambos bajos → techo de 58 (caso malo)
    Si solo IIT bajo → techo de 62
    Si solo MMD bajo → techo de 70
 
    Objetivo de distribución:
-   - caso malo  → aprox. 50–60
-   - caso medio → aprox. 65–75
-   - caso bueno → aprox. 80–90
+   - caso malo  → 50–60
+   - caso medio → 65–75
+   - caso bueno → 80–90
 ========================================================= */
 function aplicarTechoIntervencion(indicePct, dimensions, contextoSesion) {
   const contextoNorm = normalizeContextoSesion(contextoSesion || "");
@@ -1473,9 +1477,10 @@ function aplicarTechoIntervencion(indicePct, dimensions, contextoSesion) {
   const IIT = Number(dimensions?.IIT?.score ?? 100);
   const MMD = Number(dimensions?.MMD?.score ?? 100);
 
-  if (IIT < 60 && MMD < 60) return Math.min(indicePct, 58);
-  if (IIT < 60)              return Math.min(indicePct, 62);
-  if (MMD < 60)              return Math.min(indicePct, 70);
+  // 🔥 GATING PRINCIPAL
+  if (IIT <= 60 && MMD <= 60) return Math.min(indicePct, 58);
+  if (IIT <= 60)              return Math.min(indicePct, 62);
+  if (MMD <= 60)              return Math.min(indicePct, 70);
 
   return indicePct;
 }
