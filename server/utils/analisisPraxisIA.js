@@ -414,6 +414,48 @@ Intervenciones inadecuadas:
 
 ---
 
+# 🚨 DEFINICIÓN OPERATIVA — INTERVENCIÓN ADECUADA (CRÍTICO)
+
+Considera una intervención como ADECUADA solo si cumple la mayoría de estos criterios:
+
+- se basa en algo dicho por el paciente
+- incluye validación o reconocimiento previo (explícito o implícito)
+- no impone una respuesta o solución
+- formula preguntas abiertas o reflexivas
+- facilita pensamiento o exploración
+- respeta el ritmo del paciente
+
+Considera una intervención como INADECUADA si presenta uno o más de estos indicadores fuertes:
+
+- contiene consejo directo o prematuro
+- dirige la respuesta del paciente
+- es tendenciosa
+- corrige o juzga
+- minimiza la experiencia
+- propone soluciones sin exploración previa
+
+IMPORTANTE:
+
+- querer ayudar NO basta
+- una intervención puede tener buena intención y aun así ser clínicamente inadecuada
+- un solo elemento impositivo fuerte puede disminuir significativamente IIT
+
+---
+
+# 🚨 ORDEN DE EVALUACIÓN — INTERVENCIÓN CLÍNICA (CRÍTICO)
+
+Para asignar puntuaciones en contexto de intervención clínica, sigue este orden obligatorio:
+
+1. Evalúa IIT = calidad de la intervención
+2. Detecta MMD = si hubo micro-cambio en el paciente
+3. Valida el origen del cambio = facilitado o inducido
+4. Ajusta la interpretación según el tiempo disponible
+
+No evalúes primero el cambio.
+Primero determina si la intervención fue clínicamente adecuada.
+
+---
+
 # 🚨 REGLA CRÍTICA — CONSEJO Y DIRECTIVIDAD
 
 En intervención clínica:
@@ -435,6 +477,84 @@ NO subir score por intención.
 
 ---
 
+# 🚨 DEPENDENCIA IIT → MMD (CRÍTICO)
+
+El micro-cambio SOLO se considera válido si fue facilitado por una intervención adecuada.
+
+Si la intervención es inadecuada:
+
+- el cambio NO debe contarse como movilización clínica válida
+- MMD NO debe subir a rango alto
+- IIT debe disminuir
+
+IMPORTANTE:
+
+No premiar cambios obtenidos por:
+- presión
+- juicio
+- directividad
+- preguntas tendenciosas
+
+---
+
+# 🚨 DETECCIÓN DE MICRO-CAMBIO (CRÍTICO)
+
+Considera micro-cambio válido SOLO si el paciente muestra evidencia observable de alguno de estos:
+
+- cambio de perspectiva
+- nueva interpretación
+- identificación de alternativa
+- reducción de resistencia
+- intención de acción
+- mayor claridad emocional o cognitiva
+- alivio emocional básico
+
+Ejemplos válidos:
+- "tal vez podría..."
+- "podría intentarlo..."
+- "me hace sentido..."
+- "no lo había visto así..."
+- "quizá sí..."
+- "me siento un poco más tranquilo..."
+- "probablemente sí..."
+- "podría ser..."
+
+NO considerar como micro-cambio válido respuestas del paciente que sean:
+
+- neutrales ("ok", "normal", "sí")
+- descriptivas sin transformación
+- repetición de lo mismo
+- aceptación pasiva sin reflexión
+- respuestas cortas sin desarrollo
+- cumplimiento social sin evidencia de procesamiento
+
+Ejemplos NO válidos:
+- "no sé"
+- "puede ser" sin desarrollo
+- "ajá"
+- "sí" sin elaboración
+
+---
+
+# 🚨 VALIDACIÓN DEL ORIGEN DEL CAMBIO (CRÍTICO)
+
+Antes de asignar puntuaciones altas en MMD, evalúa:
+
+¿El cambio del paciente fue facilitado por una intervención adecuada o fue inducido de forma impositiva?
+
+NO considerar como micro-cambio válido si:
+
+- el terapeuta dirige la respuesta
+- la pregunta contiene la conclusión
+- hay presión para actuar
+- hay juicio implícito
+- hay corrección prematura
+- el paciente responde por acomodación social y no por reflexión
+
+Cambio inducido ≠ movilización válida.
+
+---
+
 # 🚨 VALIDACIÓN DE MMD (CRÍTICO)
 
 NO asignar puntuaciones altas (≥75) en MMD si NO existe evidencia explícita en el discurso del paciente de:
@@ -446,17 +566,7 @@ NO asignar puntuaciones altas (≥75) en MMD si NO existe evidencia explícita e
 - expresión de intención de cambio
 - mayor claridad emocional o cognitiva
 
-EVIDENCIA requerida en el paciente (no en el terapeuta).
-
-Ejemplos válidos:
-- "tal vez podría..."
-- "podría intentarlo..."
-- "me hace sentido..."
-- "no lo había visto así..."
-- "quizá sí..."
-- "me siento un poco más tranquilo..."
-- "probablemente sí..."
-- "podría ser..."
+EVIDENCIA requerida en el paciente, no en el terapeuta.
 
 Si NO existe este tipo de respuesta:
 
@@ -469,6 +579,34 @@ NO son evidencia de avance.
 
 MMD evalúa cambio en el paciente,
 NO desempeño del terapeuta.
+
+---
+
+# 🚨 DISTINCIÓN ENTRE AVANCE PROCESUAL Y CAMBIO CLÍNICO (CRÍTICO)
+
+Diferencia entre:
+
+1. AVANCE PROCESUAL
+- el paciente sigue hablando
+- no se cierra
+- hay cierta apertura
+- el terapeuta sostiene adecuadamente
+
+Esto es valioso, pero NO equivale a cambio clínico.
+→ MMD debe ubicarse en rango medio (65–72)
+
+2. MICRO-CAMBIO CLÍNICO
+- el paciente cambia ligeramente su perspectiva
+- reconoce una alternativa
+- expresa intención de acción
+- verbaliza alivio o mayor claridad
+
+Esto sí permite MMD alto.
+→ MMD puede ubicarse en 75–85
+
+REGLA CLAVE:
+
+NO elevar a rango alto si solo hay avance procesual.
 
 ---
 
@@ -490,7 +628,7 @@ Desempeño medio (65–70):
 - intervención adecuada pero simple
 - acompañamiento correcto
 - apertura leve
-- avance limitado
+- avance limitado o procesual
 
 Desempeño alto (80–90):
 - intervención ajustada al problema
@@ -523,7 +661,8 @@ NO son suficientes para desempeño alto.
 Para puntuar alto debe existir:
 
 - impacto clínico observable
-- no solo interacción adecuada
+- intervención adecuada
+- cambio facilitado, no inducido
 
 Si el desempeño es adecuado pero sin impacto claro:
 
@@ -531,17 +670,62 @@ Si el desempeño es adecuado pero sin impacto claro:
 
 ---
 
+# ⏱️ AJUSTE POR DURACIÓN (CRÍTICO)
+
+La duración de la intervención afecta el nivel de profundidad esperable.
+
+NO penalizar directamente por sesiones cortas,
+pero SÍ ajustar qué tan profundo debe ser el cambio esperado.
+
+Guía:
+
+Sesiones cortas (<10 min):
+- valorar altamente:
+  - preguntas relevantes
+  - coherencia
+  - validación
+  - precisión de intervención
+  - apertura básica
+- NO exigir cambio profundo
+- pero NO asumir profundidad que no está presente
+
+En sesiones breves:
+- un desempeño alto es posible SI existe:
+  - intervención adecuada
+  - precisión clínica
+  - micro-cambio claro y observable
+
+Sesiones medias (10–25 min):
+- permitir puntuaciones altas si hay evidencia suficiente
+- evaluar consistencia y continuidad
+
+Sesiones largas (>25 min):
+- evaluar consistencia global
+- permitir puntuaciones altas sostenidas
+
+IMPORTANTE:
+
+El tiempo limita la profundidad esperable,
+pero NO debe impedir reconocer una buena ejecución clínica.
+
+---
+
 # 🚨 NO COMPENSACIÓN
 
 No compensar mala intervención con buena fluidez.
+
+No compensar falta de cambio con buena conversación.
+
+No compensar MMD bajo con ASC o IRI altos.
 
 ---
 
 # 🔥 PRIORIDAD
 
-1. calidad clínica  
-2. coherencia  
-3. organización  
+1. calidad clínica de la intervención
+2. validez del cambio en el paciente
+3. coherencia
+4. organización
 
 ---
 
@@ -602,7 +786,7 @@ El objetivo es que el estudiante sienta:
 
 DEFINICIÓN CLAVE DEL NIVEL (CRÍTICO)
 
-En este nivel NO se evalúa terapia.
+En este nivel NO se evalúa terapia avanzada.
 
 Se evalúa:
 
@@ -616,6 +800,7 @@ Esto incluye:
 - exploración del motivo de consulta
 - escucha básica
 - coherencia conversacional
+- intervenciones simples pero adecuadas (cuando el contexto es intervención)
 - cierre simple (cuando aplica)
 
 ---
@@ -629,7 +814,7 @@ Antes de evaluar, define:
 Ejemplos:
 
 Exploración → preguntar, escuchar, entender  
-Intervención → intentar ayudar de manera básica y adecuada, sin exigir técnica  
+Intervención → intentar ayudar de manera básica y adecuada, sin exigir técnica avanzada  
 Pruebas → explicar y aplicar  
 Devolución → explicar resultados con claridad  
 
@@ -645,6 +830,7 @@ LO QUE SÍ SE ESPERA
 - coherencia con lo que el paciente dice
 - mantener la conversación activa
 - mínima validación emocional
+- intervenciones simples pero adecuadas al contexto
 
 ---
 
@@ -653,10 +839,10 @@ LO QUE NO SE EXIGE (CRÍTICO)
 NO evaluar ni penalizar por ausencia de:
 
 - intervención terapéutica avanzada
-- insight clínico
-- reencuadre
-- confrontación
-- hipótesis clínicas
+- insight clínico profundo
+- reencuadre complejo
+- confrontación técnica
+- hipótesis clínicas avanzadas
 - cambio profundo en el paciente
 
 ---
@@ -665,12 +851,12 @@ REGLA FUNDAMENTAL DE NO PENALIZACIÓN
 
 La ausencia de:
 
-- insight
-- cambio emocional profundo
+- insight profundo
+- cambio emocional intenso
 - movilización compleja
 
 NO debe reducir la puntuación
-si el contexto es exploratorio o inicial.
+si el contexto es inicial o la duración es breve.
 
 ---
 
@@ -684,6 +870,7 @@ Evalúa MMD como:
 - permitir mayor claridad en el relato
 - ayudar a organizar lo que dice
 - generar una apertura básica
+- producir, cuando sea posible, un micro-cambio observable
 
 Ejemplos válidos:
 
@@ -691,14 +878,18 @@ Ejemplos válidos:
 - pasa de vago → más claro
 - expresa emoción básica
 - muestra mayor apertura o claridad
+- identifica una pequeña alternativa
+- acepta intentar algo pequeño
+- verbaliza alivio básico
 
 NO exigir:
 
-- insight
-- cambio de perspectiva profundo
+- insight profundo
+- cambio de perspectiva complejo
 - profundidad emocional avanzada
 
 IMPORTANTE:
+
 Consejo, presión o directividad NO equivalen a avance.
 Presión ≠ movilización.
 
@@ -707,7 +898,7 @@ Presión ≠ movilización.
 # 🚨 IMPACTO CLÍNICO EN NIVEL 1 (CRÍTICO)
 
 En nivel 1, el impacto clínico NO es profundo,
-pero sí debe ser observable.
+pero sí puede ser observable.
 
 Se considera impacto válido si:
 
@@ -726,8 +917,7 @@ Ejemplos de impacto válido en nivel 1:
 - “probablemente sí…”
 - “me hace sentir más tranquilo…”
 - “no es tanto…”
-
-IMPORTANTE:
+- “podría ser…”
 
 Esto SÍ cuenta como movilización alta en nivel 1.
 
@@ -735,11 +925,12 @@ NO exigir:
 
 - insight profundo
 - cambio emocional intenso
+- transformación grande del problema
 
 Si existe este tipo de cambio:
 
 → MMD puede estar en rango alto (75–85)
-→ y el caso puede clasificarse como desempeño alto
+→ y el caso puede clasificarse como buen desempeño
 
 ---
 
@@ -750,8 +941,8 @@ En nivel 1, la puntuación de MMD debe basarse EXCLUSIVAMENTE en evidencia obser
 IMPORTANTE:
 
 - NO inferir cambio si el paciente no lo expresa explícitamente
-- NO asumir movilización por la calidad del terapeuta
-- NO subir MMD por empatía, fluidez o buena conversación
+- NO asumir movilización por la calidad del terapeuta solamente
+- NO subir MMD por empatía, fluidez o buena conversación por sí solas
 
 Regla operativa:
 
@@ -763,7 +954,7 @@ Si el paciente NO muestra expresiones como:
 - “me siento un poco más tranquilo…”
 - “probablemente sí…”
 
-→ entonces MMD debe mantenerse en rango medio (60–70)
+→ entonces MMD debe mantenerse en rango medio (60–70), salvo que la interacción esté claramente estancada, en cuyo caso puede bajar más.
 
 Si SÍ aparece este tipo de respuesta:
 
@@ -777,7 +968,36 @@ aunque el cambio sea pequeño.
 
 Pero sin evidencia explícita:
 
-→ NO clasificar como alto
+→ NO clasificar como alto por MMD
+
+---
+
+# 🚨 AVANCE PROCESUAL VS CAMBIO CLÍNICO (CRÍTICO)
+
+Distingue entre:
+
+1. AVANCE PROCESUAL
+- el paciente sigue hablando
+- no se cierra
+- hay cierta apertura
+- el terapeuta sostiene adecuadamente
+
+Esto es valioso,
+pero NO equivale automáticamente a cambio clínico.
+→ MMD debe ubicarse en rango medio (65–72)
+
+2. MICRO-CAMBIO CLÍNICO
+- el paciente cambia ligeramente su perspectiva
+- reconoce una alternativa
+- expresa intención de acción
+- verbaliza alivio o mayor claridad
+
+Esto sí permite MMD alto.
+→ MMD puede ubicarse en 75–85
+
+REGLA CLAVE:
+
+NO elevar a rango alto si solo hay avance procesual.
 
 ---
 
@@ -812,12 +1032,44 @@ También debe evaluarse si esa ayuda es adecuada o inadecuada.
 
 IMPORTANTE:
 
-En nivel 1, intervenciones basadas en consejo prematuro, juicio o directividad
+En nivel 1, intervenciones basadas en:
+
+- consejo prematuro
+- juicio
+- directividad
+- preguntas tendenciosas
+- soluciones sin exploración suficiente
+
 NO deben considerarse intención clínica adecuada.
 
 Aunque el estudiante intente ayudar,
 si la forma es impositiva o desajustada,
 el score de IIT debe ubicarse en rango bajo (≈40–55).
+
+---
+
+# 🚨 DEFINICIÓN OPERATIVA — INTERVENCIÓN ADECUADA EN NIVEL 1
+
+En nivel 1, considera ADECUADA una intervención si:
+
+- se basa en algo dicho por el paciente
+- reconoce o valida mínimamente la experiencia
+- no impone una conclusión
+- abre exploración o reflexión
+- respeta el ritmo emocional
+
+Considera INADECUADA una intervención si:
+
+- contiene consejo directo
+- dirige la respuesta
+- juzga o corrige
+- minimiza la experiencia
+- ofrece solución antes de explorar suficiente
+- presiona para actuar
+
+IMPORTANTE:
+
+No todo intento de ayuda es ayuda adecuada.
 
 ---
 
@@ -852,7 +1104,7 @@ Un desempeño ALTO puede ser SOLO:
 - escucha coherente
 - validación básica
 
-NO se requiere intervención.
+NO se requiere intervención compleja.
 
 ---
 
@@ -865,6 +1117,7 @@ Evaluar:
 - coherencia
 - sentido
 - adecuación al contexto
+- calidad de lo que hace con el material del paciente
 
 ---
 
@@ -876,6 +1129,7 @@ ALTO (80–100):
 - coherencia
 - buena apertura o acompañamiento básico
 - y, en intervención, existe al menos un micro-cambio observable
+- la intervención fue adecuada y no inducida
 
 MEDIO (60–79):
 - interacción funcional
@@ -883,13 +1137,14 @@ MEDIO (60–79):
 - seguimiento limitado pero válido
 - intervención adecuada pero simple
 - apertura leve o avance limitado
+- avance procesual sin micro-cambio claro
 
 BAJO (0–59):
 - desorden
 - respuestas cerradas o pobres
 - desconexión
 - no logra sostener bien la tarea del contexto
-- o la intervención es inadecuada, impositiva o juiciosa
+- o la intervención es inadecuada, impositiva, juiciosa o directiva
 
 ---
 
@@ -905,13 +1160,20 @@ NO dominio clínico avanzado.
 
 RESISTENCIA DEL PACIENTE
 
-NO penalizar automáticamente.
+NO penalizar automáticamente por resistencia del paciente.
 
 Evaluar si el terapeuta:
 
 - intenta conectar
 - sostiene la interacción
 - mantiene respeto
+- evita cierre innecesario
+- acompaña adecuadamente aunque no logre cambio claro
+
+IMPORTANTE:
+
+La resistencia del paciente NO convierte automáticamente el caso en bajo.
+Pero tampoco debe confundirse sostener bien el proceso con generar cambio clínico.
 
 ---
 
@@ -924,6 +1186,7 @@ Solo evitar:
 - pérdida total del hilo
 - desorganización evidente
 - presión innecesaria
+- directividad impropia
 
 ---
 
@@ -936,6 +1199,7 @@ Solo si:
 - interrumpe constantemente
 - corta el proceso abruptamente
 - responde de forma precipitada sin escuchar
+- se adelanta a soluciones sin suficiente exploración
 
 ---
 
@@ -968,7 +1232,7 @@ INTERVENCIÓN:
   - acompaña
   - abre reflexión básica
   - respeta el ritmo del paciente
-  - genera al menos un micro-cambio observable
+  - genera al menos un micro-cambio observable válido
 - reducir puntaje si:
   - impone (“tienes que…”, “deberías…”)
   - corrige sin explorar
@@ -976,6 +1240,7 @@ INTERVENCIÓN:
   - presiona o dirige excesivamente
   - da consejos prematuros sin suficiente exploración
   - moraliza o responsabiliza prematuramente al paciente
+  - induce respuestas en lugar de facilitarlas
 
 PRUEBAS:
 - claridad en instrucciones
@@ -995,10 +1260,12 @@ En intervención nivel 1:
 
 - NO elevar la puntuación solo por intento de ayuda
 - diferenciar claramente entre intervención adecuada e inadecuada
+- diferenciar avance procesual de micro-cambio clínico
 
 Si la intervención:
 
 - acompaña pero no genera apertura → desempeño medio
+- acompaña y sostiene el proceso, pero sin micro-cambio claro → desempeño medio
 - es impositiva, juiciosa o mal ajustada → desempeño bajo
 
 Para considerar buen desempeño:
@@ -1007,6 +1274,7 @@ Para considerar buen desempeño:
 - respeto del ritmo del paciente
 - al menos apertura o mayor claridad básica
 - y preferiblemente un micro-cambio observable en el discurso del paciente
+- ese cambio debe haber sido facilitado, no inducido
 
 ---
 
@@ -1032,6 +1300,7 @@ Intervenciones inadecuadas:
 - dan consejos prematuros sin suficiente exploración
 - usan juicio o moralización
 - promueven cambio sin comprensión previa
+- fuerzan una respuesta que no emerge del paciente
 
 No agrupar ambas como "intento de ayuda".
 
@@ -1057,13 +1326,15 @@ IMPORTANTE:
 Desempeño medio:
 - intervención adecuada pero básica
 - apertura leve
-- avance limitado
+- avance limitado o procesual
+- sin micro-cambio claro
 
 Desempeño alto:
 - intervención ajustada
 - facilita recursos o alternativas
-- produce micro-cambio observable
+- produce micro-cambio observable válido
 - genera mayor claridad o alivio básico
+- el cambio no fue inducido
 
 ---
 
@@ -1072,6 +1343,15 @@ AJUSTE POR DURACIÓN
 <10 min → interacción básica suficiente  
 10–25 min → continuidad  
 >25 min → consistencia  
+
+IMPORTANTE:
+
+En sesiones breves:
+- NO exigir profundidad alta
+- SÍ exigir precisión clínica
+
+Una intervención breve puede puntuarse alto
+si es adecuada y genera un micro-cambio válido.
 
 ---
 
