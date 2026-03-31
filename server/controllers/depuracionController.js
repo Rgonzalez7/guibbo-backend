@@ -154,12 +154,10 @@ function normalizeSpeakerManual(value) {
   return "unknown";
 }
 
-// ✅ FIX: soporta formato { hablante, texto } del hook useSesionRecorder
 function normalizeTurnManual(raw, idx = 0) {
   if (!raw || typeof raw !== "object") return null;
   const id = safeStr(raw.id, "") || safeStr(raw._id, "") || safeStr(raw.turnId, "") || `t_${idx + 1}`;
 
-  // ✅ agregar raw.texto y raw.hablante como fallbacks
   const text = safeStr(raw.text, "")
     || safeStr(raw.texto, "")
     || safeStr(raw.content, "")
@@ -214,7 +212,6 @@ function parseTurnsFromRawText(rawText) {
 }
 
 function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
-  // ✅ FIX: diarizacionTurnos es el nombre real que usa useSesionRecorder — va primero
   const candidates = [
     rpData?.diarizacionTurnos,
     deepGet(rpData, "transcripcionDiarizada.turns", null),
@@ -232,7 +229,6 @@ function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion", null),
     deepGet(inst, "respuestas.rolePlaying.turnosDiarizados", null),
     deepGet(inst, "respuestas.rolePlaying.turnos", null),
-    // ✅ FIX: buscar también en el payload anidado del borrador
     deepGet(inst, "respuestas.rolePlaying.payload.diarizacionTurnos", null),
     deepGet(inst, "respuestas.rolePlaying.payload.turnos", null),
   ];
@@ -507,14 +503,16 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     const tObj = ensureTranscripcionObj(inst);
     const dep = tObj.depuracion || {};
 
+    // ── Si no hay dep.result previo, intentar reconstruirlo ──
     if (!dep.result || !isObj(dep.result)) {
-      let rpData = isObj(data) ? data : {};
+      const rpData = isObj(data) ? data : {};
       const rawText =
         safeStr(rpData?.transcripcion, "") ||
         safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "") ||
         safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), "");
 
-      if (isObj(clientResult)) {
+      if (isObj(clientResult) && Array.isArray(clientResult.baseTurns) && clientResult.baseTurns.length > 0) {
+        // ✅ clientResult del frontend es suficiente
         dep.result = clientResult;
       } else {
         const baseTurns = extractManualBaseTurns(inst, rpData, clampText(rawText || "", 12000));
@@ -533,8 +531,8 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     if (!depResult || !isObj(depResult)) return res.status(400).json({ message: "No existe un resultado de depuración para aplicar." });
 
     const speakerOverridesIn = decisions?.speakerOverrides && typeof decisions.speakerOverrides === "object" ? decisions.speakerOverrides : {};
-    const turnSplitsIn = decisions?.turnSplits && typeof decisions.turnSplits === "object" ? decisions.turnSplits : {};
-    const turnEditsIn = decisions?.turnEdits && typeof decisions.turnEdits === "object" ? decisions.turnEdits : {};
+    const turnSplitsIn       = decisions?.turnSplits       && typeof decisions.turnSplits === "object"       ? decisions.turnSplits       : {};
+    const turnEditsIn        = decisions?.turnEdits        && typeof decisions.turnEdits === "object"        ? decisions.turnEdits        : {};
 
     ensureDepHistory(dep);
     pushDepHistorySnapshot(dep, {
@@ -548,53 +546,78 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     const normTE = normalizeTurnEdits(turnEditsIn);
 
     dep.userDecisions = {
-      resolvedIssues: isObj(prevDec.resolvedIssues) ? prevDec.resolvedIssues : {},
+      resolvedIssues:   isObj(prevDec.resolvedIssues) ? prevDec.resolvedIssues : {},
       speakerOverrides: isObj(speakerOverridesIn) ? speakerOverridesIn : {},
-      turnSplits: isObj(normTS) ? normTS : {},
-      turnEdits: isObj(normTE) ? normTE : {},
+      turnSplits:       isObj(normTS) ? normTS : {},
+      turnEdits:        isObj(normTE) ? normTE : {},
     };
 
-    let turnsBase = safeArr(depResult.baseTurns);
+    // ✅ FIX: orden de prioridad para obtener turnsBase
+    // 1. clientResult.baseTurns (frontend siempre tiene los turnos reales)
+    // 2. depResult.baseTurns guardado en BD
+    // 3. depResult.turns sin splits
+    // 4. extractManualBaseTurns como último recurso
+    let turnsBase = [];
+
+    if (isObj(clientResult) && Array.isArray(clientResult.baseTurns) && clientResult.baseTurns.length > 0) {
+      turnsBase = clientResult.baseTurns.map(normalizeTurnManual).filter(Boolean);
+    }
+
+    if (!turnsBase.length) {
+      turnsBase = safeArr(depResult.baseTurns).filter((t) => safeStr(t?.text, "").trim().length > 0);
+    }
+
     if (!turnsBase.length) {
       turnsBase = safeArr(depResult.turns).filter((t) => {
-        const id = safeStr(t?.id, "");
+        const id     = safeStr(t?.id, "");
         const reason = safeStr(t?.reason, "");
-        return reason !== "user_split" && !id.startsWith("split-") && !id.startsWith("split_");
+        return reason !== "user_split" && !id.startsWith("split-") && !id.startsWith("split_") && safeStr(t?.text, "").trim().length > 0;
       });
     }
 
-    if (!turnsBase.length) return res.status(400).json({ message: "No hay baseTurns válidos para reconstruir la transcripción." });
+    if (!turnsBase.length) {
+      const rpData  = isObj(data) ? data : {};
+      const rawText =
+        safeStr(rpData?.transcripcion, "") ||
+        safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "");
+      turnsBase = extractManualBaseTurns(inst, rpData, clampText(rawText, 12000));
+    }
+
+    if (!turnsBase.length) {
+      return res.status(400).json({ message: "No hay baseTurns válidos para reconstruir la transcripción." });
+    }
 
     const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
-    const turnsApplied = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
-    const finalText = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
+    const turnsApplied    = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
+    const finalText       = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
 
-    dep.finalText = finalText;
-    dep.updatedAt = now();
-    dep.status = "done";
-    dep.error = "";
-    dep.model = dep.model || "manual_diarization";
+    dep.finalText  = finalText;
+    dep.updatedAt  = now();
+    dep.status     = "done";
+    dep.error      = "";
+    dep.model      = dep.model || "manual_diarization";
 
     if (setActive) tObj.activeVersion = "depurada";
 
+    // ✅ Siempre persistir baseTurns frescos para que la próxima llamada los encuentre
     dep.result = {
       ...depResult,
-      baseTurns: turnsBase,
-      turns: turnsBase,
-      appliedTurns: turnsApplied,
-      issues: [],
-      stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
-      cleanedText: finalText,
+      baseTurns:     turnsBase,
+      turns:         turnsBase,
+      appliedTurns:  turnsApplied,
+      issues:        [],
+      stats:         { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+      cleanedText:   finalText,
       _applied: {
-        mode: "manual",
-        setActive: Boolean(setActive),
-        baseTurnsCount: turnsBase.length,
-        afterEditsCount: turnsAfterEdits.length,
-        appliedTurnsCount: turnsApplied.length,
-        hasSplits: Object.keys(dep.userDecisions.turnSplits || {}).length > 0,
-        splitsCount: Object.values(dep.userDecisions.turnSplits || {}).reduce((a, arr) => a + (Array.isArray(arr) ? arr.length : 0), 0),
-        hasEdits: Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
-        historyCount: Array.isArray(dep.history) ? dep.history.length : 0,
+        mode:               "manual",
+        setActive:          Boolean(setActive),
+        baseTurnsCount:     turnsBase.length,
+        afterEditsCount:    turnsAfterEdits.length,
+        appliedTurnsCount:  turnsApplied.length,
+        hasSplits:          Object.keys(dep.userDecisions.turnSplits || {}).length > 0,
+        splitsCount:        Object.values(dep.userDecisions.turnSplits || {}).reduce((a, arr) => a + (Array.isArray(arr) ? arr.length : 0), 0),
+        hasEdits:           Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
+        historyCount:       Array.isArray(dep.history) ? dep.history.length : 0,
       },
     };
 
@@ -638,34 +661,36 @@ module.exports.deshacerDepuracionTranscripcionRolePlay = async (req, res) => {
     const restored = snap.userDecisions && typeof snap.userDecisions === "object" ? snap.userDecisions : {};
 
     dep.userDecisions = {
-      resolvedIssues: isObj(restored.resolvedIssues) ? restored.resolvedIssues : {},
+      resolvedIssues:   isObj(restored.resolvedIssues)   ? restored.resolvedIssues   : {},
       speakerOverrides: isObj(restored.speakerOverrides) ? restored.speakerOverrides : {},
-      turnSplits: isObj(restored.turnSplits) ? normalizeTurnSplits(restored.turnSplits) : {},
-      turnEdits: isObj(restored.turnEdits) ? normalizeTurnEdits(restored.turnEdits) : {},
+      turnSplits:       isObj(restored.turnSplits)       ? normalizeTurnSplits(restored.turnSplits) : {},
+      turnEdits:        isObj(restored.turnEdits)        ? normalizeTurnEdits(restored.turnEdits)   : {},
     };
 
-    let turnsBase = safeArr(depResult.baseTurns);
-    if (!turnsBase.length) turnsBase = safeArr(depResult.turns);
+    let turnsBase = safeArr(depResult.baseTurns).filter((t) => safeStr(t?.text, "").trim().length > 0);
+    if (!turnsBase.length) {
+      turnsBase = safeArr(depResult.turns).filter((t) => safeStr(t?.text, "").trim().length > 0);
+    }
 
     const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
-    const turnsApplied = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
-    const finalText = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
+    const turnsApplied    = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
+    const finalText       = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
 
-    dep.finalText = finalText;
-    dep.updatedAt = now();
-    dep.status = "done";
-    dep.error = "";
-    dep.model = dep.model || "manual_diarization";
+    dep.finalText  = finalText;
+    dep.updatedAt  = now();
+    dep.status     = "done";
+    dep.error      = "";
+    dep.model      = dep.model || "manual_diarization";
 
     dep.result = {
       ...depResult,
-      baseTurns: turnsBase,
-      turns: turnsBase,
+      baseTurns:    turnsBase,
+      turns:        turnsBase,
       appliedTurns: turnsApplied,
-      issues: [],
-      stats: { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
-      cleanedText: finalText,
-      _undo: { restoredAt: new Date().toISOString(), historyCount: Array.isArray(dep.history) ? dep.history.length : 0 },
+      issues:       [],
+      stats:        { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+      cleanedText:  finalText,
+      _undo:        { restoredAt: new Date().toISOString(), historyCount: Array.isArray(dep.history) ? dep.history.length : 0 },
     };
 
     markTranscripcionModified(inst);
