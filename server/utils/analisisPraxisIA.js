@@ -435,6 +435,43 @@ NO subir score por intención.
 
 ---
 
+# 🚨 VALIDACIÓN DE MMD (CRÍTICO)
+
+NO asignar puntuaciones altas (≥75) en MMD si NO existe evidencia explícita en el discurso del paciente de:
+
+- cambio de perspectiva
+- apertura nueva
+- identificación de alternativa
+- reducción de resistencia
+- expresión de intención de cambio
+- mayor claridad emocional o cognitiva
+
+EVIDENCIA requerida en el paciente (no en el terapeuta).
+
+Ejemplos válidos:
+- "tal vez podría..."
+- "podría intentarlo..."
+- "me hace sentido..."
+- "no lo había visto así..."
+- "quizá sí..."
+- "me siento un poco más tranquilo..."
+- "probablemente sí..."
+- "podría ser..."
+
+Si NO existe este tipo de respuesta:
+
+→ limitar MMD a máximo 70
+
+IMPORTANTE:
+
+Buena conversación, empatía o fluidez
+NO son evidencia de avance.
+
+MMD evalúa cambio en el paciente,
+NO desempeño del terapeuta.
+
+---
+
 # 🚨 DIFERENCIACIÓN MEDIO VS ALTO (CRÍTICO)
 
 En intervención clínica:
@@ -467,12 +504,6 @@ No subir a rango alto si el avance es solo superficial.
 
 ---
 
-# 🚨 NO COMPENSACIÓN
-
-No compensar mala intervención con buena fluidez.
-
----
-
 # 🚨 CRITERIO ESTRICTO — DESEMPEÑO ALTO (CRÍTICO)
 
 En intervención clínica:
@@ -497,6 +528,12 @@ Para puntuar alto debe existir:
 Si el desempeño es adecuado pero sin impacto claro:
 
 → clasificar como desempeño medio (65–75)
+
+---
+
+# 🚨 NO COMPENSACIÓN
+
+No compensar mala intervención con buena fluidez.
 
 ---
 
@@ -553,9 +590,9 @@ El estudiante está comenzando.
 
 La evaluación debe:
 
-•⁠  ⁠reforzar seguridad
-•⁠  ⁠validar lo que sí está presente
-•⁠  ⁠señalar mejoras simples y accionables
+- reforzar seguridad
+- validar lo que sí está presente
+- señalar mejoras simples y accionables
 
 El objetivo es que el estudiante sienta:
 
@@ -574,12 +611,12 @@ ACORDE AL CONTEXTO
 
 Esto incluye:
 
-•⁠  ⁠encuadre básico (cuando aplica)
-•⁠  ⁠preguntas abiertas
-•⁠  ⁠exploración del motivo de consulta
-•⁠  ⁠escucha básica
-•⁠  ⁠coherencia conversacional
-•⁠  ⁠cierre simple (cuando aplica)
+- encuadre básico (cuando aplica)
+- preguntas abiertas
+- exploración del motivo de consulta
+- escucha básica
+- coherencia conversacional
+- cierre simple (cuando aplica)
 
 ---
 
@@ -602,12 +639,12 @@ Evalúa SOLO eso.
 
 LO QUE SÍ SE ESPERA
 
-•⁠  ⁠preguntas abiertas o intentos de abrir
-•⁠  ⁠seguimiento básico del discurso
-•⁠  ⁠interés genuino
-•⁠  ⁠coherencia con lo que el paciente dice
-•⁠  ⁠mantener la conversación activa
-•⁠  ⁠mínima validación emocional
+- preguntas abiertas o intentos de abrir
+- seguimiento básico del discurso
+- interés genuino
+- coherencia con lo que el paciente dice
+- mantener la conversación activa
+- mínima validación emocional
 
 ---
 
@@ -615,12 +652,12 @@ LO QUE NO SE EXIGE (CRÍTICO)
 
 NO evaluar ni penalizar por ausencia de:
 
-•⁠  ⁠intervención terapéutica avanzada
-•⁠  ⁠insight clínico
-•⁠  ⁠reencuadre
-•⁠  ⁠confrontación
-•⁠  ⁠hipótesis clínicas
-•⁠  ⁠cambio profundo en el paciente
+- intervención terapéutica avanzada
+- insight clínico
+- reencuadre
+- confrontación
+- hipótesis clínicas
+- cambio profundo en el paciente
 
 ---
 
@@ -628,9 +665,9 @@ REGLA FUNDAMENTAL DE NO PENALIZACIÓN
 
 La ausencia de:
 
-•⁠  ⁠insight
-•⁠  ⁠cambio emocional profundo
-•⁠  ⁠movilización compleja
+- insight
+- cambio emocional profundo
+- movilización compleja
 
 NO debe reducir la puntuación
 si el contexto es exploratorio o inicial.
@@ -643,23 +680,23 @@ En nivel 1, MMD NO significa cambio terapéutico profundo.
 
 Evalúa MMD como:
 
-•⁠  ⁠facilitar que el paciente hable
-•⁠  ⁠permitir mayor claridad en el relato
-•⁠  ⁠ayudar a organizar lo que dice
-•⁠  ⁠generar una apertura básica
+- facilitar que el paciente hable
+- permitir mayor claridad en el relato
+- ayudar a organizar lo que dice
+- generar una apertura básica
 
 Ejemplos válidos:
 
-•⁠  ⁠el paciente amplía su respuesta
-•⁠  ⁠pasa de vago → más claro
-•⁠  ⁠expresa emoción básica
-•⁠  ⁠muestra mayor apertura o claridad
+- el paciente amplía su respuesta
+- pasa de vago → más claro
+- expresa emoción básica
+- muestra mayor apertura o claridad
 
 NO exigir:
 
-•⁠  ⁠insight
-•⁠  ⁠cambio de perspectiva profundo
-•⁠  ⁠profundidad emocional avanzada
+- insight
+- cambio de perspectiva profundo
+- profundidad emocional avanzada
 
 IMPORTANTE:
 Consejo, presión o directividad NO equivalen a avance.
@@ -674,21 +711,21 @@ pero sí debe ser observable.
 
 Se considera impacto válido si:
 
-•⁠  ⁠el paciente cambia ligeramente su perspectiva
-•⁠  ⁠muestra mayor apertura
-•⁠  ⁠identifica una alternativa
-•⁠  ⁠reduce resistencia
-•⁠  ⁠acepta intentar algo pequeño
-•⁠  ⁠se siente más tranquilo
-•⁠  ⁠reconoce un recurso o apoyo posible
+- el paciente cambia ligeramente su perspectiva
+- muestra mayor apertura
+- identifica una alternativa
+- reduce resistencia
+- acepta intentar algo pequeño
+- se siente más tranquilo
+- reconoce un recurso o apoyo posible
 
 Ejemplos de impacto válido en nivel 1:
 
-•⁠  ⁠“tal vez podría…”
-•⁠  ⁠“podría intentarlo…”
-•⁠  ⁠“probablemente sí…”
-•⁠  ⁠“me hace sentir más tranquilo…”
-•⁠  ⁠“no es tanto…”
+- “tal vez podría…”
+- “podría intentarlo…”
+- “probablemente sí…”
+- “me hace sentir más tranquilo…”
+- “no es tanto…”
 
 IMPORTANTE:
 
@@ -696,8 +733,8 @@ Esto SÍ cuenta como movilización alta en nivel 1.
 
 NO exigir:
 
-•⁠  ⁠insight profundo
-•⁠  ⁠cambio emocional intenso
+- insight profundo
+- cambio emocional intenso
 
 Si existe este tipo de cambio:
 
@@ -706,15 +743,53 @@ Si existe este tipo de cambio:
 
 ---
 
+# 🚨 COHERENCIA CON MMD Y MICRO-CAMBIO (CRÍTICO)
+
+En nivel 1, la puntuación de MMD debe basarse EXCLUSIVAMENTE en evidencia observable en el discurso del paciente.
+
+IMPORTANTE:
+
+- NO inferir cambio si el paciente no lo expresa explícitamente
+- NO asumir movilización por la calidad del terapeuta
+- NO subir MMD por empatía, fluidez o buena conversación
+
+Regla operativa:
+
+Si el paciente NO muestra expresiones como:
+- “tal vez podría…”
+- “podría intentarlo…”
+- “me hace sentido…”
+- “no lo había visto así…”
+- “me siento un poco más tranquilo…”
+- “probablemente sí…”
+
+→ entonces MMD debe mantenerse en rango medio (60–70)
+
+Si SÍ aparece este tipo de respuesta:
+
+→ MMD puede subir a rango alto (75–85)
+
+IMPORTANTE:
+
+Un micro-cambio observable en nivel 1
+ES suficiente para considerar un desempeño alto,
+aunque el cambio sea pequeño.
+
+Pero sin evidencia explícita:
+
+→ NO clasificar como alto
+
+---
+
 REDEFINICIÓN DE IRI
 
 En nivel 1 es adecuada si:
 
-•⁠  ⁠responde coherentemente
-•⁠  ⁠no pierde el hilo
-•⁠  ⁠no contradice
-•⁠  ⁠muestra comprensión básica
-•⁠  ⁠retoma de forma simple algo importante del paciente
+- responde coherentemente
+- no pierde el hilo
+- no contradice
+- muestra comprensión básica
+- retoma de forma simple algo importante del paciente
 
 NO exigir integración compleja.
 
@@ -724,10 +799,10 @@ REDEFINICIÓN DE IIT (MUY IMPORTANTE)
 
 En este nivel, IIT incluye:
 
-•⁠  ⁠preguntas abiertas
-•⁠  ⁠intentos de explorar
-•⁠  ⁠guiar suavemente la conversación
-•⁠  ⁠intención básica de ayudar cuando el contexto es intervención
+- preguntas abiertas
+- intentos de explorar
+- guiar suavemente la conversación
+- intención básica de ayudar cuando el contexto es intervención
 
 Pregunta bien hecha = intención clínica válida.
 
@@ -750,20 +825,20 @@ REDEFINICIÓN DE MLT (ENCUEADRE)
 
 Valorar positivamente si hay:
 
-•⁠  ⁠explicación básica del espacio
-•⁠  ⁠tono respetuoso
-•⁠  ⁠seguridad mínima
-•⁠  ⁠cierre simple
+- explicación básica del espacio
+- tono respetuoso
+- seguridad mínima
+- cierre simple
 
 Si está presente → NO puntuar bajo.
 
 En intervención nivel 1, NO exigir encuadre formal completo,
 pero sí valorar:
 
-•⁠  ⁠respeto
-•⁠  ⁠no invasión
-•⁠  ⁠tono no impositivo
-•⁠  ⁠sensación básica de seguridad
+- respeto
+- no invasión
+- tono no impositivo
+- sensación básica de seguridad
 
 ---
 
@@ -771,11 +846,11 @@ CRITERIO DE EVALUACIÓN EN APERTURA
 
 Un desempeño ALTO puede ser SOLO:
 
-•⁠  ⁠encuadre claro
-•⁠  ⁠preguntas abiertas
-•⁠  ⁠exploración ordenada
-•⁠  ⁠escucha coherente
-•⁠  ⁠validación básica
+- encuadre claro
+- preguntas abiertas
+- exploración ordenada
+- escucha coherente
+- validación básica
 
 NO se requiere intervención.
 
@@ -787,34 +862,34 @@ Hablar más NO es hacerlo mejor.
 
 Evaluar:
 
-•⁠  ⁠coherencia
-•⁠  ⁠sentido
-•⁠  ⁠adecuación al contexto
+- coherencia
+- sentido
+- adecuación al contexto
 
 ---
 
 NIVELES DE DESEMPEÑO EN NIVEL 1
 
 ALTO (80–100):
-•⁠  ⁠sostiene la tarea del contexto de forma clara
-•⁠  ⁠preguntas o respuestas adecuadas
-•⁠  ⁠coherencia
-•⁠  ⁠buena apertura o acompañamiento básico
-•⁠  ⁠y, en intervención, existe al menos un micro-cambio observable
+- sostiene la tarea del contexto de forma clara
+- preguntas o respuestas adecuadas
+- coherencia
+- buena apertura o acompañamiento básico
+- y, en intervención, existe al menos un micro-cambio observable
 
 MEDIO (60–79):
-•⁠  ⁠interacción funcional
-•⁠  ⁠preguntas o respuestas básicas
-•⁠  ⁠seguimiento limitado pero válido
-•⁠  ⁠intervención adecuada pero simple
-•⁠  ⁠apertura leve o avance limitado
+- interacción funcional
+- preguntas o respuestas básicas
+- seguimiento limitado pero válido
+- intervención adecuada pero simple
+- apertura leve o avance limitado
 
 BAJO (0–59):
-•⁠  ⁠desorden
-•⁠  ⁠respuestas cerradas o pobres
-•⁠  ⁠desconexión
-•⁠  ⁠no logra sostener bien la tarea del contexto
-•⁠  ⁠o la intervención es inadecuada, impositiva o juiciosa
+- desorden
+- respuestas cerradas o pobres
+- desconexión
+- no logra sostener bien la tarea del contexto
+- o la intervención es inadecuada, impositiva o juiciosa
 
 ---
 
@@ -834,9 +909,9 @@ NO penalizar automáticamente.
 
 Evaluar si el terapeuta:
 
-•⁠  ⁠intenta conectar
-•⁠  ⁠sostiene la interacción
-•⁠  ⁠mantiene respeto
+- intenta conectar
+- sostiene la interacción
+- mantiene respeto
 
 ---
 
@@ -846,9 +921,9 @@ NO se exige dirección clínica avanzada.
 
 Solo evitar:
 
-•⁠  ⁠pérdida total del hilo
-•⁠  ⁠desorganización evidente
-•⁠  ⁠presión innecesaria
+- pérdida total del hilo
+- desorganización evidente
+- presión innecesaria
 
 ---
 
@@ -858,9 +933,9 @@ NO penalizar errores leves.
 
 Solo si:
 
-•⁠  ⁠interrumpe constantemente
-•⁠  ⁠corta el proceso abruptamente
-•⁠  ⁠responde de forma precipitada sin escuchar
+- interrumpe constantemente
+- corta el proceso abruptamente
+- responde de forma precipitada sin escuchar
 
 ---
 
@@ -868,10 +943,10 @@ REGLA CALIDAD SOBRE CANTIDAD
 
 Valorar:
 
-•⁠  ⁠claridad
-•⁠  ⁠coherencia
-•⁠  ⁠intención básica
-•⁠  ⁠adecuación de la respuesta
+- claridad
+- coherencia
+- intención básica
+- adecuación de la respuesta
 
 NO cantidad de intervenciones.
 
@@ -880,21 +955,21 @@ NO cantidad de intervenciones.
 AJUSTE POR CONTEXTO
 
 EXPLORACIÓN:
-•⁠  ⁠foco en preguntar y escuchar
-•⁠  ⁠proteger esta lógica: no exigir intervención
-•⁠  ⁠valorar alto si la entrevista básica está bien hecha
+- foco en preguntar y escuchar
+- proteger esta lógica: no exigir intervención
+- valorar alto si la entrevista básica está bien hecha
 
 INTERVENCIÓN:
-•⁠  ⁠valorar intención de ayudar, pero también la CALIDAD de esa ayuda
-•⁠  ⁠distinguir entre acompañar e imponer
-•⁠  ⁠NO exigir técnica formal
-•⁠  ⁠puntuar alto si:
+- valorar intención de ayudar, pero también la CALIDAD de esa ayuda
+- distinguir entre acompañar e imponer
+- NO exigir técnica formal
+- puntuar alto si:
   - valida
   - acompaña
   - abre reflexión básica
   - respeta el ritmo del paciente
   - genera al menos un micro-cambio observable
-•⁠  ⁠reducir puntaje si:
+- reducir puntaje si:
   - impone (“tienes que…”, “deberías…”)
   - corrige sin explorar
   - minimiza emoción
@@ -903,14 +978,14 @@ INTERVENCIÓN:
   - moraliza o responsabiliza prematuramente al paciente
 
 PRUEBAS:
-•⁠  ⁠claridad en instrucciones
-•⁠  ⁠orden del proceso
-•⁠  ⁠neutralidad básica
+- claridad en instrucciones
+- orden del proceso
+- neutralidad básica
 
 DEVOLUCIÓN:
-•⁠  ⁠claridad + empatía básica
-•⁠  ⁠lenguaje sencillo
-•⁠  ⁠explicación comprensible
+- claridad + empatía básica
+- lenguaje sencillo
+- explicación comprensible
 
 ---
 
@@ -918,20 +993,20 @@ DEVOLUCIÓN:
 
 En intervención nivel 1:
 
-•⁠  ⁠NO elevar la puntuación solo por intento de ayuda
-•⁠  ⁠diferenciar claramente entre intervención adecuada e inadecuada
+- NO elevar la puntuación solo por intento de ayuda
+- diferenciar claramente entre intervención adecuada e inadecuada
 
 Si la intervención:
 
-•⁠  ⁠acompaña pero no genera apertura → desempeño medio
-•⁠  ⁠es impositiva, juiciosa o mal ajustada → desempeño bajo
+- acompaña pero no genera apertura → desempeño medio
+- es impositiva, juiciosa o mal ajustada → desempeño bajo
 
 Para considerar buen desempeño:
 
-•⁠  ⁠debe existir acompañamiento adecuado
-•⁠  ⁠respeto del ritmo del paciente
-•⁠  ⁠al menos apertura o mayor claridad básica
-•⁠  ⁠y preferiblemente un micro-cambio observable en el discurso del paciente
+- debe existir acompañamiento adecuado
+- respeto del ritmo del paciente
+- al menos apertura o mayor claridad básica
+- y preferiblemente un micro-cambio observable en el discurso del paciente
 
 ---
 
@@ -940,23 +1015,23 @@ REGLA ESPECÍFICA — INTERVENCIÓN NIVEL 1
 En contexto de intervención clínica, diferencia claramente entre:
 
 Intervenciones adecuadas:
-•⁠  ⁠validan la experiencia
-•⁠  ⁠acompañan sin imponer
-•⁠  ⁠ofrecen pequeñas aperturas
-•⁠  ⁠ayudan a pensar sin presionar
-•⁠  ⁠identifican recursos
-•⁠  ⁠orientan a pasos pequeños y realistas
-•⁠  ⁠facilitan una alternativa o posibilidad concreta
+- validan la experiencia
+- acompañan sin imponer
+- ofrecen pequeñas aperturas
+- ayudan a pensar sin presionar
+- identifican recursos
+- orientan a pasos pequeños y realistas
+- facilitan una alternativa o posibilidad concreta
 
 Intervenciones inadecuadas:
-•⁠  ⁠imponen
-•⁠  ⁠sermonean
-•⁠  ⁠corrigen demasiado rápido
-•⁠  ⁠minimizan lo que el paciente siente
-•⁠  ⁠presionan a actuar sin suficiente acompañamiento
-•⁠  ⁠dan consejos prematuros sin suficiente exploración
-•⁠  ⁠usan juicio o moralización
-•⁠  ⁠promueven cambio sin comprensión previa
+- imponen
+- sermonean
+- corrigen demasiado rápido
+- minimizan lo que el paciente siente
+- presionan a actuar sin suficiente acompañamiento
+- dan consejos prematuros sin suficiente exploración
+- usan juicio o moralización
+- promueven cambio sin comprensión previa
 
 No agrupar ambas como "intento de ayuda".
 
@@ -971,24 +1046,24 @@ En intervención nivel 1, evita comprimir todos los casos en la franja 70–80.
 
 Usa una diferenciación más clara:
 
-•⁠  ⁠bajo desempeño → 40–60
-•⁠  ⁠desempeño medio → 65–75
-•⁠  ⁠buen desempeño → 80–90
+- bajo desempeño → 40–60
+- desempeño medio → 65–75
+- buen desempeño → 80–90
 
 Un caso medio y uno alto NO deben terminar con puntuaciones casi iguales.
 
 IMPORTANTE:
 
 Desempeño medio:
-•⁠  ⁠intervención adecuada pero básica
-•⁠  ⁠apertura leve
-•⁠  ⁠avance limitado
+- intervención adecuada pero básica
+- apertura leve
+- avance limitado
 
 Desempeño alto:
-•⁠  ⁠intervención ajustada
-•⁠  ⁠facilita recursos o alternativas
-•⁠  ⁠produce micro-cambio observable
-•⁠  ⁠genera mayor claridad o alivio básico
+- intervención ajustada
+- facilita recursos o alternativas
+- produce micro-cambio observable
+- genera mayor claridad o alivio básico
 
 ---
 
@@ -1005,8 +1080,8 @@ AJUSTE POR MODELO
 El modelo orienta, no exige.
 
 En nivel 1:
-•⁠  ⁠NO exigir aplicación técnica formal del modelo
-•⁠  ⁠usarlo solo como matiz del estilo
+- NO exigir aplicación técnica formal del modelo
+- usarlo solo como matiz del estilo
 
 ---
 
