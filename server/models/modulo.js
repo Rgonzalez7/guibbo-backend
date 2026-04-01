@@ -234,7 +234,17 @@ const ejercicioSchema = new Schema(
   { timestamps: true }
 );
 
-// ===== Ejercicio específico: Grabar Voz =====
+// ── Sub-schema para cada caso ────────────────────────────
+const casoGVSchema = new Schema(
+  {
+    texto:   { type: String, trim: true, default: "" },
+    tiempo:  { type: Number, default: 0.25 }, // minutos decimales (mismo formato que antes)
+    orden:   { type: Number, default: 0 },
+  },
+  { _id: true }
+);
+
+// ── Schema principal actualizado ─────────────────────────
 const ejercicioGrabarVozSchema = new Schema(
   {
     ejercicio: {
@@ -244,66 +254,35 @@ const ejercicioGrabarVozSchema = new Schema(
       unique: true,
     },
 
-    contexto: {
-      type: String,
-      enum: CONTEXTOS_GV,
-      default: "clinico",
-    },
-    escenario: {
-      type: String,
-      enum: ESCENARIOS_GV,
-      default: "exploracion",
-    },
-    nivel: {
-      type: String,
-      enum: NIVELES_GV,
-      default: "nivel_1",
-    },
-    tipoEntrenamiento: {
-      type: String,
-      enum: TIPOS_ENTRENAMIENTO,
-      default: "habilidad_especifica",
-    },
-    // Intervenciones autofill (calculadas por sistema, guardadas para el prompt)
-    intervenciones: {
-      type: [String],
+    // ✅ NUEVO — array de casos (max 20)
+    casos: {
+      type: [casoGVSchema],
       default: [],
+      validate: {
+        validator: function (arr) { return arr.length <= 20; },
+        message: "El ejercicio no puede tener más de 20 casos.",
+      },
     },
 
-    // Caso clínico (puede ser escrito por el profesor o generado por IA)
-    caso: {
-      type: String,
-      trim: true,
-      default: "",
-    },
+    // Configuración compartida del ejercicio
+    contexto:          { type: String, enum: CONTEXTOS_GV, default: "clinico" },
+    escenario:         { type: String, enum: ESCENARIOS_GV, default: "exploracion" },
+    nivel:             { type: String, enum: NIVELES_GV, default: "nivel_1" },
+    tipoEntrenamiento: { type: String, enum: TIPOS_ENTRENAMIENTO, default: "habilidad_especifica" },
+    intervenciones:    { type: [String], default: [] },
 
-    // ── Compat legacy (se mantienen) ────────────────────
-    praxisNivel: {
-      type: String,
-      enum: PRAXIS_NIVELES,
-      default: "nivel_1",
-    },
-    modeloIntervencion: {
-      type: String,
-      enum: ["", ...MODELOS_INTERVENCION],
-      default: "",
-      trim: true,
-    },
-    contextoSesion: {
-      type: String,
-      enum: ["", ...CONTEXTOS_SESION_ENUM],
-      default: "exploracion_clinica",
-      trim: true,
-    },
-    evaluaciones: {
-      type: Schema.Types.Mixed,
-      default: null,
-    },
+    // ── Compat legacy ────────────────────────────────────
+    caso:              { type: String, trim: true, default: "" }, // mantenido para borradores viejos
+    praxisNivel:       { type: String, enum: PRAXIS_NIVELES, default: "nivel_1" },
+    modeloIntervencion:{ type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
+    contextoSesion:    { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica", trim: true },
+    evaluaciones:      { type: Schema.Types.Mixed, default: null },
     transcripcionRespuesta: { type: String, default: "" },
     analisisRespuesta:      { type: String, default: "" },
   },
   { timestamps: true }
 );
+
 
 // ===== Ejercicio específico: Interpretación de frases incompletas =====
 const ejercicioInterpretacionFrasesSchema = new Schema(
@@ -574,6 +553,7 @@ module.exports = {
   Submodulo,
   Ejercicio,
   EjercicioGrabarVoz,
+  casoGVSchema,
   EjercicioInterpretacionFrases,
   EjercicioRolePlay,
   EjercicioCriteriosDx,

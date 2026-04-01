@@ -62,7 +62,7 @@ async function obtenerDetalleEjercicioPorTipo(ejercicio) {
 
   if (tipo === "Grabar voz") {
     return await EjercicioGrabarVoz.findOne({ ejercicio: ejercicio._id })
-      .select("caso evaluaciones transcripcionRespuesta analisisRespuesta")
+      // ✅ sin .select() restrictivo — trae TODOS los campos incluyendo casos[]
       .lean();
   }
 
@@ -934,7 +934,14 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
     let ejercicioMerged = { ...ejercicio };
 
     if (tipo === "Grabar voz" && detalle) {
-      ejercicioMerged = { ...ejercicioMerged, caso: detalle.caso, evaluaciones: detalle.evaluaciones };
+      ejercicioMerged = {
+        ...ejercicioMerged,
+        // compat legacy
+        caso:        detalle.caso        || "",
+        evaluaciones:detalle.evaluaciones|| null,
+        // ✅ nuevo: adjuntar el detalle completo con casos[]
+        detalle,
+      };
     }
 
     if (isRolePlayTipo(tipo) && detalle) {

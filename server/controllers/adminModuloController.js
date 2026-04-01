@@ -344,24 +344,34 @@ function calcularIntervenciones(contexto, escenario, nivel) {
   return resultado;
 }
 
-// ── Helper: normaliza campos Grabar Voz ──────────────────
+// ── Helper: normaliza el array de casos ──────────────────
+function normalizeCasosGV(casosRaw) {
+  const arr = Array.isArray(casosRaw) ? casosRaw : [];
+  return arr
+    .slice(0, 20)
+    .map((c, idx) => {
+      const texto = String(c?.texto || c?.text || c?.caso || "").trim();
+      const tiempo = Number(c?.tiempo ?? 0.25);
+      return {
+        _id:    c?._id || undefined,
+        texto,
+        tiempo: Number.isFinite(tiempo) && tiempo > 0 ? tiempo : 0.25,
+        orden:  Number.isFinite(Number(c?.orden)) ? Number(c.orden) : idx,
+      };
+    })
+    .filter((c) => c.texto.length > 0);
+}
+
+// ── normalizeGrabarVozFields (actualizado) ───────────────
 function normalizeGrabarVozFields(body) {
   const contexto = CONTEXTOS_GV.includes(body?.contexto) ? body.contexto : "clinico";
-
   const escenariosValidos = ESCENARIOS_POR_CONTEXTO[contexto] || [];
-  const escenario = escenariosValidos.includes(body?.escenario)
-    ? body.escenario
-    : escenariosValidos[0] || "exploracion";
-
+  const escenario = escenariosValidos.includes(body?.escenario) ? body.escenario : escenariosValidos[0] || "exploracion";
   const nivel = NIVELES_GV.includes(body?.nivel) ? body.nivel : "nivel_1";
-
-  const tipoEntrenamiento = TIPOS_ENTRENAMIENTO.includes(body?.tipoEntrenamiento)
-    ? body.tipoEntrenamiento
-    : "habilidad_especifica";
-
+  const tipoEntrenamiento = TIPOS_ENTRENAMIENTO.includes(body?.tipoEntrenamiento) ? body.tipoEntrenamiento : "habilidad_especifica";
   const intervenciones = calcularIntervenciones(contexto, escenario, nivel);
-
-  return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones };
+  const casos = normalizeCasosGV(body?.casos);
+  return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones, casos };
 }
 
 /* =========================================================
@@ -372,17 +382,13 @@ function normalizeGrabarVozFields(body) {
 exports.generarCasosGrabarVoz = async (req, res) => {
   try {
     const { contexto, escenario, nivel, tipoEntrenamiento, intervenciones } = req.body || {};
-
     if (!contexto || !escenario || !nivel) {
       return res.status(400).json({ message: "contexto, escenario y nivel son obligatorios." });
     }
 
     const OpenAI = require("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const intervencionesLabel = (intervenciones || [])
-      .slice(0, 8)
-      .join(", ");
+    const intervencionesLabel = (intervenciones || []).slice(0, 8).join(", ");
 
     const prompt = `Eres un diseñador de ejercicios clínicos para estudiantes de psicología.
 
@@ -397,7 +403,7 @@ Genera exactamente 3 casos clínicos breves (microintervenciones) para el siguie
 Reglas estrictas:
 1. Cada caso debe tener máximo 2 oraciones.
 2. El caso describe la situación que el paciente/persona presenta; NO incluye la respuesta del terapeuta.
-3. Los casos deben ser concretos, realistas y variados entre sí.
+3. Los casos deben ser concretos, realistas y variados entre sí — no repitas temáticas.
 4. El lenguaje debe ser claro y directo, adecuado para el nivel indicado.
 5. Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown:
 
@@ -406,8 +412,8 @@ Reglas estrictas:
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.8,
-      max_tokens: 500,
+      temperature: 0.85,
+      max_tokens: 600,
     });
 
     const raw = completion.choices?.[0]?.message?.content || "";
@@ -421,12 +427,9 @@ Reglas estrictas:
     return res.json({ casos: parsed.casos.slice(0, 3) });
   } catch (err) {
     console.error("❌ Error generando casos Grabar Voz:", err);
-    return res.status(500).json({
-      message: "Error al generar casos con IA.",
-      error: err.message,
-    });
+    return res.status(500).json({ message: "Error al generar casos con IA.", error: err.message });
   }
-};   
+};
 
 // --- CREATE por tipo (POST /submodulos/:id/ejercicios/<tipo>) ---
 exports.crearEjercicioGrabarVozAdmin = async (req, res) => {
@@ -1657,28 +1660,34 @@ exports.listarEjerciciosAdmin = async (req, res) => {
   
       // ===== SWITCH DETALLE POR TIPO =====
       if (tipoEjercicio === "Grabar voz") {
-        if (!caso || !String(caso).trim()) {
+        const gvFields = normalizeGrabarVozFields(req.body);
+
+        if (!gvFields.casos.length) {
           return res.status(400).json({
-            message: "El caso/enunciado es obligatorio para Grabar voz.",
+            message: "El ejercicio debe tener al menos un caso.",
           });
         }
 
-        const gvFields = normalizeGrabarVozFields(req.body);
-
         detalle = await EjercicioGrabarVoz.create({
           ejercicio: ejercicio._id,
-          caso: String(caso).trim(),
-          ...gvFields,
+          casos:             gvFields.casos,
+          contexto:          gvFields.contexto,
+          escenario:         gvFields.escenario,
+          nivel:             gvFields.nivel,
+          tipoEntrenamiento: gvFields.tipoEntrenamiento,
+          intervenciones:    gvFields.intervenciones,
           // compat legacy
+          caso:              gvFields.casos[0]?.texto || "",
           praxisNivel:       normalizePraxisNivel(req.body?.praxisNivel || gvFields.nivel),
           modeloIntervencion: normalizeModeloIntervencion(req.body?.modeloIntervencion || ""),
-          contextoSesion:    (() => {
+          contextoSesion: (() => {
             const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
             const v = String(req.body?.contextoSesion || "exploracion_clinica");
             return valid.includes(v) ? v : "exploracion_clinica";
           })(),
         });
       }
+
       else if (tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioGrabarVoz.create({
           ejercicio: ejercicio._id,
@@ -1872,19 +1881,22 @@ exports.listarEjerciciosAdmin = async (req, res) => {
         detalle = await EjercicioGrabarVoz.findOne({ ejercicio: id });
         if (!detalle) detalle = new EjercicioGrabarVoz({ ejercicio: id });
 
-        if (caso !== undefined) detalle.caso = String(caso || "").trim();
-
-        // Recalcular si cambia contexto, escenario o nivel
         const gvFields = normalizeGrabarVozFields(req.body);
+
+        if (gvFields.casos.length > 0) {
+          detalle.casos = gvFields.casos;
+          // compat legacy: primer caso
+          detalle.caso = gvFields.casos[0]?.texto || "";
+        }
+
         detalle.contexto          = gvFields.contexto;
         detalle.escenario         = gvFields.escenario;
         detalle.nivel             = gvFields.nivel;
         detalle.tipoEntrenamiento = gvFields.tipoEntrenamiento;
         detalle.intervenciones    = gvFields.intervenciones;
 
-        // compat legacy
-        if (praxisNivel !== undefined)       detalle.praxisNivel       = normalizePraxisNivel(praxisNivel);
-        if (modeloIntervencion !== undefined) detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
+        if (praxisNivel !== undefined)        detalle.praxisNivel        = normalizePraxisNivel(praxisNivel);
+        if (modeloIntervencion !== undefined)  detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
         if (contextoSesion !== undefined) {
           const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
           detalle.contextoSesion = valid.includes(contextoSesion) ? contextoSesion : "exploracion_clinica";
@@ -1892,6 +1904,7 @@ exports.listarEjerciciosAdmin = async (req, res) => {
 
         await detalle.save();
       }
+
        else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
         detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
         if (!detalle)
