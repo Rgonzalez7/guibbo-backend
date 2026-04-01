@@ -513,6 +513,52 @@ Si el cambio es ambiguo o débil:
 
 ---
 
+# 🚨 GRADIENTE DE INTENCIÓN (CRÍTICO)
+
+Diferenciar entre tipos de cambio en el lenguaje del paciente:
+
+---
+
+Nivel bajo (NO cuenta como micro-cambio):
+- "puede ser"
+- "tal vez"
+- "supongo"
+- "no sé"
+
+→ mantener MMD en 65–70
+
+---
+
+Nivel medio (apertura leve):
+- "podría"
+- "quizá podría"
+- "tal vez podría intentarlo"
+
+→ MMD máximo 72–75  
+→ NO clasificar como desempeño alto automáticamente
+
+---
+
+Nivel alto (micro-cambio válido):
+- "voy a intentar"
+- "lo voy a hacer"
+- "sí, tiene sentido"
+- "me siento mejor / más tranquilo"
+- "creo que sí puedo hacerlo"
+
+→ MMD puede subir a 75–85
+
+---
+
+IMPORTANTE:
+
+Lenguaje hipotético ≠ cambio consolidado
+
+Para considerar desempeño alto:
+→ el cambio debe ser más definido, no solo posibilidad
+
+---
+
 # 🚨 DIFERENCIACIÓN MEDIO VS ALTO (CRÍTICO)
 
 En intervención clínica:
