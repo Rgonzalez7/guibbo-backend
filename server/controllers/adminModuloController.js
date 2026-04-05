@@ -239,24 +239,68 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const intervencionesLabel = (intervenciones || []).slice(0, 8).join(", ");
 
-    const prompt = `Eres un diseñador de ejercicios clínicos para estudiantes de psicología.
+    const prompt = `
+        Eres un diseñador experto de ejercicios para formación de estudiantes de psicología dentro de una plataforma de entrenamiento con voz.
 
-Genera exactamente 3 casos clínicos breves (microintervenciones) para el siguiente ejercicio de grabación de voz:
+        Tu tarea es generar exactamente 3 casos para ejercicios clínicos según la configuración dada por el profesor.
 
-- Contexto: ${contexto}
-- Escenario: ${escenario}
-- Nivel: ${nivel}
-- Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
-- Intervenciones objetivo: ${intervencionesLabel}
+        Configuración del ejercicio:
+        - Nivel: ${nivel}
+        - Contexto: ${contexto}
+        - Escenario: ${escenario}
+        - Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
+        - Habilidades objetivo: ${intervencionesLabel}
+        - Formato requerido: ${formatoCaso}
 
-Reglas estrictas:
-1. Cada caso debe tener máximo 2 oraciones.
-2. El caso describe la situación que el paciente/persona presenta; NO incluye la respuesta del terapeuta.
-3. Los casos deben ser concretos, realistas y variados entre sí.
-4. El lenguaje debe ser claro y directo, adecuado para el nivel indicado.
-5. Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown:
+        Debes respetar estas definiciones del sistema:
 
-{"casos": ["caso 1 aquí", "caso 2 aquí", "caso 3 aquí"]}`;
+        1. Nivel:
+        - Básico: casos claros, directos y de baja complejidad.
+        - Intermedio: casos con más matices y complejidad moderada.
+        - Avanzado: casos con mayor ambigüedad, resistencia, profundidad o exigencia técnica.
+
+        2. Contexto:
+        - Clínico: lenguaje y problemáticas propias de pacientes en atención psicológica.
+        - Educativo: lenguaje y situaciones propias de estudiantes, padres, docentes o evaluación psicopedagógica.
+        - Laboral: lenguaje y situaciones propias de colaboradores, candidatos, jefaturas o evaluación organizacional.
+
+        3. Escenario:
+        - Exploración clínica: el estudiante debe responder explorando.
+        - Intervención: el estudiante debe responder con una intervención puntual.
+        - Devolución: el estudiante debe brindar retroalimentación o comunicar hallazgos.
+        - Consignas de pruebas: el estudiante debe explicar instrucciones de aplicación de una prueba.
+
+        Instrucciones según el formato requerido:
+
+        Si el formato requerido es "frase_paciente":
+        - Cada caso debe consistir en una sola frase dicha por una persona del contexto correspondiente.
+        - Debe sonar natural, realista y útil para que el estudiante responda verbalmente.
+        - Máximo 25 palabras por caso.
+
+        Si el formato requerido es "escenario_narrativo":
+        - Cada caso debe describir brevemente una situación profesional realista.
+        - Debe incluir información mínima útil: edad aproximada o rol, motivo o situación, y momento de interacción.
+        - Máximo 3 oraciones por caso.
+
+        Reglas obligatorias:
+        - No incluyas nunca la respuesta del estudiante, terapeuta o evaluador.
+        - No expliques la técnica.
+        - No conviertas el caso en instrucción directa al estudiante.
+        - Los 3 casos deben ser distintos entre sí.
+        - Los casos deben estar alineados con las habilidades objetivo seleccionadas.
+        - Usa lenguaje natural y profesional, sin dramatizar de más.
+
+        Responde únicamente con JSON válido en este formato:
+
+        {
+          "tipo_formato": "${formatoCaso}",
+          "casos": [
+            "caso 1",
+            "caso 2",
+            "caso 3"
+          ]
+        }
+        `;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
