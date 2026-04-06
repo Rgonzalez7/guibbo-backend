@@ -42,7 +42,10 @@ const ESCENARIOS_GV = [
   "exploracion_estudiante", "intervencion_estudiante", "comunicacion_padres",
   "entrevista_laboral", "feedback", "manejo_conflictos", "burnout", "acoso_laboral",
 ];
-const NIVELES_GV          = ["nivel_1", "nivel_2", "nivel_3"];
+
+// ✅ Incluye los valores nuevos del frontend (basico/intermedio/avanzado)
+const NIVELES_GV = ["nivel_1", "nivel_2", "nivel_3", "basico", "intermedio", "avanzado"];
+
 const TIPOS_ENTRENAMIENTO = ["habilidad_especifica", "discriminacion_clinica", "mixto"];
 
 const ESCENARIOS_POR_CONTEXTO = {
@@ -138,18 +141,24 @@ const ejercicioGrabarVozSchema = new Schema(
         message: "El ejercicio no puede tener más de 20 casos.",
       },
     },
-    contexto:           { type: String, enum: CONTEXTOS_GV, default: "clinico" },
-    escenario:          { type: String, enum: ESCENARIOS_GV, default: "exploracion" },
-    nivel:              { type: String, enum: NIVELES_GV, default: "nivel_1" },
-    tipoEntrenamiento:  { type: String, enum: TIPOS_ENTRENAMIENTO, default: "habilidad_especifica" },
-    intervenciones:     { type: [String], default: [] },
+    contexto:          { type: String, enum: CONTEXTOS_GV, default: "clinico" },
+    escenario:         { type: String, enum: ESCENARIOS_GV, default: "exploracion" },
+    nivel:             { type: String, enum: NIVELES_GV, default: "nivel_1" },
+    tipoEntrenamiento: { type: String, enum: TIPOS_ENTRENAMIENTO, default: "habilidad_especifica" },
+    intervenciones:    { type: [String], default: [] },
+
+    // ✅ Nuevos campos para habilidades manuales y modelo terapéutico
+    habilidades:    { type: [String], default: [] },
+    habilidadesTCC: { type: [String], default: [] },
+    modeloTerapia:  { type: String, default: "", trim: true },
+
     caso:               { type: String, trim: true, default: "" },
     praxisNivel:        { type: String, enum: PRAXIS_NIVELES, default: "nivel_1" },
     modeloIntervencion: { type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
     contextoSesion:     { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica", trim: true },
-    evaluaciones:       { type: Schema.Types.Mixed, default: null },
-    transcripcionRespuesta: { type: String, default: "" },
-    analisisRespuesta:      { type: String, default: "" },
+    evaluaciones:            { type: Schema.Types.Mixed, default: null },
+    transcripcionRespuesta:  { type: String, default: "" },
+    analisisRespuesta:       { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -242,22 +251,19 @@ const ejercicioInterpretacionProyectivaSchema = new Schema(
   { timestamps: true }
 );
 
-// ===== ✅ NUEVO: Informe Clínico =====
+// ===== Informe Clínico =====
 const ejercicioInformeClinicoSchema = new Schema(
   {
     ejercicio: { type: Schema.Types.ObjectId, ref: "Ejercicio", required: true, unique: true },
 
-    // Contexto clínico del caso
     trastorno:          { type: String, trim: true, default: "" },
     contextoSesion:     { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica" },
     modeloIntervencion: { type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
     praxisNivel:        { type: String, enum: PRAXIS_NIVELES, default: "nivel_1" },
 
-    // Transcripción generada por IA
     transcripcionIA:         { type: String, default: "" },
     transcripcionGeneradaAt: { type: Date, default: null },
 
-    // Herramientas que el estudiante debe completar (sin manejoExpediente)
     herramientas: {
       ficha:           { type: Boolean, default: false },
       hc:              { type: Boolean, default: false },

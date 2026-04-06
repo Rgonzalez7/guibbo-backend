@@ -222,34 +222,68 @@ function normalizeGrabarVozFields(body) {
   const tipoEntrenamiento = TIPOS_ENTRENAMIENTO.includes(body?.tipoEntrenamiento) ? body.tipoEntrenamiento : "habilidad_especifica";
   const intervenciones    = calcularIntervenciones(contexto, escenario, nivel);
   const casos             = normalizeCasosGV(body?.casos);
-  return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones, casos };
+  const habilidades    = Array.isArray(body?.habilidades)    ? body.habilidades    : [];
+  const habilidadesTCC = Array.isArray(body?.habilidadesTCC) ? body.habilidadesTCC : [];
+  const modeloTerapia  = typeof body?.modeloTerapia === "string" ? body.modeloTerapia : "";
+
+  return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones, casos, habilidades, habilidadesTCC, modeloTerapia };
 }
+
 
 /* =========================================================
    Generar casos Grabar Voz
 ========================================================= */
 exports.generarCasosGrabarVoz = async (req, res) => {
   try {
-    const { contexto, escenario, nivel, tipoEntrenamiento, intervenciones } = req.body || {};
+    const {
+      contexto, escenario, nivel, tipoEntrenamiento,
+      habilidades, habilidadesTCC, modeloTerapia,
+    } = req.body || {};
 
     if (!contexto || !escenario || !nivel) {
       return res.status(400).json({ message: "contexto, escenario y nivel son obligatorios." });
     }
 
-    // ✅ Derivar formatoCaso según el escenario
     const ESCENARIOS_FRASE = new Set([
-      "intervencion",
-      "intervencion_estudiante",
-      "feedback",
-      "manejo_conflictos",
-      "burnout",
-      "acoso_laboral",
+      "intervencion", "intervencion_estudiante", "feedback",
+      "manejo_conflictos", "burnout", "acoso_laboral",
     ]);
     const formatoCaso = ESCENARIOS_FRASE.has(escenario) ? "frase_paciente" : "escenario_narrativo";
 
     const OpenAI = require("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const intervencionesLabel = (intervenciones || []).slice(0, 8).join(", ");
+
+    // ✅ Construir instrucción de habilidades según tipo de entrenamiento
+    const habilidadesBase = Array.isArray(habilidades) ? habilidades : [];
+    const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
+    const todasHabilidades = [...habilidadesBase, ...habilidadesTCCArr];
+
+    let instruccionHabilidades = "";
+
+    if (tipoEntrenamiento === "habilidad_especifica") {
+      const habilidad = todasHabilidades[0] || "";
+      instruccionHabilidades = `
+Tipo de entrenamiento: Habilidad específica
+Habilidad objetivo: ${habilidad}
+
+REGLA CRÍTICA: Los 3 casos deben estar diseñados EXCLUSIVAMENTE para que el estudiante practique la habilidad "${habilidad}". Todos los casos deben requerir esa misma habilidad como respuesta ideal.`;
+    } else if (tipoEntrenamiento === "discriminacion_clinica") {
+      instruccionHabilidades = `
+Tipo de entrenamiento: Discriminación clínica
+Habilidades objetivo: ${todasHabilidades.join(", ")}
+
+REGLA CRÍTICA: Debes generar AL MENOS 1 caso por cada habilidad seleccionada. Si hay más habilidades que casos (máximo 3), prioriza las primeras. Cada caso debe requerir una habilidad DIFERENTE como respuesta ideal, de modo que el estudiante deba discriminar qué habilidad aplicar en cada situación.`;
+    }
+
+    // ✅ Instrucción adicional si hay modelo TCC
+    let instruccionTCC = "";
+    if (modeloTerapia === "tcc" && habilidadesTCCArr.length > 0) {
+      instruccionTCC = `
+Modelo terapéutico: Terapia Cognitivo Conductual (TCC)
+Habilidad TCC objetivo: ${habilidadesTCCArr[0]}
+
+Los casos deben también ser coherentes con el enfoque cognitivo-conductual y la habilidad TCC indicada.`;
+    }
 
     const prompt = `
 Eres un diseñador experto de ejercicios para formación de estudiantes de psicología dentro de una plataforma de entrenamiento con voz.
@@ -260,11 +294,11 @@ Configuración del ejercicio:
 - Nivel: ${nivel}
 - Contexto: ${contexto}
 - Escenario: ${escenario}
-- Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
-- Habilidades objetivo: ${intervencionesLabel}
 - Formato requerido: ${formatoCaso}
+${instruccionHabilidades}
+${instruccionTCC}
 
-Debes respetar estas definiciones del sistema:
+Definiciones del sistema:
 
 1. Nivel:
 - Básico: casos claros, directos y de baja complejidad.
@@ -276,33 +310,20 @@ Debes respetar estas definiciones del sistema:
 - Educativo: lenguaje y situaciones propias de estudiantes, padres, docentes o evaluación psicopedagógica.
 - Laboral: lenguaje y situaciones propias de colaboradores, candidatos, jefaturas o evaluación organizacional.
 
-3. Escenario:
-- Exploración clínica: el estudiante debe responder explorando.
-- Intervención: el estudiante debe responder con una intervención puntual.
-- Devolución: el estudiante debe brindar retroalimentación o comunicar hallazgos.
-- Consignas de pruebas: el estudiante debe explicar instrucciones de aplicación de una prueba.
-
 Instrucciones según el formato requerido:
 
-Si el formato requerido es "frase_paciente":
-- Cada caso debe consistir en una sola frase dicha por una persona del contexto correspondiente.
-- Debe sonar natural, realista y útil para que el estudiante responda verbalmente.
-- Máximo 25 palabras por caso.
+Si el formato es "frase_paciente":
+- Una sola frase dicha por una persona del contexto. Natural, realista. Máximo 25 palabras.
 
-Si el formato requerido es "escenario_narrativo":
-- Cada caso debe describir brevemente una situación profesional realista.
-- Debe incluir información mínima útil: edad aproximada o rol, motivo o situación, y momento de interacción.
-- Máximo 3 oraciones por caso.
+Si el formato es "escenario_narrativo":
+- Situación profesional breve. Incluye rol/edad, motivo y momento. Máximo 3 oraciones.
 
 Reglas obligatorias:
-- No incluyas nunca la respuesta del estudiante, terapeuta o evaluador.
-- No expliques la técnica.
-- No conviertas el caso en instrucción directa al estudiante.
+- No incluyas la respuesta del estudiante ni expliques la técnica.
 - Los 3 casos deben ser distintos entre sí.
-- Los casos deben estar alineados con las habilidades objetivo seleccionadas.
-- Usa lenguaje natural y profesional, sin dramatizar de más.
+- Usa lenguaje natural y profesional.
 
-Responde únicamente con JSON válido en este formato:
+Responde únicamente con JSON válido:
 
 {
   "tipo_formato": "${formatoCaso}",
@@ -335,7 +356,6 @@ Responde únicamente con JSON válido en este formato:
     return res.status(500).json({ message: "Error al generar casos con IA.", error: err.message });
   }
 };
-
 
 /* =========================================================
    Wrappers CREATE por tipo
@@ -884,11 +904,15 @@ exports.crearEjercicioAdmin = async (req, res) => {
         nivel:              gvFields.nivel,
         tipoEntrenamiento:  gvFields.tipoEntrenamiento,
         intervenciones:     gvFields.intervenciones,
+        habilidades:        gvFields.habilidades,       
+        habilidadesTCC:     gvFields.habilidadesTCC,    
+        modeloTerapia:      gvFields.modeloTerapia,     
         caso:               gvFields.casos[0]?.texto || "",
         praxisNivel:        normalizePraxisNivel(req.body?.praxisNivel || gvFields.nivel),
         modeloIntervencion: normalizeModeloIntervencion(req.body?.modeloIntervencion || ""),
         contextoSesion:     normalizeContextoSesion(req.body?.contextoSesion),
       });
+
 
     } else if (tipoEjercicio === "Interpretación de frases incompletas") {
       detalle = await EjercicioInterpretacionFrases.create({
@@ -1000,13 +1024,19 @@ exports.actualizarEjercicioAdmin = async (req, res) => {
       if (!detalle) detalle = new EjercicioGrabarVoz({ ejercicio: id });
       const gvFields = normalizeGrabarVozFields(req.body);
       if (gvFields.casos.length > 0) { detalle.casos = gvFields.casos; detalle.caso = gvFields.casos[0]?.texto || ""; }
-      detalle.contexto = gvFields.contexto; detalle.escenario = gvFields.escenario;
-      detalle.nivel = gvFields.nivel; detalle.tipoEntrenamiento = gvFields.tipoEntrenamiento;
-      detalle.intervenciones = gvFields.intervenciones;
+      detalle.contexto          = gvFields.contexto;
+      detalle.escenario         = gvFields.escenario;
+      detalle.nivel             = gvFields.nivel;
+      detalle.tipoEntrenamiento = gvFields.tipoEntrenamiento;
+      detalle.intervenciones    = gvFields.intervenciones;
+      detalle.habilidades       = gvFields.habilidades;    
+      detalle.habilidadesTCC    = gvFields.habilidadesTCC; 
+      detalle.modeloTerapia     = gvFields.modeloTerapia;  
       if (praxisNivel        !== undefined) detalle.praxisNivel        = normalizePraxisNivel(praxisNivel);
       if (modeloIntervencion !== undefined) detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
       if (contextoSesion     !== undefined) detalle.contextoSesion     = normalizeContextoSesion(contextoSesion);
       await detalle.save();
+
 
     } else if (ejercicio.tipoEjercicio === "Interpretación de frases incompletas") {
       detalle = await EjercicioInterpretacionFrases.findOne({ ejercicio: id });
