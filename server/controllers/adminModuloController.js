@@ -253,10 +253,14 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     const OpenAI = require("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // ✅ Construir instrucción de habilidades según tipo de entrenamiento
-    const habilidadesBase = Array.isArray(habilidades) ? habilidades : [];
+    const habilidadesBase   = Array.isArray(habilidades)    ? habilidades    : [];
     const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
-    const todasHabilidades = [...habilidadesBase, ...habilidadesTCCArr];
+    const todasHabilidades  = [...habilidadesBase, ...habilidadesTCCArr];
+
+    // ✅ Variable que faltaba — usada en el prompt
+    const intervencionesLabel = todasHabilidades.length > 0
+      ? todasHabilidades.join(", ")
+      : "sin habilidades específicas seleccionadas";
 
     let instruccionHabilidades = "";
 
@@ -267,25 +271,24 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     Habilidad objetivo: ${habilidad}
 
     REGLA CRÍTICA: Los 3 casos deben estar diseñados EXCLUSIVAMENTE para que el estudiante practique la habilidad "${habilidad}". Todos los casos deben requerir esa misma habilidad como respuesta ideal.`;
-        } else if (tipoEntrenamiento === "discriminacion_clinica") {
-          instruccionHabilidades = `
+    } else if (tipoEntrenamiento === "discriminacion_clinica") {
+      instruccionHabilidades = `
     Tipo de entrenamiento: Discriminación clínica
     Habilidades objetivo: ${todasHabilidades.join(", ")}
 
     REGLA CRÍTICA: Debes generar AL MENOS 1 caso por cada habilidad seleccionada. Si hay más habilidades que casos (máximo 3), prioriza las primeras. Cada caso debe requerir una habilidad DIFERENTE como respuesta ideal, de modo que el estudiante deba discriminar qué habilidad aplicar en cada situación.`;
-        }
+    }
 
-        // ✅ Instrucción adicional si hay modelo TCC
-        let instruccionTCC = "";
-        if (modeloTerapia === "tcc" && habilidadesTCCArr.length > 0) {
-          instruccionTCC = `
+    let instruccionTCC = "";
+    if (modeloTerapia === "tcc" && habilidadesTCCArr.length > 0) {
+      instruccionTCC = `
     Modelo terapéutico: Terapia Cognitivo Conductual (TCC)
     Habilidad TCC objetivo: ${habilidadesTCCArr[0]}
 
     Los casos deben también ser coherentes con el enfoque cognitivo-conductual y la habilidad TCC indicada.`;
-        }
+    }
 
-  const prompt = `
+    const prompt = `
   Eres un diseñador experto de ejercicios de MicroPraxis para estudiantes de psicología dentro de una plataforma de entrenamiento clínico.
 
   Tu tarea es generar exactamente 3 casos breves para entrenamiento de microintervenciones clínicas, según la configuración definida por el profesor.
@@ -301,6 +304,10 @@ exports.generarCasosGrabarVoz = async (req, res) => {
   •⁠  ⁠Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
   •⁠  ⁠Habilidades seleccionadas: ${intervencionesLabel}
   •⁠  ⁠Formato requerido: ${formatoCaso}
+
+  ${instruccionHabilidades}
+
+  ${instruccionTCC}
 
   Definiciones del sistema:
 
@@ -419,6 +426,7 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     return res.status(500).json({ message: "Error al generar casos con IA.", error: err.message });
   }
 };
+
 
 /* =========================================================
    Wrappers CREATE por tipo
