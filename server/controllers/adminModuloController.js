@@ -231,201 +231,78 @@ function normalizeGrabarVozFields(body) {
 
 
 /* =========================================================
-   Generar casos Grabar Voz
+   Generar casos Grabar Voz — casos fijos del pool
 ========================================================= */
 exports.generarCasosGrabarVoz = async (req, res) => {
   try {
     const {
       contexto, escenario, nivel, tipoEntrenamiento,
-      habilidades, habilidadesTCC, modeloTerapia,
+      habilidades, habilidadesTCC,
+      submoduloId, // el frontend debe enviarlo para rastrear casos usados
     } = req.body || {};
 
     if (!contexto || !escenario || !nivel) {
       return res.status(400).json({ message: "contexto, escenario y nivel son obligatorios." });
     }
 
-    const ESCENARIOS_FRASE = new Set([
-      "intervencion", "intervencion_estudiante", "feedback",
-      "manejo_conflictos", "burnout", "acoso_laboral",
-    ]);
-    const formatoCaso = ESCENARIOS_FRASE.has(escenario) ? "frase_paciente" : "escenario_narrativo";
+    const { getCasos } = require("../data/casosMicroIntervenciones");
 
-    const OpenAI = require("openai");
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
+    // Determinar habilidad principal
     const habilidadesBase   = Array.isArray(habilidades)    ? habilidades    : [];
     const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
     const todasHabilidades  = [...habilidadesBase, ...habilidadesTCCArr];
+    const habilidadPrincipal = todasHabilidades[0] || "";
 
-    // ✅ Variable que faltaba — usada en el prompt
-    const intervencionesLabel = todasHabilidades.length > 0
-      ? todasHabilidades.join(", ")
-      : "sin habilidades específicas seleccionadas";
-
-    let instruccionHabilidades = "";
-
-    if (tipoEntrenamiento === "habilidad_especifica") {
-      const habilidad = todasHabilidades[0] || "";
-      instruccionHabilidades = `
-    Tipo de entrenamiento: Habilidad específica
-    Habilidad objetivo: ${habilidad}
-
-    REGLA CRÍTICA: Los 3 casos deben estar diseñados EXCLUSIVAMENTE para que el estudiante practique la habilidad "${habilidad}". Todos los casos deben requerir esa misma habilidad como respuesta ideal.`;
-    } else if (tipoEntrenamiento === "discriminacion_clinica") {
-      instruccionHabilidades = `
-    Tipo de entrenamiento: Discriminación clínica
-    Habilidades objetivo: ${todasHabilidades.join(", ")}
-
-    REGLA CRÍTICA: Debes generar AL MENOS 1 caso por cada habilidad seleccionada. Si hay más habilidades que casos (máximo 3), prioriza las primeras. Cada caso debe requerir una habilidad DIFERENTE como respuesta ideal, de modo que el estudiante deba discriminar qué habilidad aplicar en cada situación.`;
+    if (!habilidadPrincipal) {
+      return res.status(400).json({ message: "Selecciona al menos una habilidad para generar casos." });
     }
 
-    let instruccionTCC = "";
-    if (modeloTerapia === "tcc" && habilidadesTCCArr.length > 0) {
-      instruccionTCC = `
-    Modelo terapéutico: Terapia Cognitivo Conductual (TCC)
-    Habilidad TCC objetivo: ${habilidadesTCCArr[0]}
+    // Normalizar nombre de habilidad al formato de la clave del pool
+    const habilidadNorm = habilidadPrincipal
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    Los casos deben también ser coherentes con el enfoque cognitivo-conductual y la habilidad TCC indicada.`;
+    // Nivel del pool — mapear "basico/intermedio/avanzado" a la clave
+    const nivelMap = { basico: "basico", intermedio: "intermedio", avanzado: "avanzado" };
+    const nivelPool = nivelMap[nivel] || "basico";
+
+    const pool = getCasos(contexto, escenario, nivelPool, habilidadNorm);
+
+    if (!pool.length) {
+      return res.status(404).json({
+        message: `No hay casos disponibles para: ${contexto} / ${escenario} / ${nivelPool} / ${habilidadNorm}.`,
+      });
     }
 
-    const prompt = `
-  Eres un diseñador experto de ejercicios de MicroPraxis para estudiantes de psicología dentro de una plataforma de entrenamiento clínico.
+    // Recuperar qué casos ya usó este submódulo
+    let casosUsados = [];
+    if (submoduloId && mongoose.Types.ObjectId.isValid(submoduloId)) {
+      const registros = await EjercicioGrabarVoz.find({
+        ejercicio: {
+          $in: await Ejercicio.find({ submodulo: submoduloId }).distinct("_id"),
+        },
+      }).select("casosUsados").lean();
 
-  Tu tarea es generar exactamente 3 casos breves para entrenamiento de microintervenciones clínicas, según la configuración definida por el profesor.
-
-  IMPORTANTE:
-  Estos casos NO son para análisis clínico profundo ni para informes extensos.
-  Estos casos son para provocar una respuesta breve, inmediata y clínicamente pertinente por parte del estudiante.
-
-  Configuración del ejercicio:
-  •⁠  ⁠Nivel: ${nivel}
-  •⁠  ⁠Contexto: ${contexto}
-  •⁠  ⁠Escenario: ${escenario}
-  •⁠  ⁠Tipo de entrenamiento: ${tipoEntrenamiento || "habilidad_especifica"}
-  •⁠  ⁠Habilidades seleccionadas: ${intervencionesLabel}
-  •⁠  ⁠Formato requerido: ${formatoCaso}
-
-  ${instruccionHabilidades}
-
-  ${instruccionTCC}
-
-  Definiciones del sistema:
-
-  1.⁠ ⁠Nivel:
-  •⁠  ⁠Básico: casos claros, directos, con baja ambigüedad y una entrada clínica sencilla.
-  •⁠  ⁠Intermedio: casos con más matices, contradicción leve o ambigüedad moderada.
-  •⁠  ⁠Avanzado: casos con mayor ambigüedad, resistencia, complejidad emocional o necesidad de mayor criterio clínico.
-
-  2.⁠ ⁠Contexto:
-  •⁠  ⁠Clínico: lenguaje y malestar propios de pacientes en atención psicológica.
-  •⁠  ⁠Educativo: lenguaje y situaciones propias de estudiantes, padres, docentes o evaluación psicopedagógica.
-  •⁠  ⁠Laboral: lenguaje y situaciones propias de colaboradores, jefaturas, clima laboral o evaluación organizacional.
-
-  3.⁠ ⁠Escenario:
-  •⁠  ⁠Exploración: el caso debe invitar a abrir, explorar o profundizar.
-  •⁠  ⁠Intervención: el caso debe permitir una acción terapéutica puntual.
-  •⁠  ⁠Devolución: el caso debe implicar retroalimentación o comunicación de hallazgos.
-  •⁠  ⁠Consignas de pruebas: el caso debe implicar explicación clara de instrucciones.
-
-  4.⁠ ⁠Tipo de entrenamiento:
-  •⁠  ⁠Habilidad específica: cada caso debe estar diseñado para que la habilidad seleccionada sea claramente la más adecuada.
-  •⁠  ⁠Discriminación clínica: cada caso debe permitir varias posibles respuestas clínicas, pero una de las habilidades seleccionadas debe ser la más pertinente en ese momento.
-
-  Instrucciones según tipo de entrenamiento:
-
-  Si el tipo de entrenamiento es "habilidad_especifica":
-  •⁠  ⁠Diseña cada caso para provocar principalmente la habilidad seleccionada.
-  •⁠  ⁠Evita que otra habilidad resulte más adecuada que la seleccionada.
-  •⁠  ⁠El estudiante no debe dudar demasiado sobre qué tipo de técnica usar, sino sobre cómo formularla bien.
-
-  Si el tipo de entrenamiento es "discriminacion_clinica":
-  •⁠  ⁠Diseña cada caso para que varias de las habilidades seleccionadas parezcan posibles.
-  •⁠  ⁠Sin embargo, una debe ser la más adecuada en ese momento clínico.
-  •⁠  ⁠El caso debe exigir juicio clínico, no solo ejecución.
-  •⁠  ⁠No incluyas elementos que requieran técnicas fuera de las habilidades seleccionadas.
-
-  Instrucciones según habilidades seleccionadas:
-  •⁠  ⁠Si incluye "preguntas abiertas": el caso debe abrir varias posibles rutas de exploración, sin cerrarlas.
-  •⁠  ⁠Si incluye "paráfrasis": el caso debe contener contenido claro que pueda reorganizarse o devolverse sin interpretar.
-  •⁠  ⁠Si incluye "reflejo": el caso debe contener carga emocional implícita o explícita.
-  •⁠  ⁠Si incluye "validación": el caso debe incluir conflicto interno, vergüenza, ambivalencia o malestar que pueda legitimarse sin reforzar distorsión.
-  •⁠  ⁠Si incluye "clarificación": el caso debe contener ambigüedad, vaguedad o lenguaje poco preciso.
-  •⁠  ⁠Si incluye "síntesis": el caso debe incluir más de un elemento relevante, como emociones, ideas o situaciones mezcladas.
-
-  Instrucciones según formato requerido:
-
-  Si el formato requerido es "frase_paciente":
-  •⁠  ⁠Cada caso debe consistir en una sola frase dicha por una persona del contexto correspondiente.
-  •⁠  ⁠Debe sonar natural, breve, realista y clínicamente útil.
-  •⁠  ⁠Debe ser suficiente para provocar una microrespuesta.
-  •⁠  ⁠Máximo 25 palabras por caso.
-
-  Si el formato requerido es "escenario_narrativo":
-  •⁠  ⁠Cada caso debe describir brevemente una situación profesional realista.
-  •⁠  ⁠Debe incluir información mínima útil: edad aproximada o rol, situación principal y momento de interacción.
-  •⁠  ⁠Máximo 3 oraciones por caso.
-
-  Reglas estrictas de variedad:
-  Los 3 casos deben ser realmente diferentes entre sí.
-  No basta con cambiar pocas palabras.
-
-  Cada caso debe variar al menos en 4 de estos elementos:
-  •⁠  ⁠tema principal
-  •⁠  ⁠emoción dominante
-  •⁠  ⁠foco clínico
-  •⁠  ⁠tipo de conflicto
-  •⁠  ⁠estilo lingüístico
-  •⁠  ⁠nivel de claridad o ambigüedad
-  •⁠  ⁠contexto situacional específico
-
-  Evita repetir:
-  •⁠  ⁠la misma estructura de frase
-  •⁠  ⁠el mismo conflicto emocional
-  •⁠  ⁠el mismo tipo de problema
-  •⁠  ⁠frases genéricas como "me siento mal", "no sé qué hacer", "todo me abruma" si no tienen un matiz distintivo
-
-  Reglas obligatorias:
-  •⁠  ⁠No incluyas la respuesta del estudiante, terapeuta ni evaluador.
-  •⁠  ⁠No expliques la técnica.
-  •⁠  ⁠No conviertas el caso en una instrucción.
-  •⁠  ⁠No uses diagnóstico explícito.
-  •⁠  ⁠No uses lenguaje robótico o demasiado académico.
-  •⁠  ⁠Usa lenguaje natural, breve y clínicamente útil.
-  •⁠  ⁠Prioriza casos que suenen diferentes entre sí.
-
-  Responde únicamente con JSON válido en este formato:
-
-  {
-    "tipo_formato": "${formatoCaso}",
-    "casos": [
-      "caso 1",
-      "caso 2",
-      "caso 3"
-    ]
-  }
-  `.trim();
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.85,
-      max_tokens: 600,
-    });
-
-    const raw    = completion.choices?.[0]?.message?.content || "";
-    const clean  = raw.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-
-    if (!Array.isArray(parsed?.casos) || parsed.casos.length === 0) {
-      return res.status(500).json({ message: "La IA no generó casos válidos." });
+      casosUsados = registros.flatMap((r) => r.casosUsados || []);
     }
 
-    return res.json({ casos: parsed.casos.slice(0, 3) });
+    // Separar disponibles de ya usados
+    const disponibles = pool.filter((c) => !casosUsados.includes(c));
+    const yaUsados    = pool.filter((c) =>  casosUsados.includes(c));
+
+    // Combinar: primero los disponibles, luego los ya usados (menos recientes primero)
+    const ordenados = [...disponibles, ...yaUsados];
+
+    const resultado = ordenados.slice(0, 3);
+
+    return res.json({ casos: resultado });
   } catch (err) {
     console.error("❌ Error generando casos Grabar Voz:", err);
-    return res.status(500).json({ message: "Error al generar casos con IA.", error: err.message });
+    return res.status(500).json({ message: "Error al obtener casos.", error: err.message });
   }
 };
+
 
 
 /* =========================================================

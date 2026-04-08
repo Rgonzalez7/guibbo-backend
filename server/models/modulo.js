@@ -206,6 +206,7 @@ const ejercicioRolePlaySchema = new Schema(
     },
     pruebasConfig: { type: Schema.Types.Mixed, default: {} },
     evaluaciones:  { type: Schema.Types.Mixed, default: null, select: false },
+    casosUsados: { type: [String], default: [] },
   },
   { timestamps: true }
 );
