@@ -229,16 +229,15 @@ function normalizeGrabarVozFields(body) {
   return { contexto, escenario, nivel, tipoEntrenamiento, intervenciones, casos, habilidades, habilidadesTCC, modeloTerapia };
 }
 
-
 /* =========================================================
    Generar casos Grabar Voz — casos fijos del pool
 ========================================================= */
 exports.generarCasosGrabarVoz = async (req, res) => {
   try {
     const {
-      contexto, escenario, nivel, tipoEntrenamiento,
+      contexto, escenario, nivel,
       habilidades, habilidadesTCC,
-      submoduloId, // el frontend debe enviarlo para rastrear casos usados
+      casosExcluir, // ← textos de casos ya usados en el formulario actual
     } = req.body || {};
 
     if (!contexto || !escenario || !nivel) {
@@ -247,26 +246,21 @@ exports.generarCasosGrabarVoz = async (req, res) => {
 
     const { getCasos } = require("../data/casosMicroIntervenciones");
 
-    // Determinar habilidad principal
-    const habilidadesBase   = Array.isArray(habilidades)    ? habilidades    : [];
-    const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
-    const todasHabilidades  = [...habilidadesBase, ...habilidadesTCCArr];
+    const habilidadesBase    = Array.isArray(habilidades)    ? habilidades    : [];
+    const habilidadesTCCArr  = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
+    const todasHabilidades   = [...habilidadesBase, ...habilidadesTCCArr];
     const habilidadPrincipal = todasHabilidades[0] || "";
 
     if (!habilidadPrincipal) {
       return res.status(400).json({ message: "Selecciona al menos una habilidad para generar casos." });
     }
 
-    // Normalizar nombre de habilidad al formato de la clave del pool
     const habilidadNorm = habilidadPrincipal
       .toLowerCase()
       .replace(/\s+/g, "_")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    // Nivel del pool — mapear "basico/intermedio/avanzado" a la clave
-    const nivelMap = { basico: "basico", intermedio: "intermedio", avanzado: "avanzado" };
-    const nivelPool = nivelMap[nivel] || "basico";
-
+    const nivelPool = ["basico","intermedio","avanzado"].includes(nivel) ? nivel : "basico";
     const pool = getCasos(contexto, escenario, nivelPool, habilidadNorm);
 
     if (!pool.length) {
@@ -275,34 +269,22 @@ exports.generarCasosGrabarVoz = async (req, res) => {
       });
     }
 
-    // Recuperar qué casos ya usó este submódulo
-    let casosUsados = [];
-    if (submoduloId && mongoose.Types.ObjectId.isValid(submoduloId)) {
-      const registros = await EjercicioGrabarVoz.find({
-        ejercicio: {
-          $in: await Ejercicio.find({ submodulo: submoduloId }).distinct("_id"),
-        },
-      }).select("casosUsados").lean();
+    // Excluir los casos que ya están en el formulario
+    const excluidos  = Array.isArray(casosExcluir) ? casosExcluir : [];
+    const disponibles = pool.filter((c) => !excluidos.includes(c));
 
-      casosUsados = registros.flatMap((r) => r.casosUsados || []);
-    }
+    // Si todos ya están usados, rotar desde el pool completo aleatoriamente
+    const candidatos = disponibles.length > 0 ? disponibles : pool;
 
-    // Separar disponibles de ya usados
-    const disponibles = pool.filter((c) => !casosUsados.includes(c));
-    const yaUsados    = pool.filter((c) =>  casosUsados.includes(c));
+    // Elegir aleatoriamente para evitar siempre el mismo primero
+    const caso = candidatos[Math.floor(Math.random() * candidatos.length)];
 
-    // Combinar: primero los disponibles, luego los ya usados (menos recientes primero)
-    const ordenados = [...disponibles, ...yaUsados];
-
-    const resultado = ordenados.slice(0, 3);
-
-    return res.json({ casos: resultado });
+    return res.json({ caso });
   } catch (err) {
     console.error("❌ Error generando casos Grabar Voz:", err);
     return res.status(500).json({ message: "Error al obtener casos.", error: err.message });
   }
 };
-
 
 
 /* =========================================================
