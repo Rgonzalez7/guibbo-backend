@@ -56,7 +56,6 @@ exports.crearMateriaAdmin = async (req, res) => {
       periodoAcademico,
       profesorId,
       aula,
-      semestre,
       creditos,
       horario,
     } = req.body;
@@ -101,7 +100,6 @@ exports.crearMateriaAdmin = async (req, res) => {
       profesorEmail: profesor.email,
       universidad: universidadId,
       aula: aula || "",
-      semestre: semestre || "",
       creditos: creditos || 0,
       horario: horario || "",
       estado: "activo",
@@ -243,7 +241,6 @@ exports.actualizarMateriaAdmin = async (req, res) => {
       periodoAcademico,
       profesorId,
       aula,
-      semestre,
       creditos,
       horario,
       estado,
@@ -297,7 +294,6 @@ exports.actualizarMateriaAdmin = async (req, res) => {
       profesor.nombre || `${profesor.nombres || ""} ${profesor.apellidos || ""}`.trim();
     materia.profesorEmail = profesor.email;
     materia.aula = aula || "";
-    materia.semestre = semestre || "";
     materia.creditos = creditos || 0;
     materia.horario = horario || "";
 

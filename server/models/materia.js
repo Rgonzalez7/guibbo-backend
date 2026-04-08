@@ -54,11 +54,6 @@ const materiaSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    semestre: {
-      type: String,
-      trim: true,
-      default: "",
-    },
     creditos: {
       type: Number,
       default: 0,
