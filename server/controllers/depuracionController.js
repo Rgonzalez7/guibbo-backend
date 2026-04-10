@@ -154,22 +154,36 @@ function normalizeSpeakerManual(value) {
   return "unknown";
 }
 
+// ✅ versión más permisiva — busca texto en todos los campos posibles
 function normalizeTurnManual(raw, idx = 0) {
   if (!raw || typeof raw !== "object") return null;
-  const id = safeStr(raw.id, "") || safeStr(raw._id, "") || safeStr(raw.turnId, "") || `t_${idx + 1}`;
+
+  const id = safeStr(raw.id, "")
+    || safeStr(raw._id, "")
+    || safeStr(raw.turnId, "")
+    || `t_${idx + 1}`;
 
   const text = safeStr(raw.text, "")
     || safeStr(raw.texto, "")
     || safeStr(raw.content, "")
     || safeStr(raw.message, "")
+    || safeStr(raw.transcripcion, "")
     || "";
 
+  const cleanedText = text.trim();
+  if (!cleanedText) return null;
+
   const speaker = normalizeSpeakerManual(
-    raw.speaker || raw.role || raw.rol || raw.label || raw.participant || raw.hablante || ""
+    raw.speaker
+    || raw.role
+    || raw.rol
+    || raw.label
+    || raw.participant
+    || raw.hablante
+    || raw.speakerLabel
+    || ""
   );
 
-  const cleanedText = safeStr(text, "").trim();
-  if (!cleanedText) return null;
   return {
     id,
     speaker,
@@ -194,7 +208,14 @@ function parseTurnsFromRawText(rawText) {
     const m = safeStr(line, "").match(rx);
     if (m) {
       if (current && safeStr(current.text, "").trim()) {
-        turns.push({ id: `t_${turns.length + 1}`, speaker: normalizeSpeakerManual(current.speaker), text: safeStr(current.text, "").trim(), confidence: null, needsReview: false, reason: "parsed_from_raw", startChar: null, endChar: null });
+        turns.push({
+          id: `t_${turns.length + 1}`,
+          speaker: normalizeSpeakerManual(current.speaker),
+          text: safeStr(current.text, "").trim(),
+          confidence: null, needsReview: false,
+          reason: "parsed_from_raw",
+          startChar: null, endChar: null,
+        });
       }
       current = { speaker: m[1], text: safeStr(m[2], "") };
     } else if (current) {
@@ -205,12 +226,20 @@ function parseTurnsFromRawText(rawText) {
   }
 
   if (current && safeStr(current.text, "").trim()) {
-    turns.push({ id: `t_${turns.length + 1}`, speaker: normalizeSpeakerManual(current.speaker), text: safeStr(current.text, "").trim(), confidence: null, needsReview: false, reason: "parsed_from_raw", startChar: null, endChar: null });
+    turns.push({
+      id: `t_${turns.length + 1}`,
+      speaker: normalizeSpeakerManual(current.speaker),
+      text: safeStr(current.text, "").trim(),
+      confidence: null, needsReview: false,
+      reason: "parsed_from_raw",
+      startChar: null, endChar: null,
+    });
   }
 
   return turns;
 }
 
+// ✅ más rutas de búsqueda para cubrir Role Playing y Grabar Voz
 function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
   const candidates = [
     rpData?.diarizacionTurnos,
@@ -225,12 +254,18 @@ function extractManualBaseTurns(inst, rpData = {}, fallbackRawText = "") {
     rpData?.transcriptionTurns,
     rpData?.transcriptTurns,
     deepGet(rpData, "transcriptionData.turns", null),
+    deepGet(rpData, "payload.diarizacionTurnos", null),
+    deepGet(rpData, "payload.turnos", null),
+    deepGet(rpData, "payload.diarizedTurns", null),
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion.turns", null),
     deepGet(inst, "respuestas.rolePlaying.transcripcion.diarizacion", null),
     deepGet(inst, "respuestas.rolePlaying.turnosDiarizados", null),
     deepGet(inst, "respuestas.rolePlaying.turnos", null),
     deepGet(inst, "respuestas.rolePlaying.payload.diarizacionTurnos", null),
     deepGet(inst, "respuestas.rolePlaying.payload.turnos", null),
+    deepGet(inst, "respuestas.rolePlaying.diarizacionTurnos", null),
+    deepGet(inst, "respuestas.grabarVoz.diarizacionTurnos", null),
+    deepGet(inst, "respuestas.grabarVoz.turnos", null),
   ];
 
   for (const item of candidates) {
@@ -315,7 +350,11 @@ function applyTurnSplitsToTurns(turns = [], turnSplits = {}) {
       const id = safeStr(sp?.id, "");
       const text = safeStr(sp?.text, "").trim();
       if (!id || !text) continue;
-      out.push({ id, speaker: safeStr(sp?.speaker, "unknown"), text, confidence: null, needsReview: false, reason: "user_split", startChar: null, endChar: null });
+      out.push({
+        id, speaker: safeStr(sp?.speaker, "unknown"), text,
+        confidence: null, needsReview: false,
+        reason: "user_split", startChar: null, endChar: null,
+      });
     }
   }
   return out;
@@ -395,7 +434,12 @@ function normalizeTurnEdits(turnEditsRaw) {
       if (!text) return null;
       const start = Number(r?.start);
       const end = Number(r?.end);
-      return { splitId: splitId || null, text, start: Number.isFinite(start) ? start : null, end: Number.isFinite(end) ? end : null };
+      return {
+        splitId: splitId || null,
+        text,
+        start: Number.isFinite(start) ? start : null,
+        end: Number.isFinite(end) ? end : null,
+      };
     }).filter(Boolean);
     if (!originalText && removals.length === 0) continue;
     out[tid] = { originalText, removals };
@@ -512,7 +556,6 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
         safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), "");
 
       if (isObj(clientResult) && Array.isArray(clientResult.baseTurns) && clientResult.baseTurns.length > 0) {
-        // ✅ clientResult del frontend es suficiente
         dep.result = clientResult;
       } else {
         const baseTurns = extractManualBaseTurns(inst, rpData, clampText(rawText || "", 12000));
@@ -531,8 +574,8 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
     if (!depResult || !isObj(depResult)) return res.status(400).json({ message: "No existe un resultado de depuración para aplicar." });
 
     const speakerOverridesIn = decisions?.speakerOverrides && typeof decisions.speakerOverrides === "object" ? decisions.speakerOverrides : {};
-    const turnSplitsIn       = decisions?.turnSplits       && typeof decisions.turnSplits === "object"       ? decisions.turnSplits       : {};
-    const turnEditsIn        = decisions?.turnEdits        && typeof decisions.turnEdits === "object"        ? decisions.turnEdits        : {};
+    const turnSplitsIn       = decisions?.turnSplits && typeof decisions.turnSplits === "object" ? decisions.turnSplits : {};
+    const turnEditsIn        = decisions?.turnEdits && typeof decisions.turnEdits === "object" ? decisions.turnEdits : {};
 
     ensureDepHistory(dep);
     pushDepHistorySnapshot(dep, {
@@ -552,34 +595,40 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
       turnEdits:        isObj(normTE) ? normTE : {},
     };
 
-    // ✅ FIX: orden de prioridad para obtener turnsBase
-    // 1. clientResult.baseTurns (frontend siempre tiene los turnos reales)
-    // 2. depResult.baseTurns guardado en BD
-    // 3. depResult.turns sin splits
-    // 4. extractManualBaseTurns como último recurso
+    // ── Obtener turnsBase en orden de prioridad ──
     let turnsBase = [];
 
+    // 1. clientResult.baseTurns del frontend
     if (isObj(clientResult) && Array.isArray(clientResult.baseTurns) && clientResult.baseTurns.length > 0) {
       turnsBase = clientResult.baseTurns.map(normalizeTurnManual).filter(Boolean);
     }
 
+    // 2. depResult.baseTurns guardado en BD
     if (!turnsBase.length) {
       turnsBase = safeArr(depResult.baseTurns).filter((t) => safeStr(t?.text, "").trim().length > 0);
     }
 
+    // 3. depResult.turns sin splits
     if (!turnsBase.length) {
       turnsBase = safeArr(depResult.turns).filter((t) => {
         const id     = safeStr(t?.id, "");
         const reason = safeStr(t?.reason, "");
-        return reason !== "user_split" && !id.startsWith("split-") && !id.startsWith("split_") && safeStr(t?.text, "").trim().length > 0;
+        return reason !== "user_split"
+          && !id.startsWith("split-")
+          && !id.startsWith("split_")
+          && safeStr(t?.text, "").trim().length > 0;
       });
     }
 
+    // 4. extractManualBaseTurns desde la instancia
     if (!turnsBase.length) {
       const rpData  = isObj(data) ? data : {};
       const rawText =
         safeStr(rpData?.transcripcion, "") ||
-        safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "");
+        safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.raw.text", ""), "") ||
+        safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion.depuracion.finalText", ""), "") ||
+        safeStr(deepGet(inst, "respuestas.rolePlaying.transcripcion", ""), "") ||
+        safeStr(deepGet(inst, "respuestas.grabarVoz.transcripcion", ""), "");
       turnsBase = extractManualBaseTurns(inst, rpData, clampText(rawText, 12000));
     }
 
@@ -599,25 +648,24 @@ module.exports.aplicarDepuracionTranscripcionRolePlay = async (req, res) => {
 
     if (setActive) tObj.activeVersion = "depurada";
 
-    // ✅ Siempre persistir baseTurns frescos para que la próxima llamada los encuentre
     dep.result = {
       ...depResult,
-      baseTurns:     turnsBase,
-      turns:         turnsBase,
-      appliedTurns:  turnsApplied,
-      issues:        [],
-      stats:         { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
-      cleanedText:   finalText,
+      baseTurns:    turnsBase,
+      turns:        turnsBase,
+      appliedTurns: turnsApplied,
+      issues:       [],
+      stats:        { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
+      cleanedText:  finalText,
       _applied: {
-        mode:               "manual",
-        setActive:          Boolean(setActive),
-        baseTurnsCount:     turnsBase.length,
-        afterEditsCount:    turnsAfterEdits.length,
-        appliedTurnsCount:  turnsApplied.length,
-        hasSplits:          Object.keys(dep.userDecisions.turnSplits || {}).length > 0,
-        splitsCount:        Object.values(dep.userDecisions.turnSplits || {}).reduce((a, arr) => a + (Array.isArray(arr) ? arr.length : 0), 0),
-        hasEdits:           Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
-        historyCount:       Array.isArray(dep.history) ? dep.history.length : 0,
+        mode:              "manual",
+        setActive:         Boolean(setActive),
+        baseTurnsCount:    turnsBase.length,
+        afterEditsCount:   turnsAfterEdits.length,
+        appliedTurnsCount: turnsApplied.length,
+        hasSplits:         Object.keys(dep.userDecisions.turnSplits || {}).length > 0,
+        splitsCount:       Object.values(dep.userDecisions.turnSplits || {}).reduce((a, arr) => a + (Array.isArray(arr) ? arr.length : 0), 0),
+        hasEdits:          Object.keys(dep.userDecisions.turnEdits || {}).length > 0,
+        historyCount:      Array.isArray(dep.history) ? dep.history.length : 0,
       },
     };
 
@@ -672,6 +720,7 @@ module.exports.deshacerDepuracionTranscripcionRolePlay = async (req, res) => {
       turnsBase = safeArr(depResult.turns).filter((t) => safeStr(t?.text, "").trim().length > 0);
     }
 
+    // ✅ CORREGIDO: nombre de variable faltaba
     const turnsAfterEdits = applyTurnEditsToTurns(turnsBase, dep.userDecisions.turnEdits);
     const turnsApplied    = applyTurnSplitsToTurns(turnsAfterEdits, dep.userDecisions.turnSplits);
     const finalText       = buildFinalTextFromTurns(turnsApplied, dep.userDecisions.speakerOverrides);
@@ -690,7 +739,10 @@ module.exports.deshacerDepuracionTranscripcionRolePlay = async (req, res) => {
       issues:       [],
       stats:        { removedDuplicates: 0, mergedTurns: 0, flagged: 0 },
       cleanedText:  finalText,
-      _undo:        { restoredAt: new Date().toISOString(), historyCount: Array.isArray(dep.history) ? dep.history.length : 0 },
+      _undo: {
+        restoredAt:   new Date().toISOString(),
+        historyCount: Array.isArray(dep.history) ? dep.history.length : 0,
+      },
     };
 
     markTranscripcionModified(inst);
