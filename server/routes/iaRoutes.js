@@ -15,12 +15,14 @@ const {
 const { analizarPraxis } = require("../controllers/iaPraxisController");
 const { analizarHerramientas } = require("../controllers/iaHerramientasController");
 
-// ✅ Una sola declaración con los tres métodos
 const {
   obtenerPerfilTerapeutico,
   generarPerfilTerapeutico,
   generarPerfilUltimoEjercicio,
 } = require("../controllers/perfilTerapeuticoController");
+
+const { analizarCasoGV, analizarGlobalGV } = require("../controllers/iaMicroPraxisController");
+
 
 // Consejo diario
 router.post("/consejo-diario", verifyToken, generarConsejoDiario);
@@ -43,5 +45,9 @@ router.post("/roleplay/transcripcion/depuracion/undo", verifyToken, deshacerDepu
 router.get("/perfil-terapeutico", verifyToken, obtenerPerfilTerapeutico);
 router.post("/perfil-terapeutico/generar", verifyToken, generarPerfilTerapeutico);
 router.post("/perfil-terapeutico/generar-ultimo", verifyToken, generarPerfilUltimoEjercicio);
+
+// Grabar Voz — evaluación por habilidad
+router.post("/grabar-voz/analizar-caso",   verifyToken, analizarCasoGV);
+router.post("/grabar-voz/analizar-global", verifyToken, analizarGlobalGV);
 
 module.exports = router;
