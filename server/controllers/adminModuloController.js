@@ -246,9 +246,9 @@ exports.generarCasosGrabarVoz = async (req, res) => {
 
     const { getCasos, CASOS } = require("../data/casosMicroIntervenciones");
 
-    const habilidadesBase   = Array.isArray(habilidades)    ? habilidades    : [];
-    const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
-    const todasHabilidades  = [...habilidadesBase, ...habilidadesTCCArr];
+    const habilidadesBase    = Array.isArray(habilidades)    ? habilidades    : [];
+    const habilidadesTCCArr  = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
+    const todasHabilidades   = [...habilidadesBase, ...habilidadesTCCArr];
     const habilidadPrincipal = todasHabilidades[0] || "";
 
     if (!habilidadPrincipal) {
@@ -274,12 +274,18 @@ exports.generarCasosGrabarVoz = async (req, res) => {
       });
     }
 
-    const excluidos  = Array.isArray(casosExcluir) ? casosExcluir : [];
-    const disponibles = pool.filter((c) => !excluidos.includes(c));
-    const candidatos  = disponibles.length > 0 ? disponibles : pool;
-    const caso        = candidatos[Math.floor(Math.random() * candidatos.length)];
+    const excluidos   = Array.isArray(casosExcluir) ? casosExcluir : [];
+    const disponibles = pool.filter((c) => {
+      const casoStr = normalizarCasoAString(c);
+      return !excluidos.includes(casoStr);
+    });
+    const candidatos = disponibles.length > 0 ? disponibles : pool;
+    const caso       = candidatos[Math.floor(Math.random() * candidatos.length)];
 
-    return res.json({ caso });
+    // ── Normalizar caso a string antes de devolver ──
+    const casoFinal = normalizarCasoAString(caso);
+
+    return res.json({ caso: casoFinal });
   } catch (err) {
     console.error("❌ Error generando casos Grabar Voz:", err);
     return res.status(500).json({ message: "Error al obtener casos.", error: err.message });
@@ -287,38 +293,72 @@ exports.generarCasosGrabarVoz = async (req, res) => {
 };
 
 /* =========================================================
-   Resolver qué nivel del pool usar
+   Normalizar caso del pool a string
+   Los casos de intervención son objetos { contexto, frase }
+   { contexto_paciente, frase_paciente } o { frase_paciente }
+========================================================= */
+function normalizarCasoAString(caso) {
+  if (typeof caso === "string") return caso;
+  if (!caso || typeof caso !== "object") return "";
+
+  if (caso.contexto && caso.frase) {
+    return `Contexto: ${caso.contexto.trim()}\n\nFrase paciente: ${caso.frase.trim()}`;
+  }
+  if (caso.contexto_paciente && caso.frase_paciente) {
+    return `Contexto: ${caso.contexto_paciente.trim()}\n\nFrase paciente: ${caso.frase_paciente.trim()}`;
+  }
+  if (caso.contexto && caso.frase_paciente) {
+    return `Contexto: ${caso.contexto.trim()}\n\nFrase paciente: ${caso.frase_paciente.trim()}`;
+  }
+  return (caso.frase_paciente || caso.frase || caso.contexto || JSON.stringify(caso)).trim();
+}
+
+
+
+/* =========================================================
+   Resolver qué nivel del pool usar según disponibilidad
    Regla:
-   - Habilidad con nivel único ("unico"):
-       siempre usa "unico"
-   - Habilidad con básico + avanzado (sin intermedio):
-       nivel basico  → basico
+   - Habilidad con nivel "unico": siempre usa "unico"
+   - Habilidad con basico + avanzado (sin intermedio):
+       nivel basico → basico
        nivel intermedio | avanzado → avanzado
    - Habilidad con basico + intermedio + avanzado:
        usa el nivel exacto
 ========================================================= */
 function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
-  const NIVELES_ORDENADOS = ["basico", "intermedio", "avanzado"];
+  const TODOS_NIVELES = ["unico", "basico", "intermedio", "avanzado"];
 
-  // Detectar qué niveles existen para esta habilidad
-  const nivelesDisponibles = ["unico", "basico", "intermedio", "avanzado"].filter((n) => {
-    const key = `${contexto}|${escenario}|${n}|${habilidad}`;
-    return Array.isArray(CASOS[key]) && CASOS[key].length > 0;
-  });
+  function getNivelesDisponibles(esc) {
+    return TODOS_NIVELES.filter((n) => {
+      const key = `${contexto}|${esc}|${n}|${habilidad}`;
+      return Array.isArray(CASOS[key]) && CASOS[key].length > 0;
+    });
+  }
+
+  // Primero buscar con el escenario exacto
+  let nivelesDisponibles = getNivelesDisponibles(escenario);
+
+  // Si no encuentra, probar con el escenario base
+  // (ej: "intervencion_estudiante" → "intervencion")
+  if (!nivelesDisponibles.length) {
+    const escenarioBase = escenario.split("_")[0];
+    if (escenarioBase !== escenario) {
+      nivelesDisponibles = getNivelesDisponibles(escenarioBase);
+    }
+  }
 
   // Caso 1: nivel único
   if (nivelesDisponibles.includes("unico")) return "unico";
 
-  // Caso 2: sin datos en absoluto — fallback
+  // Caso 2: sin datos — devolver el nivel tal cual (fallback)
   if (!nivelesDisponibles.length) return nivel;
 
-  // Caso 3: solo tiene básico y avanzado (sin intermedio)
   const tieneBasico     = nivelesDisponibles.includes("basico");
   const tieneIntermedio = nivelesDisponibles.includes("intermedio");
   const tieneAvanzado   = nivelesDisponibles.includes("avanzado");
 
+  // Caso 3: solo básico + avanzado (sin intermedio)
   if (tieneBasico && tieneAvanzado && !tieneIntermedio) {
-    // basico → basico | intermedio/avanzado → avanzado
     return nivel === "basico" ? "basico" : "avanzado";
   }
 
@@ -327,12 +367,13 @@ function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
     return ["basico", "intermedio", "avanzado"].includes(nivel) ? nivel : "basico";
   }
 
-  // Caso 5: solo tiene un nivel (ej: solo basico) — usar ese
+  // Caso 5: un solo nivel disponible — usar ese
   if (nivelesDisponibles.length === 1) return nivelesDisponibles[0];
 
-  // Fallback
   return nivelesDisponibles[0];
 }
+
+
 
 
 /* =========================================================
