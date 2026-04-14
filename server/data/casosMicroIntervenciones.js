@@ -144,133 +144,77 @@ const CASOS = {
   /* =========================================================
      EXPLORACIÓN — REFLEJO
   ========================================================= */
-  "clinico|exploracion|basico|reflejo": [
-    "Me siento muy cansado de todo esto.",
-    "Últimamente estoy más triste de lo normal.",
-    "Siento que esto me está sobrepasando.",
-    "Me frustra que las cosas no salgan como esperaba.",
-    "Estoy agotado, como si no pudiera más.",
-    "Siento que nadie entiende por lo que estoy pasando.",
-    "Esto me tiene bastante preocupado.",
-    "Me siento solo en todo esto.",
-    "Siento que estoy perdiendo el control.",
-    "Esto me está afectando más de lo que pensé.",
-    "Me siento desmotivado últimamente.",
-    "Siento que todo me está saliendo mal.",
-    "Estoy muy estresado con todo lo que tengo encima.",
-    "Siento que no doy abasto.",
-    "Esto me genera mucha ansiedad.",
-    "Me siento frustrado conmigo mismo.",
-    "Siento que estoy fallando.",
-    "Me siento confundido con lo que está pasando.",
-    "Esto me tiene bastante inquieto.",
-    "Siento que no puedo relajarme.",
-    "Me siento abrumado con todo esto.",
-    "Siento que nada me está saliendo bien.",
-    "Esto me tiene preocupado todo el tiempo.",
-    "Me siento inseguro en esta situación.",
-    "Siento que no tengo energía para nada.",
-    "Esto me está desgastando mucho.",
-    "Me siento muy presionado últimamente.",
+  "clinico|exploracion|unico|reflejo": [
+    "Últimamente siento que todo me está sobrepasando.",
+    "No me siento como antes y eso me inquieta.",
+    "Siento que no estoy logrando lo que esperaba de mí.",
+    "Hay algo que me tiene incómodo y no logro ubicar bien qué es.",
+    "Me frustra darme cuenta de que sigo en lo mismo.",
+    "Siento que estoy cargando más de lo que puedo.",
+    "No me siento tranquilo ni siquiera cuando descanso.",
+    "Hay momentos en los que todo me pesa más de lo normal.",
+    "Me incomoda cómo estoy reaccionando últimamente.",
+    "Siento que no estoy bien, pero no sé explicar por qué.",
+    "Hay algo que no me deja en paz.",
+    "Me cuesta entender por qué esto me afecta tanto.",
+    "Siento que estoy más sensible de lo normal.",
+    "No me gusta sentirme así, pero no sé cómo cambiarlo.",
+    "Me frustra no poder manejar esto mejor.",
+    "Siento que algo no está encajando en mi vida.",
+    "Hay días en los que todo se me hace cuesta arriba.",
+    "Me pesa darme cuenta de que no estoy avanzando.",
+    "Siento que estoy fallando en algo importante.",
+    "Me incomoda sentirme así frente a otros.",
+    "Siento que no tengo control sobre esto.",
+    "Me cuesta aceptar que esto me esté pasando.",
+    "Hay algo que me genera mucha tensión por dentro.",
     "Siento que no estoy siendo suficiente.",
-    "Esto me está costando más de lo que esperaba.",
-    "Me siento nervioso con lo que viene.",
-    "Siento que todo esto me supera.",
-    "Me siento incómodo en esa situación.",
-    "Esto me genera mucha tensión.",
-    "Me siento preocupado por lo que pueda pasar.",
-    "Siento que esto me está afectando emocionalmente.",
-    "Me siento frustrado con cómo están saliendo las cosas.",
-    "Esto me hace sentir muy mal.",
-    "Siento que no estoy bien últimamente.",
-    "Me siento inquieto sin saber por qué.",
-    "Esto me tiene bastante alterado.",
-  ],
-
-  "clinico|exploracion|intermedio|reflejo": [
-    "Quiero cambiar ciertas cosas, pero al mismo tiempo me cuesta hacerlo.",
-    "Sé que debería estar tranquilo, pero igual sigo preocupado.",
-    "Me siento mal por lo que pasó, aunque trato de no pensar en eso.",
-    "Quiero decir lo que siento, pero me da miedo cómo reaccionen.",
-    "Siento que estoy bien, pero hay momentos en los que todo me afecta más.",
-    "Sé que no es tan grave, pero igual me siento bastante abrumado.",
-    "Quiero acercarme más a los demás, pero termino alejándome.",
-    "Me siento cansado, pero no logro descansar realmente.",
-    "Siento que debería poder con esto, pero me está costando más de lo que pensé.",
-    "Hay cosas que me molestan, pero no siempre las digo.",
-    "Quiero dejar de preocuparme, pero no lo logro.",
-    "Siento que estoy avanzando, pero también me siento estancado.",
-    "Me siento inseguro, aunque trato de mostrar lo contrario.",
-    "Quiero confiar, pero algo me hace dudar.",
-    "Siento que exagero, pero igual me afecta mucho.",
-    "Quiero estar bien, pero hay algo que no termina de encajar.",
-    "Me siento presionado, aunque nadie me lo esté diciendo directamente.",
-    "Quiero tomar decisiones, pero me cuesta elegir.",
-    "Siento que me afecta más de lo que debería.",
-    "Quiero dejar esto atrás, pero sigo pensando en eso.",
-    "Me siento tranquilo por momentos, pero eso cambia rápido.",
-    "Quiero hablar de esto, pero no sé cómo hacerlo.",
-    "Siento que estoy cargando mucho, pero no sé cómo soltarlo.",
-    "Quiero que las cosas cambien, pero sigo haciendo lo mismo.",
-    "Me siento confundido, aunque trato de tener claro lo que quiero.",
-    "Quiero sentirme diferente, pero no logro cambiar cómo me siento.",
-    "Siento que algo no está bien, aunque no sé exactamente qué.",
-    "Quiero relajarme, pero mi mente no se detiene.",
-    "Me siento incómodo, pero no sé bien por qué.",
-    "Quiero entender lo que me pasa, pero me cuesta verlo claro.",
-    "Siento que estoy haciendo lo correcto, pero no me siento bien con eso.",
-    "Quiero avanzar, pero algo me detiene.",
-    "Me siento dividido entre lo que quiero y lo que hago.",
-    "Quiero dejar de pensar en esto, pero vuelve constantemente.",
-    "Siento que estoy mejorando, pero todavía hay cosas que me afectan.",
-    "Quiero confiar en mis decisiones, pero dudo de ellas.",
-    "Me siento bien por momentos, pero luego todo cambia.",
-    "Quiero sentirme en paz, pero algo me inquieta.",
-    "Siento que me estoy adaptando, pero no del todo cómodo.",
-    "Quiero soltar esto, pero no sé cómo hacerlo.",
-  ],
-
-  "clinico|exploracion|avanzado|reflejo": [
-    "No estoy seguro de que esto sea tan importante, pero igual no logro soltarlo.",
-    "Siento que entiendo lo que me pasa, pero no me sirve de mucho saberlo.",
-    "Prefiero no pensar demasiado en esto porque sé que me puede afectar más.",
-    "A veces digo que ya lo superé, aunque hay cosas que todavía me mueven.",
-    "No sé si realmente quiero cambiar esto o solo dejar de sentirme así.",
-    "Hay partes de esta situación que intento no mirar mucho.",
-    "Siento que si empiezo a profundizar en esto, se me puede salir de control.",
-    "No termino de confiar en lo que estoy sintiendo.",
-    "A veces actúo como si nada pasara, pero por dentro no es así.",
-    "No sé si lo que me pasa tiene que ver con ahora o con cosas anteriores.",
-    "Siento que esto me afecta, pero tampoco quiero hacerlo más grande.",
-    "Hay cosas que prefiero mantener como están, aunque sé que no me hacen bien.",
-    "No siempre quiero entender lo que me pasa.",
-    "Siento que estoy evitando algo, pero no me queda claro qué.",
-    "Hay momentos en los que prefiero distraerme para no entrar en esto.",
-    "No sé si esto es algo que realmente debería trabajar o solo dejar pasar.",
-    "Siento que hay algo que no termino de aceptar, pero tampoco lo enfrento.",
-    "No estoy seguro de si estoy siendo honesto conmigo mismo en esto.",
-    "A veces siento que me estoy engañando, pero no sé en qué exactamente.",
-    "Hay cosas que me afectan, pero no sé si quiero darles tanto espacio.",
-    "Siento que si cambio esto, voy a tener que enfrentar otras cosas también.",
-    "No sé si estoy listo para ver esto de otra forma.",
-    "A veces prefiero no cuestionarme demasiado.",
-    "Siento que hay algo que no encaja, pero no logro identificar qué es.",
-    "No sé si lo que estoy sintiendo es proporcional a lo que pasó.",
-    "Hay momentos en los que siento claridad, pero después desaparece.",
-    "Siento que si dejo de hacer ciertas cosas, me voy a sentir peor.",
-    "No termino de entender por qué esto me sigue afectando.",
-    "A veces siento que estoy más cómodo evitando esto que enfrentándolo.",
-    "No sé si quiero realmente cambiar esto o solo que deje de doler.",
-    "Siento que hay algo que no estoy viendo, pero tampoco sé cómo verlo.",
-    "Hay cosas que no digo porque no quiero remover más todo.",
-    "Siento que estoy sosteniendo algo que ya no sé si tiene sentido.",
-    "No sé si lo que hago me ayuda o me mantiene en lo mismo.",
-    "Hay partes de esto que entiendo, pero otras que prefiero dejar así.",
-    "Siento que si me detengo demasiado en esto, me voy a enredar más.",
-    "No sé si esto es algo que quiero resolver ahora.",
-    "A veces siento que estoy funcionando bien, pero algo no termina de estar bien.",
-    "No tengo claro si lo que siento es mío o viene de lo que pasó.",
-    "Siento que hay algo pendiente, pero no sé por dónde empezar.",
+    "Me molesta no poder soltar esto.",
+    "Siento que estoy más irritable de lo normal.",
+    "Hay algo que me tiene inquieto constantemente.",
+    "Me cuesta relajarme aunque lo intente.",
+    "Siento que estoy más cansado de lo habitual.",
+    "Me incomoda no entender qué me pasa.",
+    "Siento que todo me está afectando más de la cuenta.",
+    "Hay momentos en los que me siento perdido.",
+    "Me cuesta conectar con cómo me sentía antes.",
+    "Siento que algo en mí no está bien.",
+    "Me frustra no tener claridad.",
+    "Siento que esto me está desgastando.",
+    "Hay algo que me genera ansiedad constante.",
+    "Me cuesta mantener la calma en ciertas situaciones.",
+    "Siento que no puedo con todo esto.",
+    "Me incomoda cómo me siento últimamente.",
+    "Últimamente en el trabajo todo se me acumula y siento que no logro desconectarme ni al llegar a casa.",
+    "Aunque estoy rodeado de gente, hay momentos en los que me siento completamente solo.",
+    "Intento enfocarme en lo que hago, pero hay algo que me mantiene inquieto por dentro.",
+    "Cuando pienso en lo que viene, siento una tensión que no logro soltar.",
+    "A veces todo parece estar bien, pero igual siento que algo no encaja.",
+    "He estado cumpliendo con todo, pero no me siento tranquilo con eso.",
+    "Hay días en los que avanzo, pero igual me queda una sensación extraña.",
+    "Aunque intento no pensar mucho en eso, siento que me sigue afectando.",
+    "Me doy cuenta de que sigo con lo mismo y eso me genera incomodidad conmigo.",
+    "Hay momentos en los que siento que debería estar bien, pero no es así.",
+    "Últimamente hago lo que tengo que hacer, pero me siento desconectado de todo.",
+    "Aunque no ha pasado nada grave, siento que algo no está bien conmigo.",
+    "He tratado de distraerme, pero igual hay algo que me inquieta por dentro.",
+    "Cuando estoy solo, siento más fuerte algo que no logro entender.",
+    "Hay cosas pequeñas que últimamente me afectan más de lo normal.",
+    "Intento mantenerme ocupado, pero igual siento que algo me pesa.",
+    "Cuando termina el día, me doy cuenta de que sigo con la misma sensación.",
+    "Aunque todo sigue igual, siento que algo cambió en mí.",
+    "Hay momentos en los que me siento bien, pero duran poco.",
+    "Me pasa que trato de ignorar lo que siento, pero igual vuelve.",
+    "He estado evitando pensar en ciertas cosas, pero igual me generan incomodidad.",
+    "Aunque intento relajarme, siento que mi cuerpo sigue tenso.",
+    "Cuando hablo con otros, trato de estar bien, pero no siempre lo siento así.",
+    "Hay días en los que todo me cuesta más, aunque no sepa exactamente por qué.",
+    "Siento que hago lo que puedo, pero igual me queda una sensación de insuficiencia.",
+    "Aunque trato de mantenerme positivo, hay algo que no termina de calmarse.",
+    "Me doy cuenta de que estoy más sensible, aunque no siempre entiendo por qué.",
+    "Hay momentos en los que me siento tranquilo, pero algo cambia rápidamente.",
+    "Siento que intento avanzar, pero algo en mí no termina de estar en paz.",
+    "Aunque no lo demuestro mucho, hay cosas que me están afectando más de lo que parece."
   ],
 
   /* =========================================================
@@ -784,449 +728,610 @@ const CASOS = {
   /* =========================================================
      INTERVENCIÓN — INTERPRETACIÓN
   ========================================================= */
-  "clinico|intervencion|basico|interpretacion": [
-    "Mi papá quiere que yo estudie lo mismo que él.",
-    "Si hago algo mal, siento que decepciono a todos.",
-    "No me gusta pedir ayuda… siento que debería poder solo.",
-    "Cuando alguien se aleja un poco, pienso que ya no le importo.",
-    "Prefiero no decir nada para evitar problemas.",
-    "Siempre trato de hacer todo perfecto.",
-    "Si no estoy seguro de que algo me va a salir bien, mejor no lo intento.",
-    "Cuando me critican, me cuesta dejar de pensar en eso.",
-    "No quiero que los demás piensen mal de mí.",
-    "A veces siento que no soy suficiente.",
-    "Si alguien se molesta conmigo, siento que todo fue culpa mía.",
-    "Me cuesta decir que no, aunque no quiera hacer algo.",
-    "Siento que tengo que cumplir con lo que los demás esperan de mí.",
-    "Si no hago las cosas bien, siento que no valen la pena.",
-    "Me preocupa mucho equivocarme frente a otros.",
-    "Prefiero adaptarme a los demás antes que generar conflicto.",
-    "Cuando algo no sale como esperaba, me frustro mucho.",
-    "Siento que tengo que demostrar que soy capaz todo el tiempo.",
-    "Si alguien no está de acuerdo conmigo, me incomoda bastante.",
-    "Me cuesta confiar en lo que hago, siempre dudo.",
-    "Siento que los demás hacen mejor las cosas que yo.",
-    "Si no hago algo perfecto, siento que fallé.",
-    "Me cuesta expresar lo que siento por miedo a cómo reaccionen.",
-    "Siento que tengo que esforzarme más que los demás.",
-    "Cuando algo sale mal, pienso que fue por mi culpa.",
-    "Prefiero evitar situaciones donde pueda quedar mal.",
-    "Siento que no debería cometer errores.",
-    "Me cuesta tomar decisiones por miedo a equivocarme.",
-    "Si alguien no me responde, me quedo pensando en qué hice mal.",
-    "Siento que tengo que agradarle a todos.",
-    "Me incomoda que otros noten mis errores.",
-    "Cuando no hago algo bien, me lo reprocho mucho.",
-    "Siento que no estoy al nivel de los demás.",
-    "Prefiero no intentar algo si no estoy seguro de hacerlo bien.",
-    "Me cuesta defender mi punto de vista.",
-    "Siento que tengo que cumplir con todo lo que se espera de mí.",
-    "Cuando alguien me corrige, me afecta más de lo que quisiera.",
-    "Siento que si fallo, pierdo valor como persona.",
-    "Me preocupa mucho lo que otros puedan pensar de mí.",
-    "Prefiero quedarme callado antes que decir algo incorrecto.",
-  ],
+  "clinico|intervencion|unico|interpretacion": [
+    {
+      "contexto": "El paciente creció con un padre que corregía constantemente sus errores y rara vez reconocía sus logros.",
+      "frase": "En esos espacios prefiero pasar más desapercibido."
+    },
+    {
+      "contexto": "Durante su infancia, el paciente asumía el rol de evitar discusiones entre sus padres.",
+      "frase": "Cuando la conversación cambia de tono, prefiero no seguir por ahí."
+    },
+    {
+      "contexto": "En relaciones anteriores, el paciente fue rechazado cuando expresaba lo que sentía.",
+      "frase": "Hay cosas en la relación que no termino de ubicar bien."
+    },
+    {
+      "contexto": "El paciente creció en un entorno donde equivocarse implicaba castigo o burla.",
+      "frase": "Hay cosas que prefiero no mover demasiado."
+    },
+    {
+      "contexto": "El paciente solo recibía reconocimiento cuando cumplía expectativas altas.",
+      "frase": "Siento que todavía hay algo que no termina de encajar."
+    },
+    {
+      "contexto": "Ha tenido experiencias donde personas cercanas se alejaban sin explicación.",
+      "frase": "A veces noto cambios y no termino de entenderlos."
+    },
+    {
+      "contexto": "El paciente ha dependido de la aprobación de otros para sentirse seguro.",
+      "frase": "Me da más tranquilidad cuando lo reviso con alguien."
+    },
+    {
+      "contexto": "En su historia, mostrar vulnerabilidad generaba críticas o incomodidad en otros.",
+      "frase": "No siempre me siento cómodo mostrándome así."
+    },
+    {
+      "contexto": "El paciente aprendió a controlar sus emociones para evitar consecuencias negativas.",
+      "frase": "En teoría no debería importarme tanto… pero igual lo sigo pensando."
+    },
+    {
+      "contexto": "Se ha exigido constantemente para evitar críticas externas.",
+      "frase": "Siento que podría ajustarlo un poco más."
+    },
 
-  "clinico|intervencion|intermedio|interpretacion": [
-    "Últimamente evito participar en reuniones… siento que siempre termino diciendo algo mal.",
-    "Cuando algo no me sale bien, me quedo pensando en eso todo el día.",
-    "Antes intentaba más cosas, ahora prefiero no arriesgarme tanto.",
-    "A veces siento que los demás me ven diferente, aunque no me digan nada.",
-    "No suelo decir cuando algo me molesta… siento que no vale la pena.",
-    "Me doy cuenta que pienso mucho antes de hacer algo, como esperando que salga mal.",
-    "Siento que si no hago las cosas bien, mejor no hacerlas.",
-    "Hay situaciones donde simplemente prefiero desaparecer.",
-    "Cuando estoy con otros, me siento observado.",
-    "No sé por qué, pero muchas veces asumo lo peor de las cosas.",
-    "Me pasa que evito ciertas conversaciones porque sé que me voy a incomodar.",
-    "Cuando alguien cambia un poco su actitud conmigo, ya pienso que hice algo mal.",
-    "A veces dejo de hacer cosas que me gustan solo para no equivocarme.",
-    "Siento que siempre tengo que estar alerta para no cometer errores.",
-    "Cuando me equivoco, me cuesta mucho soltarlo.",
-    "Hay veces que prefiero no opinar para no generar incomodidad.",
-    "Siento que si algo depende de mí, probablemente salga mal.",
-    "Cuando algo no es perfecto, siento que no fue suficiente.",
-    "Me cuesta tomar decisiones porque pienso en todo lo que podría salir mal.",
-    "A veces me esfuerzo tanto en hacer las cosas bien que termino agotado.",
-    "Cuando alguien no está de acuerdo conmigo, me cuesta dejar de pensarlo.",
-    "Hay situaciones donde me quedo callado aunque tenga algo que decir.",
-    "Siento que tengo que controlar todo para que no salga mal.",
-    "A veces evito empezar cosas por miedo a no terminarlas bien.",
-    "Cuando me equivoco, siento que eso define todo lo demás.",
-    "Me doy cuenta que muchas veces espero que las cosas salgan mal.",
-    "Cuando algo cambia, me cuesta adaptarme porque pienso que algo malo va a pasar.",
-    "Siento que tengo que anticiparme a todo para no fallar.",
-    "A veces prefiero no involucrarme mucho para no equivocarme.",
-    "Me cuesta disfrutar algo porque siempre estoy pensando en lo que podría salir mal.",
-    "Cuando alguien me hace una observación, me quedo dándole vueltas mucho tiempo.",
-    "Siento que siempre hay algo que podría haber hecho mejor.",
-    "A veces me limito yo mismo antes de intentar algo.",
-    "Me cuesta confiar en que las cosas pueden salir bien.",
-    "Cuando algo depende de mí, siento más presión que tranquilidad.",
-    "Hay momentos donde siento que tengo que hacer todo perfecto para estar tranquilo.",
-    "Siento que si bajo la guardia, algo va a salir mal.",
-    "Me pasa que prefiero evitar antes que enfrentar ciertas situaciones.",
-    "Cuando tengo que hacer algo importante, me lleno de dudas.",
-    "A veces siento que yo mismo me freno más de lo que debería.",
-  ],
+    {
+      "contexto": "El paciente fue responsabilizado emocionalmente por el bienestar de su familia.",
+      "frase": "Siento que si hago las cosas bien, la relación debería estar bien."
+    },
+    {
+      "contexto": "En su adolescencia, fue ridiculizado cuando participaba en público.",
+      "frase": "Hoy me tocaba participar más de lo normal, pero no terminé haciéndolo."
+    },
+    {
+      "contexto": "El paciente aprendió que equivocarse generaba rechazo.",
+      "frase": "Hay cosas que prefiero no mover demasiado."
+    },
+    {
+      "contexto": "Creció con estándares muy altos que rara vez sentía alcanzar.",
+      "frase": "Siento que todavía hay algo que no termina de encajar."
+    },
+    {
+      "contexto": "Ha vivido vínculos donde el otro se retiraba emocionalmente sin explicación.",
+      "frase": "Cuando no responden, como que empiezo a darle vueltas a lo mismo."
+    },
+    {
+      "contexto": "Ha tomado decisiones guiado por la opinión de otros durante gran parte de su vida.",
+      "frase": "No siempre termino convencido de lo que decido."
+    },
+    {
+      "contexto": "Fue invalidado cuando expresaba emociones intensas.",
+      "frase": "No siempre siento que sea buen momento para mostrar eso."
+    },
+    {
+      "contexto": "Ha aprendido que relajarse puede implicar perder el control.",
+      "frase": "No me es tan fácil quedarme tranquilo."
+    },
+    {
+      "contexto": "El paciente se ha exigido constantemente para no cometer errores.",
+      "frase": "Siempre encuentro algo que podría pulir."
+    },
+    {
+      "contexto": "Ha desarrollado una tendencia a anticipar problemas para evitarlos.",
+      "frase": "Prefiero ir midiendo antes de avanzar."
+    },
 
-  "clinico|intervencion|avanzado|interpretacion": [
-    "Tengo mucho miedo de tomar decisiones sin la aprobación de mis papás.",
-    "Quiero hacer las cosas a mi manera, pero cada vez que lo intento me siento mal.",
-    "Sé que debería confiar en mí, pero siempre termino dudando.",
-    "Quiero dejar de pensar en lo que dicen los demás, pero no puedo.",
-    "Quiero cambiar, pero siento que algo me detiene.",
-    "Sé que no todo es mi culpa, pero igual me siento responsable.",
-    "Quiero acercarme más a las personas, pero cuando lo intento me alejo.",
-    "Quiero dejar de exigirme tanto, pero siento que si no lo hago, todo se me va a salir de control.",
-    "Sé que exagero las cosas, pero no puedo dejar de sentirlas así.",
-    "Quiero sentirme mejor conmigo, pero siempre termino criticándome.",
-    "Quiero decir lo que pienso, pero algo me frena cuando llega el momento.",
-    "Siento que necesito a las personas, pero también me incomoda depender de ellas.",
-    "Quiero estar tranquilo, pero cuando lo estoy, siento que algo malo va a pasar.",
-    "Quiero avanzar, pero me quedo en el mismo lugar.",
-    "Sé que debería soltar ciertas cosas, pero no puedo.",
-    "Quiero confiar en otros, pero siempre termino dudando de sus intenciones.",
-    "Siento que quiero cambiar, pero al mismo tiempo me da miedo hacerlo.",
-    "Quiero tomar decisiones, pero siempre termino buscando que alguien más las confirme.",
-    "Quiero estar bien, pero no sé cómo dejar de pensar en lo que me hace daño.",
-    "Siento que quiero soltar el control, pero también que si lo hago todo se va a desordenar.",
-    "Quiero ser yo mismo, pero siento que no puedo del todo.",
-    "Quiero sentirme suficiente, pero siempre encuentro algo que me falta.",
-    "Quiero acercarme más a mi familia, pero algo me hace mantener distancia.",
-    "Siento que quiero perdonar, pero todavía hay algo que me lo impide.",
-    "Quiero dejar de compararme, pero lo sigo haciendo sin darme cuenta.",
-    "Siento que quiero cambiar mi forma de ser, pero al mismo tiempo es lo único que conozco.",
-    "Quiero dejar de depender de la opinión de otros, pero la sigo buscando.",
-    "Siento que quiero avanzar, pero me cuesta dejar atrás lo que ya conozco.",
-    "Quiero confiar en mis decisiones, pero siempre termino cuestionándolas.",
-    "Siento que quiero estar en paz, pero mi mente no se detiene.",
-    "Quiero intentar cosas nuevas, pero algo en mí me dice que mejor no lo haga.",
-    "Siento que quiero soltar lo que me duele, pero también siento que no puedo.",
-    "Quiero estar más presente, pero siempre termino pensando en lo que puede salir mal.",
-    "Siento que quiero dejar de exigirme, pero también que si no lo hago voy a fallar.",
-    "Quiero sentirme seguro, pero siempre encuentro algo que me hace dudar.",
-    "Siento que quiero abrirme más, pero algo me hace cerrarme.",
-    "Quiero dejar de tener miedo, pero siento que ese miedo me cuida de algo.",
-    "Siento que quiero cambiar mi vida, pero no sé si estoy listo para hacerlo.",
-    "Quiero dejar de sentirme así, pero también es lo que conozco.",
-    "Siento que quiero avanzar, pero algo en mí se queda atrás.",
+    {
+      "contexto": "En su familia, sus emociones eran minimizadas o ignoradas.",
+      "frase": "A veces no tengo claro si esto es para tanto."
+    },
+    {
+      "contexto": "El paciente fue castigado por errores pequeños durante su infancia.",
+      "frase": "No me siento muy cómodo probando cosas nuevas."
+    },
+    {
+      "contexto": "Ha evitado conflictos para mantener cercanía con otros.",
+      "frase": "Siento que no siempre suma entrar en eso."
+    },
+    {
+      "contexto": "Recibía críticas constantes sobre su desempeño académico.",
+      "frase": "Recibí comentarios sobre lo que hice y me quedé pensando más de lo esperado."
+    },
+    {
+      "contexto": "Ha experimentado rupturas sin cierre emocional.",
+      "frase": "A veces las cosas cambian sin mucho aviso."
+    },
+    {
+      "contexto": "Se ha sentido más seguro cuando otros validan sus decisiones.",
+      "frase": "Me deja más tranquilo cuando alguien más lo ve."
+    },
+    {
+      "contexto": "Fue juzgado por expresar emociones en su entorno cercano.",
+      "frase": "No siempre siento que sea útil decirlo."
+    },
+    {
+      "contexto": "Ha desarrollado control emocional rígido para evitar consecuencias.",
+      "frase": "Hay cosas que para mí deberían ser claras en una relación, pero no siempre se ven así."
+    },
+    {
+      "contexto": "El paciente asocia valor personal con desempeño.",
+      "frase": "No me gusta dejar cosas sin cerrar."
+    },
+    {
+      "contexto": "Tiende a anticipar errores para prevenir consecuencias negativas.",
+      "frase": "Siempre estoy viendo qué podría pasar."
+    },
+
+    {
+      "contexto": "Fue comparado constantemente con otros en su infancia.",
+      "frase": "Hay personas que siento que encajan mejor que yo en ciertos espacios."
+    },
+    {
+      "contexto": "Evitar desacuerdos fue clave para mantener vínculos en su historia.",
+      "frase": "Cuando pasan esas cosas, prefiero no seguir por ahí."
+    },
+    {
+      "contexto": "Fue castigado por tomar decisiones equivocadas.",
+      "frase": "Lo he pensado varias veces, pero no termino de moverme."
+    },
+    {
+      "contexto": "Aprendió que el error tenía consecuencias negativas.",
+      "frase": "Prefiero no arriesgar demasiado."
+    },
+
+    {
+      "contexto": "El paciente sufrió abuso sexual en la infancia y nunca habló del tema en su familia.",
+      "frase": "No es algo que me aporte mucho pensar, entonces prefiero enfocarme en otras cosas."
+    },
+    {
+      "contexto": "Vivió episodios de violencia física entre sus padres durante su niñez.",
+      "frase": "Cuando el ambiente cambia, como que automáticamente busco otra cosa que hacer."
+    },
+    {
+      "contexto": "Fue abandonado emocionalmente por uno de sus cuidadores en etapas tempranas.",
+      "frase": "Prefiero no hacerme muchas ideas con la gente, así es más sencillo."
+    },
+    {
+      "contexto": "Creció en un entorno donde el dinero era escaso y generaba constantes conflictos familiares.",
+      "frase": "Siempre trato de tener claro lo que entra y lo que sale… no me gusta mover eso mucho."
+    },
+    {
+      "contexto": "Fue educado con creencias religiosas rígidas que asociaban el deseo sexual con culpa.",
+      "frase": "Hay temas que prefiero no cuestionar demasiado."
+    }
   ],
 
   /* =========================================================
      INTERVENCIÓN — CONFRONTACIÓN
   ========================================================= */
-  "clinico|intervencion|basico|confrontacion": [
-    "El paciente dice que quiere mejorar su salud, pero no ha hecho ningún cambio en su rutina.",
-    "El paciente expresa que quiere dejar de procrastinar, pero sigue posponiendo sus tareas.",
-    "El paciente dice que quiere mejorar su relación, pero evita hablar con su pareja.",
-    "El paciente comenta que quiere cambiar, pero no ha tomado acciones.",
-    "El paciente dice que quiere sentirse mejor, pero no está dispuesto a hacer cambios.",
-    "El paciente expresa que quiere dejar el alcohol, pero continúa consumiendo.",
-    "El paciente dice que quiere mejorar en el trabajo, pero no se esfuerza más.",
-    "El paciente comenta que quiere organizarse mejor, pero no cambia sus hábitos.",
-    "El paciente dice que quiere estudiar, pero no dedica tiempo a hacerlo.",
-    "El paciente expresa que quiere dormir mejor, pero sigue usando el celular en la noche.",
-    "El paciente dice que quiere bajar el estrés, pero sigue asumiendo más responsabilidades.",
-    "El paciente comenta que quiere cambiar su actitud, pero reacciona igual.",
-    "El paciente expresa que quiere mejorar su autoestima, pero se sigue criticando constantemente.",
-    "El paciente dice que quiere hablar más, pero se queda en silencio.",
-    "El paciente comenta que quiere poner límites, pero no lo hace.",
-    "El paciente dice que quiere confiar más en otros, pero no se abre.",
-    "El paciente expresa que quiere avanzar, pero evita tomar decisiones.",
-    "El paciente comenta que quiere dejar de evitar, pero sigue evitando.",
-    "El paciente dice que quiere cambiar su vida, pero mantiene las mismas rutinas.",
-    "El paciente expresa que quiere sentirse seguro, pero no sale de su zona de confort.",
-    "El paciente comenta que quiere mejorar su relación familiar, pero evita el contacto.",
-    "El paciente dice que quiere sentirse menos ansioso, pero evita las situaciones que le generan ansiedad.",
-    "El paciente expresa que quiere ser más independiente, pero depende de otros para decidir.",
-    "El paciente dice que quiere mejorar, pero no sigue las recomendaciones.",
-    "El paciente comenta que quiere sentirse mejor, pero no cambia lo que le afecta.",
-    "El paciente dice que quiere dejar de preocuparse, pero sigue sobrepensando todo.",
-    "El paciente expresa que quiere cambiar, pero no se compromete con el proceso.",
-    "El paciente comenta que quiere mejorar, pero abandona rápidamente.",
-    "El paciente dice que quiere avanzar, pero se queda en el mismo lugar.",
-    "El paciente expresa que quiere crecer, pero evita los retos.",
-    "El paciente comenta que quiere sentirse más tranquilo, pero se expone a situaciones estresantes.",
-    "El paciente dice que quiere mejorar su comunicación, pero evita conversaciones difíciles.",
-    "El paciente expresa que quiere cambiar, pero espera que las cosas cambien solas.",
-    "El paciente comenta que quiere mejorar, pero no hace ajustes.",
-    "El paciente dice que quiere lograr sus metas, pero no actúa en función de ellas.",
-    "El paciente expresa que quiere sentirse mejor consigo mismo, pero sigue actuando en su contra.",
-    "El paciente comenta que quiere cambiar su situación, pero no toma decisiones.",
-    "El paciente dice que quiere mejorar, pero no sostiene el esfuerzo.",
-    "El paciente expresa que quiere salir adelante, pero no da pasos concretos.",
-    "El paciente comenta que quiere avanzar, pero se mantiene en lo mismo.",
-  ],
-
-  "clinico|intervencion|intermedio|confrontacion": [
-    "El paciente dice que quiere cambiar, pero le resta importancia a lo que implicaría hacerlo.",
-    "El paciente expresa que quiere mejorar su relación, pero describe a su pareja con constante crítica.",
-    "El paciente comenta que quiere sentirse mejor, pero descarta opciones que podrían ayudarle.",
-    "El paciente dice que quiere avanzar, pero siempre encuentra razones válidas para no hacerlo.",
-    "El paciente expresa que quiere dejar de preocuparse, pero dedica mucho tiempo a analizar problemas.",
-    "El paciente dice que quiere estar tranquilo, pero se involucra en situaciones que lo alteran.",
-    "El paciente comenta que quiere cambiar, pero justifica sus comportamientos actuales.",
-    "El paciente expresa que quiere mejorar, pero evita entrar en temas que le incomodan.",
-    "El paciente dice que quiere sentirse mejor, pero rechaza sugerencias sin probarlas.",
-    "El paciente comenta que quiere avanzar, pero se enfoca constantemente en posibles fallos.",
-    "El paciente expresa que quiere cambiar, pero habla como si no tuviera control sobre lo que hace.",
-    "El paciente dice que quiere mejorar, pero repite patrones en distintas situaciones.",
-    "El paciente comenta que quiere sentirse mejor, pero mantiene pensamientos negativos constantes.",
-    "El paciente expresa que quiere avanzar, pero duda de cada decisión que toma.",
-    "El paciente dice que quiere mejorar, pero evita asumir responsabilidad en los conflictos.",
-    "El paciente comenta que quiere cambiar, pero espera que otros cambien primero.",
-    "El paciente expresa que quiere mejorar, pero no reconoce su participación en el problema.",
-    "El paciente dice que quiere avanzar, pero se queda anclado en experiencias pasadas.",
-    "El paciente comenta que quiere cambiar, pero toma decisiones similares una y otra vez.",
-    "El paciente expresa que quiere sentirse mejor, pero mantiene conductas que lo afectan.",
-    "El paciente dice que quiere mejorar, pero desvaloriza sus propios avances.",
-    "El paciente comenta que quiere avanzar, pero se enfoca más en errores que en logros.",
-    "El paciente expresa que quiere cambiar, pero no cree realmente que pueda hacerlo.",
-    "El paciente dice que quiere mejorar, pero evita volver a intentar tras fallar.",
-    "El paciente comenta que quiere sentirse mejor, pero se centra en lo negativo.",
-    "El paciente expresa que quiere cambiar, pero evita salir de lo conocido.",
-    "El paciente dice que quiere avanzar, pero posterga decisiones importantes repetidamente.",
-    "El paciente comenta que quiere mejorar, pero abandona cuando se vuelve difícil.",
-    "El paciente expresa que quiere sentirse mejor, pero no sostiene los cambios.",
-    "El paciente dice que quiere cambiar, pero mantiene excusas constantes.",
-    "El paciente comenta que quiere avanzar, pero se limita antes de intentarlo.",
-    "El paciente expresa que quiere mejorar, pero el miedo a equivocarse lo detiene.",
-    "El paciente dice que quiere cambiar, pero no tolera sentirse incómodo.",
-    "El paciente comenta que quiere sentirse mejor, pero evita enfrentar lo que le duele.",
-    "El paciente expresa que quiere avanzar, pero se detiene ante obstáculos pequeños.",
-    "El paciente dice que quiere mejorar, pero cuestiona cada paso que da.",
-    "El paciente comenta que quiere cambiar, pero no confía en el proceso terapéutico.",
-    "El paciente expresa que quiere sentirse mejor, pero espera resultados rápidos.",
-    "El paciente dice que quiere avanzar, pero no se permite equivocarse.",
-    "El paciente comenta que quiere mejorar, pero no se da nuevas oportunidades.",
-  ],
-
-  "clinico|intervencion|avanzado|confrontacion": [
-    "Al inicio de la sesión el paciente expresó que ya no le importaba su ex, y más adelante comentó: 'me da cólera que él sea así'.",
-    "Al comenzar la sesión dijo que quería dejar el pasado atrás, y luego expresó: 'no dejo de pensar en lo que pasó'.",
-    "Al inicio mencionó que se sentía tranquilo con su decisión, y más adelante dijo: 'siento que me equivoqué'.",
-    "Al comenzar comentó que no le afectaba la opinión de los demás, y luego expresó: 'me dolió bastante lo que dijeron de mí'.",
-    "Al inicio dijo que quería cambiar, y más adelante comentó: 'igual sigo haciendo lo mismo'.",
-    "Al comenzar la sesión expresó que estaba listo para avanzar, y luego dijo: 'siento que algo me detiene'.",
-    "Al inicio mencionó que confiaba en su pareja, y más adelante expresó: 'a veces siento que me oculta cosas'.",
-    "Al comenzar dijo que no le daba miedo equivocarse, y luego comentó: 'prefiero no intentar para no fallar'.",
-    "Al inicio expresó que quería enfrentar las cosas, y más adelante dijo: 'mejor lo dejo así por ahora'.",
-    "Al comenzar mencionó que estaba bien con lo que pasó, y luego comentó: 'todavía me duele cuando lo recuerdo'.",
-    "Al inicio dijo que quería priorizarse, y más adelante expresó: 'termino haciendo lo que otros quieren'.",
-    "Al comenzar la sesión mencionó que se sentía seguro de sí mismo, y luego dijo: 'dudo mucho de lo que hago'.",
-    "Al inicio comentó que quería confiar en las personas, y más adelante expresó: 'siento que no se puede confiar en nadie'.",
-    "Al comenzar dijo que quería mejorar su relación, y luego comentó: 'prefiero evitar hablar de eso con mi pareja'.",
-    "Al inicio expresó que quería cambiar sus hábitos, y más adelante dijo: 'me cuesta empezar'.",
-    "Al comenzar mencionó que estaba motivado, y luego comentó: 'no tengo ganas de hacer nada'.",
-    "Al inicio dijo que no le afectaba lo que pasaba en el trabajo, y más adelante expresó: 'no dejo de pensar en eso'.",
-    "Al comenzar expresó que quería tomar decisiones por sí mismo, y luego dijo: 'prefiero que otros decidan por mí'.",
-    "Al inicio comentó que quería mejorar su autoestima, y más adelante expresó: 'siento que no soy suficiente'.",
-    "Al comenzar dijo que quería enfrentar sus miedos, y luego comentó: 'prefiero evitarlos'.",
-    "Al inicio expresó que estaba tranquilo, y más adelante dijo: 'siento mucha inquietud'.",
-    "Al comenzar mencionó que quería dejar de preocuparse, y luego comentó: 'no dejo de pensar en problemas'.",
-    "Al inicio dijo que quería avanzar en su vida, y más adelante expresó: 'me siento cómodo quedándome como estoy'.",
-    "Al comenzar comentó que estaba bien solo, y luego dijo: 'me siento bastante solo'.",
-    "Al inicio expresó que quería mejorar en el trabajo, y más adelante comentó: 'no estoy haciendo nada distinto'.",
-    "Al comenzar dijo que no le importaba esa situación, y luego expresó: 'eso me afecta bastante'.",
-    "Al inicio comentó que quería hacer cambios, y más adelante dijo: 'sigo haciendo lo mismo'.",
-    "Al comenzar expresó que quería confiar en sí mismo, y luego comentó: 'dudo de todo lo que hago'.",
-    "Al inicio dijo que quería dejar de evitar las cosas, y más adelante expresó: 'prefiero no meterme en eso'.",
-    "Al comenzar comentó que estaba bien emocionalmente, y luego dijo: 'me siento bastante afectado'.",
-    "Al inicio expresó que quería avanzar, y más adelante comentó: 'no me siento listo'.",
-    "Al comenzar dijo que no le importaba esa persona, y luego expresó: 'me afecta lo que hace'.",
-    "Al inicio comentó que quería cambiar su forma de pensar, y más adelante dijo: 'sigo pensando igual'.",
-    "Al comenzar expresó que quería sentirse mejor, y luego comentó: 'no estoy haciendo cambios'.",
-    "Al inicio dijo que quería mejorar sus relaciones, y más adelante expresó: 'prefiero mantener distancia'.",
-    "Al comenzar comentó que estaba tranquilo con la situación, y luego dijo: 'esto me tiene pensando todo el tiempo'.",
-    "Al inicio expresó que quería dejar de exigirse tanto, y más adelante comentó: 'siento que si no me exijo todo se cae'.",
-    "Al comenzar dijo que no le afectaba lo ocurrido, y luego expresó: 'me sigue molestando bastante'.",
-    "Al inicio comentó que quería confiar más en los demás, y más adelante dijo: 'no confío en nadie'.",
-    "Al comenzar expresó que quería hacer algo diferente, y luego comentó: 'termino haciendo lo mismo de siempre'.",
+  "clinico|intervencion|unico|confrontacion": [
+     "En un momento comenta que ya no le afecta lo ocurrido, pero más adelante reconoce que sigue dándole vueltas constantemente.",
+    "Dice que quiere dejar atrás la situación, pero durante la sesión vuelve varias veces al mismo tema.",
+    "Menciona que está tranquilo con su decisión, aunque luego expresa dudas sobre si fue lo correcto.",
+    "Se describe como alguien a quien no le afecta la opinión de otros, pero relata que ciertos comentarios le impactaron.",
+    "Habla de querer cambiar, pero reconoce que sigue actuando de la misma manera.",
+    "Comenta que se siente listo para avanzar, aunque también señala que hay algo que lo frena.",
+    "Dice confiar en su pareja, pero menciona situaciones donde sospecha o duda.",
+    "Expresa que no le preocupa equivocarse, pero evita situaciones donde podría fallar.",
+    "Dice querer enfrentar las cosas, aunque en la práctica ha estado evitándolas.",
+    "Menciona que ya superó lo ocurrido, pero reconoce que aún le genera malestar al recordarlo.",
+    "Se plantea la idea de priorizarse, pero termina actuando en función de otros.",
+    "Se describe como seguro de sí mismo, aunque luego comenta que duda frecuentemente de lo que hace.",
+    "Dice querer confiar en las personas, pero mantiene distancia en sus relaciones.",
+    "Expresa que quiere mejorar su relación, pero evita conversaciones importantes con su pareja.",
+    "Menciona estar motivado, aunque también reconoce falta de energía para actuar.",
+    "Dice que no le afecta lo que ocurre en el trabajo, pero comenta que sigue pensando en ello fuera del horario.",
+    "Se plantea tomar decisiones por sí mismo, aunque prefiere que otros confirmen o decidan.",
+    "Habla de querer mejorar su autoestima, pero se describe con términos descalificadores.",
+    "Expresa querer enfrentar sus miedos, aunque tiende a evitarlos.",
+    "Menciona sentirse tranquilo, pero también refiere inquietud en distintos momentos.",
+    "Dice querer dejar de preocuparse, aunque pasa gran parte del tiempo pensando en posibles problemas.",
+    "Habla de avanzar en su vida, pero reconoce sentirse cómodo en su situación actual.",
+    "Comenta estar bien solo, aunque menciona sentirse solo con frecuencia.",
+    "Expresa querer mejorar en el trabajo, pero no ha hecho cambios en su forma de actuar.",
+    "Dice que una situación no le importa, aunque reconoce que le afecta más de lo que esperaba.",
+    "Se plantea hacer cambios, pero observa que repite los mismos patrones.",
+    "Habla de confiar en sí mismo, pero cuestiona constantemente sus decisiones.",
+    "Dice querer dejar de evitar, aunque continúa alejándose de situaciones importantes.",
+    "Se describe como estable emocionalmente, pero menciona sentirse afectado en varios momentos.",
+    "Expresa querer avanzar, aunque no se siente listo para hacerlo.",
+    "Dice que no le importa una persona, pero reconoce que lo que hace le sigue afectando.",
+    "Habla de cambiar su forma de pensar, pero mantiene las mismas ideas en distintas situaciones.",
+    "Expresa querer sentirse mejor, aunque no ha implementado cambios en su rutina.",
+    "Dice querer mejorar sus relaciones, pero mantiene distancia con otros.",
+    "Se describe como tranquilo con la situación, aunque la sigue pensando con frecuencia.",
+    "Expresa querer exigirse menos, pero siente que si no lo hace las cosas se desordenan.",
+    "Dice que lo ocurrido no le afecta, pero reconoce molestia al recordarlo.",
+    "Habla de confiar más en otros, pero mantiene desconfianza generalizada.",
+    "Expresa querer hacer algo diferente, pero termina actuando de la misma forma.",
+    "Menciona que quiere cambiar, aunque señala que le cuesta sostener cualquier intento.",
+    "Dice que quiere avanzar, pero nota que algo en él lo mantiene en el mismo lugar.",
+    "Expresa que quiere estar mejor, aunque mantiene hábitos que lo afectan.",
+    "Habla de querer soltar la situación, pero continúa revisándola mentalmente.",
+    "Se describe como alguien decidido, pero evita tomar decisiones importantes.",
+    "Expresa querer sentirse en paz, aunque mantiene pensamientos que lo inquietan."
   ],
 
   /* =========================================================
      INTERVENCIÓN — AUTO REVELACIÓN
   ========================================================= */
-  "clinico|intervencion|basico|auto_revelacion": [
-    "Quiero cambiar, pero termino haciendo lo mismo.",
-    "Siento que me exijo demasiado y aun así no es suficiente.",
-    "Me cuesta tomar decisiones sin dudar después.",
-    "Quiero confiar en mí, pero siempre termino cuestionándome.",
-    "Siento que debería estar mejor de lo que estoy.",
-    "Me cuesta dejar de pensar en lo que hice mal.",
-    "Quiero avanzar, pero algo me frena.",
-    "Siento que no logro salir de este mismo patrón.",
-    "Me cuesta dejar de compararme con los demás.",
-    "Siento que siempre termino saboteándome.",
-    "Quiero soltar eso, pero sigo pensando en lo mismo.",
-    "Siento que no importa lo que haga, nunca es suficiente.",
-    "Me cuesta dejar de darle vueltas a las cosas.",
-    "Quiero cambiar mi forma de pensar, pero no puedo.",
-    "Siento que me quedo estancado en lo mismo.",
-    "Me cuesta confiar en las decisiones que tomo.",
-    "Quiero dejar de sentirme así, pero no sé cómo.",
-    "Siento que no avanzo aunque lo intento.",
-    "Me cuesta salir de estos pensamientos.",
-    "Quiero sentirme mejor, pero no lo logro.",
-    "Siento que me exijo demasiado, pero no puedo parar.",
-    "Quiero dejar de preocuparme, pero sigo haciéndolo.",
-    "Me cuesta soltar el control.",
-    "Siento que todo depende de mí y eso me pesa.",
-    "Quiero confiar en otros, pero me cuesta.",
-    "Siento que siempre estoy esperando que algo salga mal.",
-    "Me cuesta disfrutar sin pensar en lo que sigue.",
-    "Quiero estar tranquilo, pero no lo logro.",
-    "Siento que no puedo desconectarme de mis pensamientos.",
-    "Me cuesta aceptar cuando algo no sale como quiero.",
-    "Quiero dejar de pensar así, pero no puedo evitarlo.",
-    "Siento que estoy atrapado en lo mismo.",
-    "Me cuesta cambiar lo que sé que no me hace bien.",
-    "Quiero hacer las cosas diferente, pero termino igual.",
-    "Siento que no logro confiar en mí.",
-    "Me cuesta salir de esta forma de pensar.",
-    "Quiero mejorar, pero siento que retrocedo.",
-    "Siento que no tengo control sobre esto.",
-    "Me cuesta avanzar aunque lo intento.",
-    "Quiero dejar esto atrás, pero sigue presente.",
-  ],
+  "clinico|intervencion|unico|auto_revelacion": [
+    {
+      "contexto_paciente": "Está atravesando un divorcio reciente y siente que perdió estabilidad emocional.",
+      "contexto_terapeuta": "Ha pasado por un divorcio.",
+      "frase_paciente": "Siento que todo se desordenó de golpe."
+    },
+    {
+      "contexto_paciente": "Tiene ansiedad social y evita exponerse en su trabajo.",
+      "contexto_terapeuta": "Ha experimentado ansiedad social.",
+      "frase_paciente": "Solo pensarlo ya me activa demasiado."
+    },
+    {
+      "contexto_paciente": "Se exige constantemente en su desempeño profesional.",
+      "contexto_terapeuta": "Ha trabajado su autoexigencia.",
+      "frase_paciente": "Siento que siempre hay algo más que debería hacer."
+    },
+    {
+      "contexto_paciente": "Ha vivido varias rupturas amorosas que afectaron su autoestima.",
+      "contexto_terapeuta": "Ha atravesado rupturas significativas.",
+      "frase_paciente": "A veces siento que eso se me quedó pegado."
+    },
+    {
+      "contexto_paciente": "Se siente estancado en su vida personal.",
+      "contexto_terapeuta": "Ha atravesado etapas de estancamiento.",
+      "frase_paciente": "Siento que estoy en pausa hace rato."
+    },
 
-  "clinico|intervencion|intermedio|auto_revelacion": [
-    "Siento que nadie me va a volver a querer.",
-    "Solo de pensar en hablar enfrente de otros me paralizo.",
-    "Siento que haga lo que haga nunca es suficiente.",
-    "Me cuesta confiar y decir lo que siento.",
-    "Siento que siempre termino siendo el que no eligen.",
-    "Prefiero no intentar antes de fallar.",
-    "Siento que no estoy avanzando en nada.",
-    "Me cuesta decir que no, aunque sé que debería.",
-    "Siento que no soy suficiente.",
-    "No puedo dejar de darle vueltas a todo.",
-    "Siento que nunca sé si estoy tomando la decisión correcta.",
-    "No dejo de pensar en lo que hice mal.",
-    "Prefiero no acercarme para no ser rechazado.",
-    "Me siento cansado de todo.",
-    "Siento que no puedo confiar en nadie.",
-    "Siento que mi mente no se detiene.",
-    "No sé qué quiero hacer con mi vida.",
-    "Siento que voy a quedarme solo.",
-    "Prefiero guardarme lo que siento.",
-    "Me frustro muy rápido cuando algo no sale bien.",
-    "Siento que todos están mejor que yo.",
-    "Siento que voy a decepcionar a todos.",
-    "Siento que no soy suficiente para mi pareja.",
-    "Siento que si no controlo todo, algo saldrá mal.",
-    "No puedo dejar de pensar en lo peor.",
-    "Siento que puedo arruinar todo con una decisión.",
-    "Siento que estoy en automático.",
-    "Siempre pongo a otros primero.",
-    "Siento que debería estar haciendo algo todo el tiempo.",
-    "Me cuesta decir cuando no estoy de acuerdo.",
-    "Siento que me afecta todo demasiado.",
-    "Me cuesta soltar lo que ya pasó.",
-    "Siento que voy a decir algo mal.",
-    "Prefiero no intentarlo por si fallo.",
-    "Siento que no puedo parar.",
-    "Siento que no doy la talla.",
-    "No confío en mis decisiones.",
-    "Siento que no puedo sentir nada.",
-    "Siento que todos me juzgan.",
-    "Siento que no soy yo mismo.",
-  ],
+    {
+      "contexto_paciente": "Tiene miedo a equivocarse y evita tomar decisiones.",
+      "contexto_terapeuta": "Ha trabajado el miedo al error.",
+      "frase_paciente": "Me cuesta avanzar cuando no tengo todo claro."
+    },
+    {
+      "contexto_paciente": "Tiene dificultad para poner límites en su familia.",
+      "contexto_terapeuta": "Ha trabajado el establecimiento de límites.",
+      "frase_paciente": "Siento que me cuesta más de lo que debería."
+    },
+    {
+      "contexto_paciente": "Ha vivido rechazo en relaciones anteriores.",
+      "contexto_terapeuta": "Ha vivido experiencias similares de rechazo.",
+      "frase_paciente": "Hay algo ahí que todavía pesa."
+    },
+    {
+      "contexto_paciente": "Se siente inseguro en su rol laboral.",
+      "contexto_terapeuta": "Ha trabajado inseguridad profesional.",
+      "frase_paciente": "A veces dudo más de lo que muestro."
+    },
+    {
+      "contexto_paciente": "Tiende a sobrepensar constantemente.",
+      "contexto_terapeuta": "Ha trabajado patrones de sobrepensamiento.",
+      "frase_paciente": "Mi mente no se apaga fácilmente."
+    },
 
-  "clinico|intervencion|avanzado|auto_revelacion": [
-    "Ya no me importa, pero me molesta que él esté bien.",
-    "Sé que debería cambiar, pero tampoco es que esté tan mal.",
-    "Quiero estar con alguien, pero cuando se acercan me incomoda.",
-    "No me importa lo que digan, pero me dolió lo que dijeron.",
-    "Quiero hacer algo diferente, pero termino haciendo lo mismo.",
-    "No me afecta, pero no dejo de pensar en eso.",
-    "Siento que debería hacer más, pero tampoco hago nada distinto.",
-    "Quiero confiar, pero siento que mejor no.",
-    "Necesito tener todo bajo control, pero eso me estresa más.",
-    "Quiero soltar eso, pero sigo pendiente de lo que hace.",
-    "No tomo decisiones, pero me frustra seguir igual.",
-    "No necesito a nadie, pero me siento solo.",
-    "Quiero que estén para mí, pero me molesta cuando se acercan.",
-    "Quiero cambiar, pero siento que dejaría de ser yo.",
-    "Prefiero no pensar en eso, pero sigue apareciendo.",
-    "Sé que lo hago mal, pero sigo haciéndolo.",
-    "Quiero avanzar, pero sigo pensando en lo que pasó.",
-    "No es para tanto, pero me sigue afectando.",
-    "Quiero estabilidad, pero no quiero comprometerme.",
-    "Intento controlarme, pero termino explotando.",
-    "Quiero dejarlo, pero vuelvo a hacerlo.",
-    "Siento que no soy suficiente, pero no hago nada para cambiarlo.",
-    "Quiero que me ayuden, pero no dejo que lo hagan.",
-    "Quiero decir lo que siento, pero me lo guardo.",
-    "Quiero cambiar, pero me da miedo lo que pase después.",
-    "Siento que estoy atrapado, pero no hago nada para salir.",
-    "Quiero confiar, pero siento que me van a fallar.",
-    "Quiero estar tranquilo, pero no dejo de pelear conmigo.",
-    "Quiero sentirme seguro, pero no me expongo.",
-    "Quiero relaciones diferentes, pero termino igual.",
-    "Sé que me pasa algo, pero no quiero verlo.",
-    "Quiero avanzar, pero hago cosas que me frenan.",
-    "Quiero dejar de pensar en eso, pero no puedo.",
-    "Me siento culpable, pero lo vuelvo a hacer.",
-    "Quiero claridad, pero no decido.",
-    "Quiero mejorar, pero no paso a la acción.",
-    "Quiero abrirme, pero me cierro.",
-    "Quiero apoyo, pero me alejo.",
-    "Quiero dejarlo atrás, pero lo revivo.",
-    "No entiendo qué me pasa, pero no quiero pensarlo.",
+    {
+      "contexto_paciente": "Está atravesando una pérdida importante.",
+      "contexto_terapeuta": "Ha trabajado procesos de duelo.",
+      "frase_paciente": "Hay momentos donde todo se siente más pesado."
+    },
+    {
+      "contexto_paciente": "Depende mucho de la aprobación de otros.",
+      "contexto_terapeuta": "Ha trabajado validación externa.",
+      "frase_paciente": "Lo que otros piensen sí me mueve más de lo que quisiera."
+    },
+    {
+      "contexto_paciente": "Evita expresar emociones en su familia.",
+      "contexto_terapeuta": "Ha trabajado expresión emocional.",
+      "frase_paciente": "No siempre me sale mostrar eso."
+    },
+    {
+      "contexto_paciente": "Tiene miedo a quedarse solo.",
+      "contexto_terapeuta": "Ha trabajado miedo a la soledad.",
+      "frase_paciente": "Esa idea me incomoda más de lo que pensaba."
+    },
+    {
+      "contexto_paciente": "Se siente bloqueado para iniciar proyectos.",
+      "contexto_terapeuta": "Ha trabajado bloqueos personales.",
+      "frase_paciente": "Siento que me quedo ahí antes de empezar."
+    },
+
+    {
+      "contexto_paciente": "Tiene dificultad para confiar en sus decisiones.",
+      "contexto_terapeuta": "Ha trabajado toma de decisiones.",
+      "frase_paciente": "Después de decidir, empiezo a dudar."
+    },
+    {
+      "contexto_paciente": "Se compara constantemente con otros.",
+      "contexto_terapeuta": "Ha trabajado comparación social.",
+      "frase_paciente": "Termino midiéndome con otros sin darme cuenta."
+    },
+    {
+      "contexto_paciente": "Tiene ansiedad anticipatoria.",
+      "contexto_terapeuta": "Ha trabajado ansiedad anticipatoria.",
+      "frase_paciente": "Me adelanto a lo que podría pasar."
+    },
+    {
+      "contexto_paciente": "Se siente emocionalmente agotado.",
+      "contexto_terapeuta": "Ha atravesado desgaste emocional.",
+      "frase_paciente": "Siento que ya no me alcanza igual."
+    },
+    {
+      "contexto_paciente": "Evita conflictos en su relación.",
+      "contexto_terapeuta": "Ha trabajado evitación de conflicto.",
+      "frase_paciente": "Prefiero dejarlo pasar aunque me quede algo."
+    },
+
+    {
+      "contexto_paciente": "Se siente perdido respecto a su propósito.",
+      "contexto_terapeuta": "Ha atravesado crisis de sentido.",
+      "frase_paciente": "No tengo tan claro hacia dónde voy."
+    },
+    {
+      "contexto_paciente": "Tiene miedo a fracasar.",
+      "contexto_terapeuta": "Ha trabajado miedo al fracaso.",
+      "frase_paciente": "Me detiene pensar en que podría salir mal."
+    },
+    {
+      "contexto_paciente": "Se siente desconectado emocionalmente.",
+      "contexto_terapeuta": "Ha trabajado desconexión emocional.",
+      "frase_paciente": "No siempre conecto con lo que siento."
+    },
+    {
+      "contexto_paciente": "Tiene dificultad para priorizarse.",
+      "contexto_terapeuta": "Ha trabajado priorización personal.",
+      "frase_paciente": "Me cuesta ponerme primero."
+    },
+    {
+      "contexto_paciente": "Siente culpa al descansar.",
+      "contexto_terapeuta": "Ha trabajado culpa asociada al descanso.",
+      "frase_paciente": "Descansar me genera ruido."
+    },
+
+    {
+      "contexto_paciente": "Tiene miedo a expresar desacuerdo.",
+      "contexto_terapeuta": "Ha trabajado asertividad.",
+      "frase_paciente": "No siempre digo lo que pienso."
+    },
+    {
+      "contexto_paciente": "Se siente emocionalmente vulnerable.",
+      "contexto_terapeuta": "Ha trabajado vulnerabilidad.",
+      "frase_paciente": "Siento que me afecta más de lo que quisiera."
+    },
+    {
+      "contexto_paciente": "Tiene dificultad para cerrar ciclos.",
+      "contexto_terapeuta": "Ha trabajado procesos de cierre.",
+      "frase_paciente": "Me cuesta soltar eso."
+    },
+    {
+      "contexto_paciente": "Se siente inseguro al hablar.",
+      "contexto_terapeuta": "Ha trabajado inseguridad comunicativa.",
+      "frase_paciente": "Me pasa que me freno antes de decir algo."
+    },
+    {
+      "contexto_paciente": "Siente presión constante.",
+      "contexto_terapeuta": "Ha vivido presión sostenida.",
+      "frase_paciente": "Siento que no bajo nunca el ritmo."
+    },
+
+    {
+      "contexto_paciente": "Se siente insuficiente profesionalmente.",
+      "contexto_terapeuta": "Ha trabajado inseguridad profesional.",
+      "frase_paciente": "Siento que me falta algo."
+    },
+    {
+      "contexto_paciente": "Tiene dificultad para confiar en sí mismo.",
+      "contexto_terapeuta": "Ha trabajado autoconfianza.",
+      "frase_paciente": "No termino de confiar en lo que hago."
+    },
+    {
+      "contexto_paciente": "Se siente atrapado en su rutina.",
+      "contexto_terapeuta": "Ha trabajado estancamiento personal.",
+      "frase_paciente": "Todo se repite bastante."
+    },
+    {
+      "contexto_paciente": "Busca aprobación constante.",
+      "contexto_terapeuta": "Ha trabajado dependencia de aprobación.",
+      "frase_paciente": "Me ayuda cuando alguien lo valida."
+    },
+    {
+      "contexto_paciente": "Tiene pensamientos negativos recurrentes.",
+      "contexto_terapeuta": "Ha trabajado pensamiento negativo.",
+      "frase_paciente": "Me voy fácil hacia lo negativo."
+    },
+
+    {
+      "contexto_paciente": "Se siente desconectado de sí mismo.",
+      "contexto_terapeuta": "Ha trabajado conexión personal.",
+      "frase_paciente": "No me siento tan conectado conmigo."
+    },
+    {
+      "contexto_paciente": "Evita involucrarse emocionalmente.",
+      "contexto_terapeuta": "Ha trabajado evitación emocional.",
+      "frase_paciente": "Prefiero no meterme tanto."
+    },
+    {
+      "contexto_paciente": "Tiene miedo a equivocarse frente a otros.",
+      "contexto_terapeuta": "Ha trabajado exposición al error.",
+      "frase_paciente": "Me pesa equivocarme delante de otros."
+    },
+    {
+      "contexto_paciente": "Se siente responsable por todo.",
+      "contexto_terapeuta": "Ha trabajado sobre-responsabilidad.",
+      "frase_paciente": "Siento que recae en mí."
+    },
+    {
+      "contexto_paciente": "Tiene dificultad para relajarse.",
+      "contexto_terapeuta": "Ha trabajado control y relajación.",
+      "frase_paciente": "No me es fácil parar."
+    }
   ],
 
   /* =========================================================
      INTERVENCIÓN — SARCASMO TERAPÉUTICO
   ========================================================= */
-  "clinico|intervencion|basico|sarcasmo_terapeutico": [
-    "Ish… como que siempre termino en lo mismo.",
-    "Creo que yo misma me pongo el pie.",
-    "Quiero cambiar, pero hago lo mismo.",
-    "Entre más controlo, peor me siento.",
-    "Evito pensar en eso… pero no dejo de hacerlo.",
-    "Siempre digo que quiero algo diferente, pero elijo igual.",
-    "Pienso tanto que ya ni actúo.",
-    "Nunca es suficiente lo que hago.",
-    "Digo que no me importa, pero sí me importa.",
-    "Quiero acercarme, pero me alejo.",
-    "Quiero estar tranquilo, pero no paro de pensar.",
-    "Me siento culpable por descansar.",
-    "Siempre dejo todo para después.",
-    "Entre más pienso, peor me siento.",
-    "No quiero cambiar… pero tampoco quiero seguir así.",
-    "Quiero soltar, pero sigo ahí.",
-    "Sé que me hace daño, pero lo sigo haciendo.",
-    "Siempre termino con el mismo tipo de persona.",
-    "No me afecta… bueno sí, un poco.",
-    "Me preocupo por cosas que ni han pasado.",
-    "Quiero avanzar, pero me quedo donde estoy.",
-    "Necesito tener todo claro para sentirme tranquila.",
-    "Evito problemas… pero se acumulan.",
-    "Me afecta más de lo que quiero admitir.",
-    "Quiero confiar, pero no confío.",
-    "Siempre termino haciendo lo mismo.",
-    "No quiero pensar en eso… pero ahí está.",
-    "Quiero estar bien, pero no hago nada para eso.",
-    "Sé lo que tengo que hacer, pero no lo hago.",
-    "Me preocupo por todo.",
-    "Quiero dejar de pensar, pero sigo pensando.",
-    "Me afecta, aunque diga que no.",
-    "Evito, pero no se va.",
-    "Siempre vuelvo a lo mismo.",
-    "Quiero cambiar, pero no cambio.",
-    "Me preocupo por cosas pequeñas.",
-    "Quiero avanzar, pero me freno.",
-    "Siempre hago lo mismo.",
-    "No me gusta cómo me siento, pero sigo igual.",
-    "Quiero cambiar, pero me cuesta demasiado.",
+  "clinico|intervencion|unico|sarcasmo_terapeutico": [
+    {
+      "contexto": "Paciente masculino, sesión 3, patrón repetitivo con insight.",
+      "frase_paciente": "Ya esto parece una suscripción… siempre termino en lo mismo."
+    },
+    {
+      "contexto": "Paciente femenina, sesión intermedia, autosabotaje.",
+      "frase_paciente": "Es como si yo misma me metiera la zancadilla justo cuando voy bien."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, contradicción.",
+      "frase_paciente": "Quiero cambiar… pero parece que tengo piloto automático."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 4, control.",
+      "frase_paciente": "Entre más intento tener todo bajo control, más se me desarma."
+    },
+    {
+      "contexto": "Paciente masculino, sesión intermedia, evitación.",
+      "frase_paciente": "Evito pensar en eso… pero mi mente no coopera mucho."
+    },
+
+    {
+      "contexto": "Paciente femenina, sesión 3, patrón relacional.",
+      "frase_paciente": "Digo que quiero algo distinto… pero el casting siempre me sale igual."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 3, sobrepensamiento.",
+      "frase_paciente": "Pienso tanto que ya debería cobrarle alquiler a los pensamientos."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 2, autoexigencia.",
+      "frase_paciente": "Si fuera por mí, nunca me daría un ‘suficiente’."
+    },
+    {
+      "contexto": "Paciente masculino, sesión avanzada, ambivalencia.",
+      "frase_paciente": "No me importa… bueno, sí, pero trato de que no se note."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 3, ambivalencia vincular.",
+      "frase_paciente": "Quiero acercarme… pero cuando lo hago, me echo para atrás."
+    },
+
+    {
+      "contexto": "Paciente masculino, sesión 2, ansiedad.",
+      "frase_paciente": "Quiero estar tranquilo… pero mi cabeza tiene otros planes."
+    },
+    {
+      "contexto": "Paciente femenina, sesión intermedia, culpa leve racionalizada.",
+      "frase_paciente": "Descansar se siente raro… como si estuviera dejando algo pendiente."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 4, procrastinación.",
+      "frase_paciente": "Yo creo que si procrastinar fuera deporte, ya estaría en las olimpiadas."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 3, ansiedad.",
+      "frase_paciente": "Entre más lo pienso… peor se pone todo."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, ambivalencia.",
+      "frase_paciente": "No quiero cambiar… pero tampoco quiero seguir así… entonces ahí estoy."
+    },
+
+    {
+      "contexto": "Paciente femenina, sesión intermedia, apego.",
+      "frase_paciente": "Quiero soltar… pero parece que no sé cómo hacerlo sin volver."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 3, hábito disfuncional.",
+      "frase_paciente": "Sé que me hace daño… pero también sé que probablemente lo repita."
+    },
+    {
+      "contexto": "Paciente femenina, sesión avanzada, patrón relacional.",
+      "frase_paciente": "Siempre termino con el mismo tipo… ya ni sé si es casualidad."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, minimización.",
+      "frase_paciente": "No es tan grave… solo que no dejo de pensar en eso."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 4, preocupación.",
+      "frase_paciente": "Me preparo para problemas que ni han pasado… por si acaso."
+    },
+
+    {
+      "contexto": "Paciente masculino, sesión intermedia, estancamiento.",
+      "frase_paciente": "Quiero avanzar… pero me veo sentado en el mismo lugar."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 3, control.",
+      "frase_paciente": "Necesito entender todo… para poder relajarme un poco."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, evitación.",
+      "frase_paciente": "Evito cosas… y luego me llegan todas juntas."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 4, insight emocional.",
+      "frase_paciente": "Me afecta más de lo que me gustaría aceptar."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 3, confianza.",
+      "frase_paciente": "Quiero confiar… pero tampoco quiero salir perdiendo."
+    },
+
+    {
+      "contexto": "Paciente femenina, sesión intermedia, repetición.",
+      "frase_paciente": "Siempre digo ‘esta vez es diferente’… y bueno."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, rumiación.",
+      "frase_paciente": "No quiero pensar en eso… pero vuelve como notificación."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 3, incoherencia.",
+      "frase_paciente": "Quiero estar mejor… pero no hago mucho distinto."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 4, bloqueo.",
+      "frase_paciente": "Sé qué hacer… pero no sé por qué no lo hago."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 2, ansiedad leve.",
+      "frase_paciente": "Me preocupo… incluso cuando no hay mucho de qué."
+    },
+
+    {
+      "contexto": "Paciente masculino, sesión intermedia, rumiación.",
+      "frase_paciente": "Quiero dejar de pensar… pero mi mente no firmó ese acuerdo."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 3, ambivalencia.",
+      "frase_paciente": "Me afecta… aunque haga como que no."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, evitación.",
+      "frase_paciente": "Evito… pero eso no hace que desaparezca."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 4, repetición.",
+      "frase_paciente": "Siempre vuelvo al mismo punto… con distinto camino."
+    },
+    {
+      "contexto": "Paciente masculino, sesión intermedia, resistencia.",
+      "frase_paciente": "Quiero cambiar… pero parece que no tanto."
+    },
+
+    {
+      "contexto": "Paciente femenina, sesión 3, ansiedad leve.",
+      "frase_paciente": "Me preocupo… hasta por preocuparme."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 2, bloqueo.",
+      "frase_paciente": "Quiero avanzar… pero algo me pone freno."
+    },
+    {
+      "contexto": "Paciente femenina, sesión intermedia, patrón.",
+      "frase_paciente": "Termino haciendo lo que ya sabía que iba a hacer."
+    },
+    {
+      "contexto": "Paciente masculino, sesión 3, incongruencia.",
+      "frase_paciente": "No me gusta cómo me siento… pero tampoco cambio mucho."
+    },
+    {
+      "contexto": "Paciente femenina, sesión 4, dificultad.",
+      "frase_paciente": "Quiero cambiar… pero no es tan fácil como suena."
+    }
   ],
 
   /* =========================================================
      INTERVENCIÓN — EVOCACIÓN INCOMPLETA GUIADA
   ========================================================= */
-  "clinico|intervencion|basico|evocacion_incompleta_guiada": [
+  "clinico|intervencion|unico|evocacion_incompleta_guiada": [
     "Siempre termino con el mismo tipo de persona.",
     "Cuando algo va bien, hago algo y lo arruino.",
     "Quiero estar cerca, pero cuando lo estoy me alejo.",

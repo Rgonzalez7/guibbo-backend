@@ -237,18 +237,18 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     const {
       contexto, escenario, nivel,
       habilidades, habilidadesTCC,
-      casosExcluir, // ← textos de casos ya usados en el formulario actual
+      casosExcluir,
     } = req.body || {};
 
     if (!contexto || !escenario || !nivel) {
       return res.status(400).json({ message: "contexto, escenario y nivel son obligatorios." });
     }
 
-    const { getCasos } = require("../data/casosMicroIntervenciones");
+    const { getCasos, CASOS } = require("../data/casosMicroIntervenciones");
 
-    const habilidadesBase    = Array.isArray(habilidades)    ? habilidades    : [];
-    const habilidadesTCCArr  = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
-    const todasHabilidades   = [...habilidadesBase, ...habilidadesTCCArr];
+    const habilidadesBase   = Array.isArray(habilidades)    ? habilidades    : [];
+    const habilidadesTCCArr = Array.isArray(habilidadesTCC) ? habilidadesTCC : [];
+    const todasHabilidades  = [...habilidadesBase, ...habilidadesTCCArr];
     const habilidadPrincipal = todasHabilidades[0] || "";
 
     if (!habilidadPrincipal) {
@@ -260,24 +260,24 @@ exports.generarCasosGrabarVoz = async (req, res) => {
       .replace(/\s+/g, "_")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    const nivelPool = ["basico","intermedio","avanzado"].includes(nivel) ? nivel : "basico";
-    const pool = getCasos(contexto, escenario, nivelPool, habilidadNorm);
+    // ── Resolver nivel real según la regla ──
+    const nivelElegido = resolverNivelPool({
+      CASOS, contexto, escenario,
+      nivel, habilidad: habilidadNorm,
+    });
+
+    const pool = getCasos(contexto, escenario, nivelElegido, habilidadNorm);
 
     if (!pool.length) {
       return res.status(404).json({
-        message: `No hay casos disponibles para: ${contexto} / ${escenario} / ${nivelPool} / ${habilidadNorm}.`,
+        message: `No hay casos disponibles para: ${contexto} / ${escenario} / ${nivelElegido} / ${habilidadNorm}.`,
       });
     }
 
-    // Excluir los casos que ya están en el formulario
     const excluidos  = Array.isArray(casosExcluir) ? casosExcluir : [];
     const disponibles = pool.filter((c) => !excluidos.includes(c));
-
-    // Si todos ya están usados, rotar desde el pool completo aleatoriamente
-    const candidatos = disponibles.length > 0 ? disponibles : pool;
-
-    // Elegir aleatoriamente para evitar siempre el mismo primero
-    const caso = candidatos[Math.floor(Math.random() * candidatos.length)];
+    const candidatos  = disponibles.length > 0 ? disponibles : pool;
+    const caso        = candidatos[Math.floor(Math.random() * candidatos.length)];
 
     return res.json({ caso });
   } catch (err) {
@@ -285,6 +285,54 @@ exports.generarCasosGrabarVoz = async (req, res) => {
     return res.status(500).json({ message: "Error al obtener casos.", error: err.message });
   }
 };
+
+/* =========================================================
+   Resolver qué nivel del pool usar
+   Regla:
+   - Habilidad con nivel único ("unico"):
+       siempre usa "unico"
+   - Habilidad con básico + avanzado (sin intermedio):
+       nivel basico  → basico
+       nivel intermedio | avanzado → avanzado
+   - Habilidad con basico + intermedio + avanzado:
+       usa el nivel exacto
+========================================================= */
+function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
+  const NIVELES_ORDENADOS = ["basico", "intermedio", "avanzado"];
+
+  // Detectar qué niveles existen para esta habilidad
+  const nivelesDisponibles = ["unico", "basico", "intermedio", "avanzado"].filter((n) => {
+    const key = `${contexto}|${escenario}|${n}|${habilidad}`;
+    return Array.isArray(CASOS[key]) && CASOS[key].length > 0;
+  });
+
+  // Caso 1: nivel único
+  if (nivelesDisponibles.includes("unico")) return "unico";
+
+  // Caso 2: sin datos en absoluto — fallback
+  if (!nivelesDisponibles.length) return nivel;
+
+  // Caso 3: solo tiene básico y avanzado (sin intermedio)
+  const tieneBasico     = nivelesDisponibles.includes("basico");
+  const tieneIntermedio = nivelesDisponibles.includes("intermedio");
+  const tieneAvanzado   = nivelesDisponibles.includes("avanzado");
+
+  if (tieneBasico && tieneAvanzado && !tieneIntermedio) {
+    // basico → basico | intermedio/avanzado → avanzado
+    return nivel === "basico" ? "basico" : "avanzado";
+  }
+
+  // Caso 4: tres niveles completos — usar el nivel exacto
+  if (tieneBasico && tieneIntermedio && tieneAvanzado) {
+    return ["basico", "intermedio", "avanzado"].includes(nivel) ? nivel : "basico";
+  }
+
+  // Caso 5: solo tiene un nivel (ej: solo basico) — usar ese
+  if (nivelesDisponibles.length === 1) return nivelesDisponibles[0];
+
+  // Fallback
+  return nivelesDisponibles[0];
+}
 
 
 /* =========================================================

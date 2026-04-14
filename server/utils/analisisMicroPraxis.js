@@ -104,12 +104,550 @@ const CRITERIOS_HABILIDAD = {
       ],
     },
     nivel_2: {
-
+      "habilidad": "preguntas_abiertas",
+      "nivel": 2,
+      "objetivo": "Explorar procesos internos del paciente facilitando mayor claridad en pensamientos, emociones o conductas sin interpretar.",
+      "criterios_adecuada": [
+        "Pregunta abierta",
+        "Se mantiene en el contenido",
+        "Explora procesos internos",
+        "Facilita claridad o diferenciación",
+        "Apunta a ambivalencias o contradicciones",
+        "No interpreta",
+        "No cierra la respuesta"
+      ],
+      "criterios_parcial": [
+        "Demasiado general",
+        "Dirección débil",
+        "Superficial",
+        "Interpretación leve",
+        "No aprovecha contradicciones"
+      ],
+      "criterios_incorrecta": [
+        "Cerrada",
+        "Interpreta",
+        "Dirige conclusión",
+        "Juzga o aconseja",
+        "No es pregunta"
+      ],
+      "errores_tipicos": [
+        "Quedarse en nivel 1",
+        "No explorar lo interno",
+        "No detectar ambivalencia",
+        "Interpretar",
+        "Preguntas cerradas"
+      ],
+      "lineamientos_correccion": [
+        "Explorar pensamientos, emociones o conductas",
+        "Apuntar a contradicciones",
+        "Usar 'qué', 'cómo', 'qué pasa cuando'",
+        "Mantener conexión con el contenido",
+        "Evitar interpretar"
+      ]
     },
     nivel_3:{
+      "habilidad": "preguntas_abiertas",
+      "nivel": 3,
+      "objetivo": "Explorar con precisión clínica los procesos internos del paciente, especialmente ambivalencias y contradicciones, sin interpretar.",
+      "criterios_adecuada": [
+        "Pregunta abierta",
+        "Se mantiene en el contenido",
+        "Explora ambivalencias o contradicciones",
+        "Facilita precisión",
+        "Relaciona partes de la experiencia",
+        "No interpreta",
+        "No cierra la respuesta"
+      ],
+      "criterios_parcial": [
+        "Nivel 2 (no profundiza)",
+        "No integra contradicción",
+        "Dirección poco precisa",
+        "Exploración incompleta",
+        "Interpretación leve"
+      ],
+      "criterios_incorrecta": [
+        "Cerrada",
+        "Interpreta",
+        "Simplifica en exceso",
+        "Ignora conflicto",
+        "No es pregunta",
+        "Juzga o aconseja"
+      ],
+      "errores_tipicos": [
+        "Quedarse en nivel 2",
+        "No explorar ambivalencia",
+        "Simplificar",
+        "Interpretar",
+        "No integrar partes"
+      ],
+      "lineamientos_correccion": [
+        "Explorar contradicción",
+        "Relacionar dos partes de la experiencia",
+        "Usar preguntas de precisión",
+        "Mantenerse en el contenido",
+        "Evitar interpretar"
+      ]
+    },
+  },
+
+  parafrasis: {
+    nivel_1: {
+      "objetivo": "Reformular el contenido del paciente de manera clara y fiel, sin interpretar ni agregar información.",
+      "criterios_adecuada": [
+        "Reformula el contenido",
+        "Mantiene significado",
+        "Es clara",
+        "No agrega información",
+        "No interpreta"
+      ],
+      "criterios_parcial": [
+        "Reformulación incompleta",
+        "Demasiado literal",
+        "Leve distorsión",
+        "Poca claridad",
+        "Interpretación leve"
+      ],
+      "criterios_incorrecta": [
+        "Interpreta",
+        "Agrega contenido",
+        "Cambia significado",
+        "Da consejo",
+        "Hace pregunta"
+      ],
+      "errores_tipicos": [
+        "Copiar literal",
+        "Interpretar",
+        "Cambiar sentido",
+        "Preguntar",
+        "Ser muy general"
+      ],
+      "lineamientos_correccion": [
+        "Reformular con palabras propias",
+        "Mantener significado original",
+        "No agregar contenido",
+        "Organizar la idea claramente"
+      ]
+    },
+    nivel_2: {
+      "objetivo": "Reformular el contenido del paciente haciendo explícita la contradicción o tensión y organizando el mensaje con intención, sin interpretar.",
+      "criterios_adecuada": [
+        "Reformula con palabras propias",
+        "Mantiene significado",
+        "Hace explícita la contradicción",
+        "Usa conectores organizadores",
+        "Destaca elementos clave",
+        "No interpreta"
+      ],
+      "criterios_parcial": [
+        "Nivel 1 (no marca contradicción)",
+        "Tensión implícita",
+        "No usa conectores",
+        "Omite elementos clave",
+        "Interpretación leve"
+      ],
+      "criterios_incorrecta": [
+        "Interpreta",
+        "Agrega contenido",
+        "Cambia significado",
+        "Da consejo",
+        "Hace pregunta"
+      ],
+      "errores_tipicos": [
+        "Quedarse en nivel 1",
+        "No marcar contradicción",
+        "No usar conectores",
+        "Simplificar",
+        "Interpretar"
+      ],
+      "lineamientos_correccion": [
+        "Destacar contradicción",
+        "Usar 'pero', 'aunque', 'sin embargo'",
+        "Integrar ambos elementos",
+        "No interpretar",
+        "Organizar claramente"
+      ]
+    },
+    nivel_3:{
+      "objetivo": "Reformular organizando de manera precisa y estructurada la experiencia compleja del paciente, integrando ambivalencias sin interpretar.",
+      "criterios_adecuada": [
+        "Reformula con palabras propias",
+        "Mantiene significado",
+        "Integra múltiples elementos",
+        "Estructura la experiencia",
+        "Destaca ambivalencias",
+        "Relaciona partes",
+        "No interpreta"
+      ],
+      "criterios_parcial": [
+        "Nivel 2",
+        "No integra todo",
+        "Simplifica",
+        "Estructura incompleta",
+        "Interpretación leve"
+      ],
+      "criterios_incorrecta": [
+        "Interpreta",
+        "Agrega contenido",
+        "Reduce a una idea",
+        "Distorsiona",
+        "Da consejo",
+        "Hace pregunta"
+      ],
+      "errores_tipicos": [
+        "Quedarse en nivel 2",
+        "No integrar ambivalencia",
+        "Simplificar",
+        "Interpretar",
+        "Perder partes del conflicto"
+      ],
+      "lineamientos_correccion": [
+        "Integrar múltiples elementos",
+        "Estructurar la experiencia",
+        "Relacionar partes",
+        "Mantener fidelidad",
+        "No interpretar"
+      ]
+    },
+  },
+
+  reflejo: {
+    nivel_1: {
+
+    },
+    nivel_2: {
 
     },
   },
+
+  validacion: {
+    nivel_1: {
+      "objetivo": "Legitimar la emoción del paciente haciendo que su experiencia tenga sentido, sin explicar ni interpretar.",
+      "criterios_adecuada": [
+        "La intervención valida la emoción del paciente",
+        "Utiliza lenguaje legitimador (por ejemplo: 'es entendible', 'tiene sentido', 'es normal', 'es lógico')",
+        "Puede o no incluir la emoción explícita",
+        "Se mantiene breve y clara",
+        "No introduce interpretación",
+        "No explica el porqué de la emoción",
+        "No incluye juicio ni consejo"
+      ],
+      "criterios_parcial": [
+        "Valida la emoción pero de forma débil o poco clara",
+        "Lenguaje poco natural o poco empático",
+        "No utiliza claramente una estructura de validación",
+        "Suena genérica o poco conectada con la experiencia del paciente"
+      ],
+      "criterios_incorrecta": [
+        "No valida la emoción",
+        "Solo refleja (nombra emoción sin legitimar)",
+        "Introduce interpretación",
+        "Explica el porqué de la emoción",
+        "Incluye consejo o juicio",
+        "Minimiza la experiencia del paciente"
+      ],
+      "errores_tipicos": [
+        "Responder con reflejo en lugar de validación",
+        "Explicar en lugar de legitimar",
+        "Usar frases como 'pero' que invalidan",
+        "Minimizar la emoción (por ejemplo: 'no es para tanto')",
+        "Dar consejo en lugar de validar"
+      ],
+      "lineamientos_correccion": [
+        "Usar estructuras como: 'es entendible que…', 'tiene sentido que…', 'es normal que…'",
+        "Mantener la respuesta breve y directa",
+        "Validar sin explicar ni justificar",
+        "Mantener un tono empático y natural",
+        "Evitar agregar causas o interpretaciones"
+      ]
+    },
+    nivel_2: {
+      "objetivo": "Legitimar la emoción del paciente aportando sentido a su experiencia en contexto, reduciendo el autojuicio, sin interpretar ni explicar en profundidad.",
+      "criterios_adecuada": [
+        "Valida explícitamente la emoción del paciente",
+        "Utiliza lenguaje legitimador (por ejemplo: 'es entendible', 'tiene sentido', 'es normal', 'es lógico')",
+        "Aporta un sentido contextual cercano a lo dicho por el paciente (sin agregar información nueva)",
+        "Reduce o suaviza el autojuicio del paciente (culpa, vergüenza, exigencia)",
+        "Se mantiene breve y clara (1–2 líneas)",
+        "No introduce interpretación ni explicaciones profundas",
+        "No incluye juicio, consejo ni minimización"
+      ],
+      "criterios_parcial": [
+        "Valida la emoción pero se queda en nivel 1 (sin aportar contexto)",
+        "Aporta contexto pero de forma débil o poco conectada",
+        "El lenguaje legitimador es poco claro o poco natural",
+        "El intento de reducir autojuicio es insuficiente",
+        "La respuesta es correcta pero genérica"
+      ],
+      "criterios_incorrecta": [
+        "No valida la emoción",
+        "Solo refleja (nombra emoción sin legitimar)",
+        "Introduce interpretación (explica causas o significados no expresados)",
+        "Explica en exceso (sobre-elabora el contexto)",
+        "Incluye consejo o directividad",
+        "Minimiza o invalida la experiencia del paciente"
+      ],
+      "errores_tipicos": [
+        "Quedarse en validación nivel 1 (solo 'es entendible…')",
+        "Explicar el porqué de la emoción (interpretación)",
+        "Dar consejo disfrazado de validación",
+        "Usar 'pero' que invalida (por ejemplo: 'es entendible, pero…')",
+        "Agregar información no dicha por el paciente",
+        "Sonar genérico o poco empático"
+      ],
+      "lineamientos_correccion": [
+        "Iniciar con una frase legitimadora ('es entendible que…', 'tiene sentido que…')",
+        "Añadir un contexto cercano a lo dicho por el paciente (sin interpretar)",
+        "Apuntar a aliviar autojuicio (normalizar la reacción humana)",
+        "Mantener la respuesta breve (1–2 líneas)",
+        "Evitar 'pero' invalidante; usar conectores neutros como 'sobre todo cuando…', 'considerando que…'",
+        "No explicar causas profundas ni agregar significados nuevos"
+      ]
+    },
+  },
+
+  clarificacion: {
+    nivel_1: {
+      "objetivo": "Precisar elementos difusos o poco claros del discurso del paciente.",
+      "criterios_adecuada": [
+        "La intervención es una pregunta abierta",
+        "Busca aclarar algo que el paciente no logra expresar con precisión",
+        "Se mantiene directamente en lo dicho por el paciente",
+        "No introduce interpretaciones ni contenido nuevo",
+        "Usa lenguaje simple y directo",
+        "Apunta a que el paciente defina o describa mejor su experiencia"
+      ],
+      "criterios_parcial": [
+        "La pregunta es abierta pero muy general",
+        "No apunta claramente a lo difuso del discurso",
+        "Pierde precisión en lo que intenta clarificar",
+        "Podría aplicarse a cualquier caso (genérica)"
+      ],
+      "criterios_incorrecta": [
+        "No es una pregunta",
+        "Es una pregunta cerrada",
+        "Introduce interpretación",
+        "Cambia el foco del discurso",
+        "Dirige la respuesta",
+        "Introduce contenido que el paciente no mencionó"
+      ],
+      "errores_tipicos": [
+        "Preguntas demasiado generales",
+        "No identificar qué parte es difusa",
+        "Interpretar en lugar de clarificar",
+        "Cambiar de tema",
+        "Usar preguntas cerradas"
+      ],
+      "lineamientos_correccion": [
+        "Identificar la parte poco clara del discurso",
+        "Usar preguntas tipo '¿a qué te refieres con…?'",
+        "Mantenerse en lo que el paciente dijo",
+        "Usar lenguaje simple",
+        "Evitar agregar significado"
+      ]
+    },
+    nivel_2: {
+      "objetivo": "Precisar contradicciones, ambivalencias o matices dentro del discurso del paciente.",
+      "criterios_adecuada": [
+        "La intervención es una pregunta abierta",
+        "Identifica y enfoca una contradicción o ambivalencia del paciente",
+        "Invita al paciente a diferenciar o explicar dos partes de su experiencia",
+        "Se mantiene dentro del contenido expresado",
+        "No introduce interpretación",
+        "Ayuda a organizar el discurso del paciente"
+      ],
+      "criterios_parcial": [
+        "Detecta la ambivalencia pero no la enfoca claramente",
+        "La pregunta es abierta pero poco precisa",
+        "No logra diferenciar claramente los elementos en conflicto",
+        "Se queda en exploración general (nivel 1)"
+      ],
+      "criterios_incorrecta": [
+        "No es una pregunta abierta",
+        "Ignora la contradicción del paciente",
+        "Introduce interpretación",
+        "Dirige la respuesta hacia una conclusión",
+        "Explica en lugar de preguntar"
+      ],
+      "errores_tipicos": [
+        "No identificar la ambivalencia",
+        "Hacer preguntas generales en lugar de focalizadas",
+        "Interpretar la contradicción",
+        "Reducir la complejidad del discurso",
+        "Dirigir la respuesta"
+      ],
+      "lineamientos_correccion": [
+        "Detectar frases con 'pero', 'aunque', contradicciones",
+        "Usar preguntas tipo 'cuando dices… pero…, ¿cómo es eso?'",
+        "Invitar a diferenciar experiencias",
+        "Mantenerse en lo dicho por el paciente",
+        "Evitar conclusiones"
+      ]
+    },
+    nivel_3: {
+      "objetivo": "Delimitar la estructura de la experiencia del paciente (origen, niveles, partes o condiciones).",
+      "criterios_adecuada": [
+        "La intervención es una pregunta abierta",
+        "Apunta a diferenciar dimensiones más complejas (tiempo, origen, intensidad, partes)",
+        "Invita al paciente a distinguir entre posibles fuentes o capas de su experiencia",
+        "Se mantiene en lo expresado por el paciente",
+        "No introduce interpretación ni explicaciones",
+        "Aumenta la precisión y profundidad del discurso sin dirigirlo"
+      ],
+      "criterios_parcial": [
+        "Intenta profundizar pero sin delimitar claramente",
+        "La pregunta es abierta pero poco estructurante",
+        "No logra diferenciar claramente las dimensiones",
+        "Se queda en nivel 2 (ambivalencia simple)"
+      ],
+      "criterios_incorrecta": [
+        "Introduce interpretación (por ejemplo: causas no dichas)",
+        "Dirige la respuesta hacia una explicación",
+        "No es una pregunta abierta",
+        "Es demasiado compleja o confusa",
+        "Se convierte en análisis en lugar de clarificación"
+      ],
+      "errores_tipicos": [
+        "Confundir clarificación con interpretación",
+        "Hacer preguntas demasiado complejas",
+        "Agregar significado no expresado",
+        "Dirigir hacia una explicación",
+        "Forzar profundidad innecesaria"
+      ],
+      "lineamientos_correccion": [
+        "Identificar elementos como origen, tiempo o intensidad",
+        "Usar preguntas tipo '¿qué diferencias notas…?', '¿cómo distingues…?'",
+        "Invitar a separar partes de la experiencia",
+        "Mantener claridad y simplicidad",
+        "Evitar explicar o interpretar"
+      ]
+    },
+  },
+
+  sintesis: {
+    nivel_1: {
+      "objetivo": "Resumir de forma clara y fiel los elementos principales del discurso del paciente.",
+      "criterios_adecuada": [
+        "Resume los elementos principales del caso",
+        "Mantiene fidelidad al contenido expresado",
+        "No agrega información nueva",
+        "No interpreta ni explica",
+        "Usa lenguaje claro y breve",
+        "Integra los elementos en una sola frase coherente"
+      ],
+      "criterios_parcial": [
+        "Incluye solo parte de la información relevante",
+        "La síntesis es poco clara o desorganizada",
+        "Se acerca más a una paráfrasis que a una síntesis",
+        "No logra integrar los elementos en una sola idea"
+      ],
+      "criterios_incorrecta": [
+        "No es una síntesis",
+        "Agrega información no dicha",
+        "Introduce interpretación o explicación",
+        "Cambia el sentido del contenido",
+        "Enumera sin integrar",
+        "Se enfoca en detalles irrelevantes"
+      ],
+      "errores_tipicos": [
+        "Listar elementos sin integrarlos",
+        "Repetir el contenido sin resumir",
+        "Agregar explicaciones",
+        "Perder información clave",
+        "Confundir con paráfrasis"
+      ],
+      "lineamientos_correccion": [
+        "Identificar las ideas principales",
+        "Reducir el contenido a lo esencial",
+        "Unir los elementos en una sola frase",
+        "Mantener fidelidad al discurso",
+        "Evitar explicar o interpretar"
+      ]
+    },
+    nivel_2: {
+      "objetivo": "Integrar elementos del discurso del paciente organizándolos en una secuencia coherente.",
+      "criterios_adecuada": [
+        "Integra múltiples elementos del caso",
+        "Organiza la información en una secuencia lógica (por ejemplo: situación → reacción → consecuencia)",
+        "Mantiene fidelidad al contenido",
+        "No agrega información nueva",
+        "No interpreta ni explica",
+        "Logra una síntesis clara y estructurada"
+      ],
+      "criterios_parcial": [
+        "Integra los elementos pero sin una organización clara",
+        "La secuencia es confusa o incompleta",
+        "Se acerca a nivel 1 (solo resume)",
+        "Pierde parte del hilo lógico"
+      ],
+      "criterios_incorrecta": [
+        "No integra los elementos",
+        "Enumera sin organizar",
+        "Introduce interpretación",
+        "Cambia el significado del contenido",
+        "Agrega información no dicha",
+        "Pierde la coherencia"
+      ],
+      "errores_tipicos": [
+        "Listar sin organizar",
+        "No identificar la secuencia",
+        "Agregar explicaciones",
+        "Simplificar en exceso",
+        "Confundir con paráfrasis"
+      ],
+      "lineamientos_correccion": [
+        "Identificar la relación entre los elementos",
+        "Organizar en secuencia lógica",
+        "Mantener claridad y coherencia",
+        "No agregar significado",
+        "Evitar interpretación"
+      ]
+    },
+    nivel_3: {
+      "objetivo": "Integrar y jerarquizar la experiencia del paciente identificando el elemento central que organiza su conflicto.",
+      "criterios_adecuada": [
+        "Integra múltiples elementos del caso",
+        "Identifica el eje central que organiza la experiencia del paciente",
+        "Jerarquiza la información (no todos los elementos tienen el mismo peso)",
+        "Expresa cómo ese elemento central influye en el resto",
+        "Mantiene fidelidad al contenido",
+        "No agrega información nueva",
+        "No interpreta ni explica causas",
+        "Logra una síntesis clara, organizada y con sentido clínico"
+      ],
+      "criterios_parcial": [
+        "Integra los elementos pero sin jerarquizarlos",
+        "No identifica claramente el eje central",
+        "Se queda en nivel 2 (solo organiza)",
+        "La síntesis es correcta pero plana (sin profundidad)",
+        "La relación entre elementos no es clara"
+      ],
+      "criterios_incorrecta": [
+        "No integra los elementos",
+        "No identifica ningún eje organizador",
+        "Introduce interpretación (explica causas o significados)",
+        "Agrega información no dicha",
+        "Simplifica en exceso perdiendo complejidad",
+        "Se convierte en análisis o intervención"
+      ],
+      "errores_tipicos": [
+        "Integrar sin jerarquizar",
+        "No identificar lo central",
+        "Explicar en lugar de sintetizar",
+        "Agregar significado no dicho",
+        "Reducir la complejidad del paciente",
+        "Confundir con interpretación clínica"
+      ],
+      "lineamientos_correccion": [
+        "Identificar el elemento más relevante del discurso",
+        "Organizar la síntesis alrededor de ese eje",
+        "Mostrar cómo ese eje conecta los demás elementos",
+        "Mantener la complejidad sin explicar",
+        "No agregar significado",
+        "Usar lenguaje claro y estructurado"
+      ]
+    },
+  },
+
   // otras habilidades se agregarán después
 };
 
