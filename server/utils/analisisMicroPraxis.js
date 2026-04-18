@@ -70,37 +70,44 @@ const CRITERIOS_HABILIDAD = {
       objetivo: "Facilitar que el paciente amplíe su discurso sin dirigirlo ni interpretarlo.",
       criterios_adecuada: [
         "La intervención es una pregunta abierta (no se responde con sí/no)",
+        "No introduce interpretaciones ni suposiciones",
+        "No dirige la respuesta hacia una conclusión específica",
+        "No mezcla otras técnicas (validación, consejo, interpretación, confrontación)",
         "Se mantiene directamente en el contenido expresado por el paciente",
         "Invita a ampliar la experiencia del paciente",
-        "No introduce interpretaciones",
-        "No dirige la respuesta hacia una conclusión específica",
-        "No contiene juicio ni consejo",
+        "Facilita la expresión sin limitarla",
+        "Usa lenguaje claro, natural y comprensible",
       ],
       criterios_parcial: [
-        "La pregunta es abierta pero demasiado genérica",
-        "Introduce ligera dirección en la respuesta",
-        "Reduce la amplitud de la respuesta",
-        "Pierde el foco principal del discurso",
+        "La pregunta es abierta pero demasiado general",
+        "Introduce una ligera dirección sin limitar completamente la exploración",
+        "Reduce parcialmente la amplitud de la respuesta",
+        "Pierde parcialmente el foco del discurso del paciente",
       ],
       criterios_incorrecta: [
         "La pregunta es cerrada",
-        "Introduce interpretación",
+        "Introduce interpretación o suposición no explorada",
+        "Dirige claramente la respuesta del paciente",
+        "Mezcla técnicas (por ejemplo: validación + pregunta, interpretación + pregunta)",
         "Incluye juicio o consejo",
-        "Cambia el tema",
+        "Cambia el tema del discurso del paciente",
         "No es una pregunta",
       ],
       errores_tipicos: [
         "Preguntas cerradas",
         "Interpretar en lugar de explorar",
-        "Uso de 'por qué' de forma confrontativa",
-        "Dirigir la respuesta",
+        "Asumir causas o emociones",
+        "Dirigir la respuesta del paciente",
         "Dar consejo disfrazado de pregunta",
+        "Validar en lugar de preguntar",
+        "Hacer doble intervención (pregunta + interpretación)",
       ],
       lineamientos_correccion: [
-        "Usar preguntas abiertas tipo 'cómo' o 'qué'",
+        "Usar preguntas abiertas iniciadas con 'qué' o 'cómo'",
         "Mantenerse en el contenido del paciente",
-        "Invitar a ampliar sin dirigir",
-        "Usar lenguaje claro y natural",
+        "Explorar sin asumir ni dirigir",
+        "Formular una sola intención por intervención",
+        "Usar lenguaje claro, simple y clínicamente adecuado",
       ],
     },
     nivel_2: {
@@ -731,18 +738,69 @@ RESPUESTA DEL ESTUDIANTE:
 
 TAREA:
 
-1. Clasifica la respuesta como:
+1. Evalúa primero los CRITERIOS CLAVE:
+
+- Si la respuesta presenta:
+  - Interpretación directa o afirmativa (asume causa, diagnóstico o conclusión)
+  - Dirección clara hacia una respuesta específica
+  - Juicio, consejo o solución
+  - Es una pregunta cerrada
+
+→ clasifícala como "incorrecta"
+
+- Si la respuesta presenta:
+  - Interpretación leve (sugerida en forma de pregunta)
+  - Dirección parcial (limita la exploración a una causa, emoción o explicación)
+  - Reducción del problema a un solo elemento
+  - Es abierta pero superficial o demasiado general
+
+→ clasifícala como "parcial"
+
+2. Si cumple los criterios clave:
+
+- Clasifica como "adecuada" solo si:
+  - Es una pregunta abierta
+  - Se mantiene en el contenido del paciente
+  - Explora procesos internos (pensamientos, emociones o conductas)
+  - Facilita claridad, diferenciación o profundización
+  - No introduce interpretación ni dirección
+
+3. Evaluación por nivel:
+
+- Si la intervención es abierta pero se queda en contenido descriptivo (nivel básico) y no explora procesos internos → clasifícala como "parcial"
+
+---
+
+REGLA DE PRIORIDAD:
+
+- Si una respuesta contiene cualquier criterio de "incorrecta", debe clasificarse como "incorrecta", aunque también cumpla criterios de "parcial" o "adecuada".
+
+- La categoría "parcial" solo se utiliza cuando no hay errores de tipo "incorrecta", pero sí limitaciones en la calidad de la intervención.
+
+- La categoría "adecuada" solo se utiliza cuando no hay ningún criterio de "incorrecta" ni "parcial".
+
+---
+
+ACLARACIÓN SOBRE DIRECCIÓN:
+
+- Se considera "dirección clara" cuando la pregunta induce una respuesta específica, plantea una causa explícita o limita significativamente la exploración del paciente.
+
+- Se considera "dirección leve" cuando la pregunta sugiere una posible causa o emoción, pero aún permite cierta apertura en la respuesta.
+
+---
+
+4. Clasificación final:
 - "adecuada"
 - "parcial"
 - "incorrecta"
 
-2. Genera un feedback breve, claro y clínico (1-2 líneas), basado en los criterios.
+5. Genera un feedback breve, claro y clínico (1-2 líneas), basado en los criterios.
 
-3. Si es "adecuada":
+6. Si es "adecuada":
 - incluye un refuerzo positivo breve
 - no incluyas correcciones (array vacío)
 
-4. Si es "parcial" o "incorrecta":
+7. Si es "parcial" o "incorrecta":
 - no incluyas refuerzo (string vacío)
 - genera exactamente 2 formas correctas de intervención, alineadas con la técnica y el nivel
 
@@ -753,6 +811,14 @@ REGLAS IMPORTANTES:
 - No salgas del formato JSON
 - No mezcles técnicas
 - Evalúa únicamente con base en los criterios proporcionados
+- No asumas que una pregunta es adecuada solo por ser abierta
+- Diferencia entre interpretación directa (incorrecta) e interpretación leve (parcial)
+- Si hay dirección fuerte → incorrecta
+- Si hay dirección leve → parcial
+- Si es abierta pero superficial → parcial
+- Si no explora procesos internos → parcial
+- Si corresponde a otra técnica → incorrecta
+- Si corresponde a un nivel inferior → parcial
 - Mantente dentro del nivel indicado
 - Usa lenguaje clínico claro y natural
 
@@ -825,10 +891,30 @@ Además, asigna un score global de 0-100 basado en:
 
 ---
 
+CRITERIOS PARA EL ANÁLISIS GLOBAL:
+
+- Identifica patrones clínicos, no solo conteos
+- Distingue si los errores parciales se deben a:
+  - superficialidad (nivel básico)
+  - falta de exploración de procesos internos
+  - dirección leve de la respuesta
+  - interpretación leve o contaminación técnica
+- Si muchas respuestas adecuadas son básicas o poco profundas, señálalo como observación clínica
+- Si predominan incorrectas, identifica si el problema es:
+  - preguntas cerradas
+  - interpretación directa
+  - dirección fuerte
+  - mezcla de técnica
+- Prioriza el patrón dominante del desempeño
+- Usa el score como referencia, no como única base del análisis
+
+---
+
 REGLAS:
 - No repitas el feedback caso por caso
 - Habla de patrones, no de casos individuales
 - Usa lenguaje clínico claro, motivador y constructivo
+- No sobreinterpretes el score
 - No salgas del formato JSON
 
 Responde SOLO en JSON con esta estructura:
