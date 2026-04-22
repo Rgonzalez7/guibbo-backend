@@ -1083,6 +1083,30 @@ exports.obtenerResultadoEjercicio = async (req, res) => {
 
     if (!inst) return res.status(404).json({ message: "No existe instancia para este ejercicio." });
 
+    // ── Enriquecer con el ejercicio y su detalle ──
+    const ejercicio = await Ejercicio.findById(ejercicioId)
+      .populate({ path: "submodulo", populate: { path: "modulo" } })
+      .lean();
+
+    const detalle = ejercicio ? await obtenerDetalleEjercicioPorTipo(ejercicio) : null;
+
+    let ejercicioMerged = ejercicio ? { ...ejercicio } : null;
+    if (ejercicioMerged && detalle) {
+      const tipo = ejercicioMerged.tipoEjercicio;
+      if (tipo === "Grabar voz") {
+        ejercicioMerged = {
+          ...ejercicioMerged,
+          caso: detalle.caso || "",
+          evaluaciones: detalle.evaluaciones || null,
+          detalle,
+        };
+      } else if (isRolePlayTipo(tipo)) {
+        ejercicioMerged = { ...ejercicioMerged, rolePlaying: detalle, detalle };
+      } else {
+        ejercicioMerged = { ...ejercicioMerged, detalle };
+      }
+    }
+
     return res.json({
       ok: true,
       estado:    inst?.estado || "bloqueado",
@@ -1099,6 +1123,11 @@ exports.obtenerResultadoEjercicio = async (req, res) => {
       updatedAt:   inst?.updatedAt   || null,
       createdAt:   inst?.createdAt   || null,
       completedAt: inst?.completedAt || null,
+      // ── NUEVO ──
+      ejercicio: ejercicioMerged,
+      detalle,
+      submodulo: ejercicio?.submodulo || null,
+      modulo:    ejercicio?.submodulo?.modulo || null,
     });
   } catch (err) {
     console.error("❌ Error obtenerResultadoEjercicio:", err);
@@ -1219,6 +1248,30 @@ exports.obtenerResultadoPorInstanciaId = async (req, res) => {
     const inst = await EjercicioInstancia.findOne({ _id: instanciaId, estudiante: estudianteId }).lean();
     if (!inst) return res.status(404).json({ message: "Instancia no encontrada." });
 
+    // ── Enriquecer con el ejercicio y su detalle ──
+    const ejercicio = await Ejercicio.findById(inst.ejercicio)
+      .populate({ path: "submodulo", populate: { path: "modulo" } })
+      .lean();
+
+    const detalle = ejercicio ? await obtenerDetalleEjercicioPorTipo(ejercicio) : null;
+
+    let ejercicioMerged = ejercicio ? { ...ejercicio } : null;
+    if (ejercicioMerged && detalle) {
+      const tipo = ejercicioMerged.tipoEjercicio;
+      if (tipo === "Grabar voz") {
+        ejercicioMerged = {
+          ...ejercicioMerged,
+          caso: detalle.caso || "",
+          evaluaciones: detalle.evaluaciones || null,
+          detalle,
+        };
+      } else if (isRolePlayTipo(tipo)) {
+        ejercicioMerged = { ...ejercicioMerged, rolePlaying: detalle, detalle };
+      } else {
+        ejercicioMerged = { ...ejercicioMerged, detalle };
+      }
+    }
+
     return res.json({
       ok: true,
       estado:    inst?.estado || "bloqueado",
@@ -1235,6 +1288,11 @@ exports.obtenerResultadoPorInstanciaId = async (req, res) => {
       updatedAt:   inst?.updatedAt   || null,
       createdAt:   inst?.createdAt   || null,
       completedAt: inst?.completedAt || null,
+      // ── NUEVO ──
+      ejercicio: ejercicioMerged,
+      detalle,
+      submodulo: ejercicio?.submodulo || null,
+      modulo:    ejercicio?.submodulo?.modulo || null,
     });
   } catch (err) {
     console.error("❌ Error obtenerResultadoPorInstanciaId:", err);
