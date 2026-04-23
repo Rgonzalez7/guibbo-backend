@@ -1249,6 +1249,32 @@ function safeArr(v) {
 }
 
 /**
+ * Normaliza la clave de la habilidad para buscar en CRITERIOS_HABILIDAD.
+ * Acepta variantes comunes (plural, singular, aliases) y las mapea a la key
+ * canónica que usa el sistema de criterios.
+ */
+function normalizeHabilidadKey(habilidad) {
+  const h = String(habilidad || "").trim().toLowerCase();
+
+  const MAP = {
+    preguntas_abiertas: "pregunta_abierta",
+    pregunta_abierta:   "pregunta_abierta",
+
+    parafrasis:       "parafrasis",
+    reflejo:          "reflejo",
+    validacion:       "validacion",
+    clarificacion:    "clarificacion",
+    sintesis:         "sintesis",
+    interpretacion:   "interpretacion",
+    confrontacion:    "confrontacion",
+    auto_revelacion:  "auto_revelacion",
+    humor_terapeutico:"humor_terapeutico",
+  };
+
+  return MAP[h] || h;
+}
+
+/**
  * Normaliza el nivel para buscar criterios.
  * Acepta: nivel_1, nivel_2, nivel_3, nivel_unico, basico, intermedio,
  * avanzado, unico, "1", "2", "3", "i", "ii", "iii", etc.
@@ -1281,11 +1307,13 @@ function getNivelLabel(nivel) {
 
 /**
  * Devuelve los criterios de una habilidad para el nivel solicitado.
+ * - Normaliza la habilidad (acepta aliases).
  * - Normaliza el nivel (acepta basico/intermedio/avanzado además de nivel_1/2/3).
  * - Si la habilidad solo tiene `nivel_unico`, lo devuelve sin importar el nivel pedido.
  */
 function getCriterios(habilidad, nivel) {
-  const habilidadCfg = CRITERIOS_HABILIDAD?.[habilidad];
+  const habilidadKey = normalizeHabilidadKey(habilidad);
+  const habilidadCfg = CRITERIOS_HABILIDAD?.[habilidadKey];
   if (!habilidadCfg) return null;
 
   // Si la habilidad solo tiene nivel único → devolver siempre ese
@@ -1321,9 +1349,10 @@ function bulletList(arr) {
    PROMPT — ANÁLISIS POR CASO
 ========================================================= */
 function buildPromptCaso({ habilidad, nivel, caso, transcripcion }) {
-  const habilidadLabel = INTERVENCION_LABELS[habilidad] || habilidad;
+  const habilidadKey   = normalizeHabilidadKey(habilidad);
+  const habilidadLabel = INTERVENCION_LABELS[habilidadKey] || habilidadKey;
   const nivelLabel     = getNivelLabel(nivel);
-  const criterios      = getCriterios(habilidad, nivel);
+  const criterios      = getCriterios(habilidadKey, nivel);
 
   // Si no hay criterios definidos, evaluación con criterio clínico general
   if (!criterios) {
@@ -1357,7 +1386,12 @@ Responde SOLO en JSON con esta estructura:
   const incorrectaStr           = bulletList(criterios.criterios_incorrecta);
   const erroresStr              = bulletList(criterios.errores_tipicos);
   const lineamientosStr         = bulletList(criterios.lineamientos_correccion);
-  const reglasDecisionStr       = bulletList(criterios.reglas_decision_critica);
+
+  // Reglas de decisión crítica + añadido opcional
+  const reglasDecisionBase      = safeArr(criterios.reglas_decision_critica);
+  const reglasDecisionPlus      = [...reglasDecisionBase, "Si rompe UNA regla crítica → INCORRECTA"];
+  const reglasDecisionStr       = bulletList(reglasDecisionPlus);
+
   const reglasAlternativasStr   = bulletList(criterios.reglas_alternativas);
   // Soporta ambas grafías encontradas en los JSON originales
   const seguridadClinicaSrc     = criterios.reglas_seguridad_clinica || criterios.regla_seguridad_clinica;
@@ -1375,6 +1409,23 @@ Tu tarea es evaluar la intervención de un estudiante dentro de un ejercicio de 
 IMPORTANTE:
 Debes evaluar de forma ESTRICTAMENTE OPERATIVA, no interpretativa.
 Debes priorizar las REGLAS DE DECISIÓN sobre los criterios descriptivos.
+
+RESTRICCIÓN CRÍTICA DE TÉCNICA:
+
+- Solo evalúa si la intervención corresponde EXACTAMENTE a la habilidad indicada.
+- Si corresponde a otra técnica → INCORRECTA
+- No mezcles habilidades
+
+DISTINCIÓN OPERATIVA:
+
+- Pregunta abierta → debe ser pregunta
+- Validacion → no debe tener preguntas
+- Reflejo → solo emocion, sin contenido
+- Paráfrasis → contenido sin emocion
+- Interpretacion → debe usar contexto + significado nuevo
+- Confrontacion → debe mostrar contradiccion explicita
+
+Si no cumple esto → INCORRECTA
 
 ---
 
@@ -1500,7 +1551,8 @@ Responde SOLO en JSON con esta estructura exacta:
    PROMPT — ANÁLISIS GLOBAL (habilidad_especifica)
 ========================================================= */
 function buildPromptGlobal({ habilidad, nivel, resultadosCasos }) {
-  const habilidadLabel = INTERVENCION_LABELS[habilidad] || habilidad;
+  const habilidadKey   = normalizeHabilidadKey(habilidad);
+  const habilidadLabel = INTERVENCION_LABELS[habilidadKey] || habilidadKey;
   const nivelLabel     = getNivelLabel(nivel);
   const nivelKey       = normalizeNivelKey(nivel);
 
@@ -1584,7 +1636,7 @@ Responde SOLO en JSON con esta estructura:
 
 {
   "globalHabilidad": {
-    "habilidad": "${habilidad}",
+    "habilidad": "${habilidadKey}",
     "habilidadLabel": "${habilidadLabel}",
     "nivel": "${nivelKey}",
     "nivelLabel": "${nivelLabel}",
@@ -1611,11 +1663,13 @@ function normalizeCasoResult(raw, { habilidad, nivel, casoIdx }) {
     ? safeStr(ev.estado)
     : "incorrecta";
 
+  const habilidadKey = normalizeHabilidadKey(habilidad);
+
   return {
     tipo:           "micro_caso",
     casoIdx,
-    habilidad,
-    habilidadLabel: INTERVENCION_LABELS[habilidad] || habilidad,
+    habilidad:      habilidadKey,
+    habilidadLabel: INTERVENCION_LABELS[habilidadKey] || habilidadKey,
     nivel:          normalizeNivelKey(nivel),
     nivelLabel:     getNivelLabel(nivel),
     evaluacion: {
@@ -1650,10 +1704,12 @@ function normalizeGlobalResult(raw, { habilidad, nivel, resultadosCasos }) {
     ? scoreIA
     : scoreCalculado;
 
+  const habilidadKey = normalizeHabilidadKey(habilidad);
+
   return {
     tipo:          "micro_global",
-    habilidad,
-    habilidadLabel: INTERVENCION_LABELS[habilidad] || habilidad,
+    habilidad:     habilidadKey,
+    habilidadLabel: INTERVENCION_LABELS[habilidadKey] || habilidadKey,
     nivel:         normalizeNivelKey(nivel),
     nivelLabel:    getNivelLabel(nivel),
     score,
@@ -1676,6 +1732,7 @@ module.exports = {
   normalizeGlobalResult,
   getCriterios,
   normalizeNivelKey,
+  normalizeHabilidadKey,
   getNivelLabel,
   INTERVENCION_LABELS,
   NIVEL_LABELS,
