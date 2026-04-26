@@ -278,62 +278,63 @@ const CRITERIOS_HABILIDAD = {
 
   validacion: {
     nivel_1: {
-      objetivo: "Legitimar la emoción del paciente haciendo que su experiencia tenga sentido, sin explorar, sin interpretar y sin cambiar de técnica.",
+      objetivo: "Legitimar la emoción o experiencia del paciente haciendo que tenga sentido, sin explorar, sin interpretar y sin cambiar de técnica.",
       criterios_adecuada: [
-        "La intervención incluye lenguaje legitimador explícito (por ejemplo: 'es entendible', 'tiene sentido', 'es normal', 'es lógico')",
-        "Reconoce la emoción o experiencia del paciente",
+        "La intervención incluye lenguaje legitimador explícito (por ejemplo: 'es entendible', 'tiene sentido', 'es normal', 'es comprensible')",
+        "Reconoce de forma clara la emoción o la experiencia del paciente",
         "Se mantiene breve, clara y directa",
         "No introduce interpretación",
-        "No explica el porqué de la emoción",
+        "No explica el porqué de la emoción o experiencia",
         "No incluye juicio ni consejo",
         "No intenta profundizar ni explorar procesos internos",
-        "No incluye preguntas",
+        "No incluye preguntas"
       ],
       criterios_parcial: [
-        "Incluye lenguaje legitimador pero es poco claro o poco natural",
+        "Incluye lenguaje legitimador, pero la validación es general o poco específica",
+        "La validación reconoce la experiencia pero no nombra con suficiente claridad la emoción o el contenido validado",
+        "La expresión legitimadora es correcta pero débil en impacto emocional",
         "La validación es correcta pero poco conectada con el contenido del paciente",
-        "La expresión legitimadora es vaga o redundante",
-        "Incluye elementos innecesarios que diluyen la validación",
-        "La validación es correcta pero débil en impacto emocional",
+        "Incluye elementos innecesarios que diluyen la validación"
       ],
       criterios_incorrecta: [
         "No incluye lenguaje legitimador explícito",
-        "Solo refleja (nombra emoción sin legitimar)",
-        "Usa expresiones vacías (por ejemplo: 'entiendo', 'comprendo') sin validación",
+        "Solo refleja (nombra emoción o experiencia sin legitimar)",
+        "Usa expresiones vacías sin validación real (por ejemplo: 'entiendo', 'comprendo')",
         "Introduce interpretación",
-        "Explica el porqué de la emoción",
+        "Explica el porqué de la emoción o experiencia",
         "Incluye consejo o juicio",
         "Minimiza la experiencia del paciente",
         "Cambia de técnica (por ejemplo: hace una pregunta)",
-        "Incluye preguntas",
+        "Incluye preguntas"
       ],
       errores_tipicos: [
         "Usar reflejo en lugar de validación",
         "Usar expresiones vacías ('entiendo', 'comprendo')",
         "Explicar en lugar de legitimar",
         "Introducir causas ('porque')",
-        "Minimizar la emoción",
+        "Minimizar la emoción o experiencia",
         "Dar consejo",
         "Usar 'pero' que invalida",
-        "Hacer preguntas en lugar de validar",
+        "Hacer preguntas en lugar de validar"
       ],
       lineamientos_correccion: [
-        "Iniciar con una estructura legitimadora ('es entendible que…', 'tiene sentido que…')",
+        "Iniciar con una estructura legitimadora ('es entendible que…', 'tiene sentido que…', 'es comprensible que…')",
         "Mantener la respuesta breve y directa",
+        "Validar explícitamente la emoción o experiencia del paciente",
         "Eliminar explicaciones, causas o interpretaciones",
         "Eliminar cualquier pregunta",
         "Mantener la intervención dentro de validación (no cambiar de técnica)",
         "Usar un tono empático y natural",
-        "Asegurar que la validación sea clara y explícita",
+        "Asegurar que la validación sea clara y explícita"
       ],
       reglas_decision_critica: [
         "Si NO hay lenguaje legitimador explícito → INCORRECTA",
         "Si contiene solo reflejo → INCORRECTA",
-        "Si contiene 'entiendo' o 'comprendo' sin validar → INCORRECTA",
+        "Si contiene 'entiendo' o 'comprendo' sin lenguaje legitimador explícito → INCORRECTA",
         "Si introduce causa ('porque', 'se debe a') → INCORRECTA",
         "Si incluye pregunta → INCORRECTA",
-        "Si valida claramente → ADECUADA",
-        "Si valida pero de forma débil → PARCIAL",
+        "Si valida claramente la emoción o experiencia con lenguaje legitimador explícito → ADECUADA",
+        "Si usa lenguaje legitimador correcto pero la validación es débil, general o poco específica → PARCIAL"
       ],
       reglas_alternativas: [
         "Las alternativas deben ser validaciones completas",
@@ -341,39 +342,39 @@ const CRITERIOS_HABILIDAD = {
         "No deben incluir preguntas",
         "No deben incluir explicaciones ni causas",
         "No deben introducir exploración",
-        "Deben mejorar claridad y conexión emocional",
-      ],
+        "Deben mejorar claridad y conexión emocional"
+      ]
     },
 
     nivel_2: {
-      objetivo: "Legitimar la emoción del paciente incorporando un contexto explícito basado en su experiencia, aportando sentido sin interpretar ni cambiar de técnica.",
+      objetivo: "Legitimar la emoción o experiencia del paciente incorporando un contexto explícito basado en lo dicho por él, aportando sentido sin interpretar ni cambiar de técnica.",
       criterios_adecuada: [
-        "Incluye lenguaje legitimador explícito (por ejemplo: 'es entendible', 'tiene sentido', 'es normal')",
+        "Incluye lenguaje legitimador explícito (por ejemplo: 'es entendible', 'tiene sentido', 'es normal', 'es comprensible')",
         "Reconoce la emoción o experiencia del paciente",
         "Incluye un elemento contextual explícito derivado de lo dicho por el paciente (por ejemplo: 'sobre todo cuando...', 'considerando que...')",
         "El contexto no introduce causas ni interpretaciones",
         "Se mantiene breve, clara y directa (1–2 líneas)",
         "No incluye juicio, consejo ni minimización",
-        "No incluye preguntas",
+        "No incluye preguntas"
       ],
       criterios_parcial: [
         "Incluye lenguaje legitimador pero no incorpora contexto (nivel 1)",
         "Incluye contexto pero es redundante o no aporta claridad",
-        "El contexto es poco claro o poco conectado con el contenido del paciente",
+        "El contexto es poco claro o poco conectado con lo dicho por el paciente",
         "La validación es correcta pero genérica",
-        "Incluye más de una idea sin claridad",
+        "Incluye más de una idea sin claridad"
       ],
       criterios_incorrecta: [
         "No incluye lenguaje legitimador explícito",
-        "Solo refleja (nombra emoción sin legitimar)",
-        "Usa expresiones vacías ('entiendo', 'comprendo') sin validar",
+        "Solo refleja (nombra emoción o experiencia sin legitimar)",
+        "Usa expresiones vacías ('entiendo', 'comprendo') sin validación real",
         "Introduce causa o explicación (por ejemplo: 'porque', 'se debe a')",
         "Agrega información no mencionada por el paciente",
         "Introduce interpretación o significado no dicho",
         "Incluye consejo o directividad",
         "Minimiza la experiencia del paciente",
         "Cambia de técnica (por ejemplo: hace preguntas)",
-        "Incluye preguntas",
+        "Incluye preguntas"
       ],
       errores_tipicos: [
         "Quedarse en nivel 1 (solo validar sin contexto)",
@@ -383,25 +384,26 @@ const CRITERIOS_HABILIDAD = {
         "Explicar en lugar de validar",
         "Dar consejo disfrazado",
         "Usar 'pero' que invalida",
-        "Hacer preguntas en lugar de validar",
+        "Hacer preguntas en lugar de validar"
       ],
       lineamientos_correccion: [
-        "Iniciar con lenguaje legitimador ('es entendible que…', 'tiene sentido que…')",
+        "Iniciar con lenguaje legitimador ('es entendible que…', 'tiene sentido que…', 'es comprensible que…')",
         "Agregar un contexto explícito usando estructuras como 'sobre todo cuando...' o 'considerando que...'",
         "El contexto debe provenir del contenido expresado por el paciente",
         "Eliminar cualquier causa o explicación",
         "Eliminar diagnósticos o interpretaciones",
         "Mantener una sola idea clara",
         "Mantener formato de validación (no cambiar de técnica)",
-        "No usar preguntas",
+        "No usar preguntas"
       ],
       reglas_decision_critica: [
-        "Si NO hay lenguaje legitimador → INCORRECTA",
-        "Si NO hay contexto → PARCIAL",
-        "Si hay lenguaje legitimador + contexto → ADECUADA",
-        "Si contiene 'porque', 'se debe a' → INCORRECTA",
+        "Si NO hay lenguaje legitimador explícito → INCORRECTA",
+        "Si contiene 'entiendo' o 'comprendo' sin lenguaje legitimador explícito → INCORRECTA",
+        "Si contiene 'porque' o 'se debe a' → INCORRECTA",
         "Si incluye pregunta → INCORRECTA",
-        "Si agrega información no dicha → INCORRECTA",
+        "Si agrega información no dicha por el paciente → INCORRECTA",
+        "Si hay lenguaje legitimador explícito pero NO hay contexto → PARCIAL",
+        "Si hay lenguaje legitimador explícito + contexto explícito derivado de lo dicho por el paciente → ADECUADA"
       ],
       reglas_alternativas: [
         "Las alternativas deben ser validaciones completas",
@@ -410,9 +412,9 @@ const CRITERIOS_HABILIDAD = {
         "No deben incluir preguntas",
         "No deben incluir causas ni explicaciones",
         "No deben introducir exploración",
-        "Deben mejorar claridad y conexión emocional",
-      ],
-    },
+        "Deben mejorar claridad y conexión emocional"
+      ]
+    }
   },
 
   reflejo: {
@@ -484,58 +486,67 @@ const CRITERIOS_HABILIDAD = {
   },
 
   parafrasis: {
+
     nivel_1: {
-      objetivo: "Reformular el contenido del paciente de forma clara usando palabras propias, manteniendo el significado original sin agregar emoción, interpretación ni otras técnicas.",
+      objetivo: "Reformular el contenido del paciente usando palabras propias, manteniendo el significado original sin agregar información, emoción, interpretación ni otras técnicas.",
+
       criterios_adecuada: [
         "Reformula el contenido usando palabras diferentes al paciente",
         "Mantiene las ideas principales del discurso",
-        "Se centra en contenido (hechos, situación), no en emoción",
+        "Se centra en contenido (hechos o situación), no en emoción",
         "No agrega información nueva",
         "No incluye interpretación ni explicación",
         "No incluye validación ni preguntas",
-        "Es clara y breve (una sola idea organizada)",
+        "Es clara, breve y organizada en una sola idea",
       ],
+
       criterios_parcial: [
-        "Repite gran parte del contenido de forma casi literal",
-        "Omite parte relevante del contenido",
-        "La reformulación es poco clara o desordenada",
-        "Incluye contenido pero con estructura confusa",
-        "Es correcta pero poco útil clínicamente",
+        "Reformula pero mantiene gran parte del contenido muy similar al original",
+        "La reformulación es demasiado cercana al texto del paciente (casi literal)",
+        "La estructura es correcta pero poco elaborada clínicamente",
+        "Incluye contenido correcto pero con baja transformación del lenguaje",
+        "Es válida como paráfrasis pero con bajo nivel de aporte clínico",
       ],
+
       criterios_incorrecta: [
         "No es una paráfrasis",
         "Agrega información que el paciente no dijo",
-        "Introduce interpretación o explicación",
+        "Introduce interpretación (explica, infiere o agrega significado no dicho)",
         "Cambia el significado del discurso",
         "Incluye emoción (reflejo)",
-        "Incluye validación ('tiene sentido…')",
+        "Incluye validación ('tiene sentido…', 'es entendible…')",
         "Hace preguntas",
         "Incluye consejo o juicio",
       ],
+
       errores_tipicos: [
-        "Repetir literalmente",
-        "Agregar explicaciones ('porque')",
+        "Repetir casi literalmente el contenido",
+        "Agregar explicaciones o causas ('porque', 'eso te hace…')",
         "Cambiar el sentido del mensaje",
-        "Convertirlo en reflejo (emoción)",
+        "Convertirlo en reflejo (agregar emoción)",
         "Convertirlo en validación",
-        "Ser demasiado largo o desordenado",
+        "Ser redundante o poco claro",
       ],
+
       lineamientos_correccion: [
         "Reformular usando palabras propias",
         "Mantener las ideas principales del paciente",
+        "Evitar repetir la estructura original",
         "Eliminar cualquier emoción, explicación o interpretación",
         "Mantener una sola idea clara",
-        "Organizar el contenido de forma simple",
         "No usar preguntas",
       ],
+
       reglas_decision_critica: [
         "Si repite casi literalmente → PARCIAL",
-        "Si agrega información → INCORRECTA",
-        "Si incluye emoción → INCORRECTA",
+        "Si usa palabras propias manteniendo significado → ADECUADA",
+        "Si agrega información o significado nuevo → INCORRECTA",
+        "Si introduce emoción → INCORRECTA",
         "Si incluye validación → INCORRECTA",
         "Si incluye pregunta → INCORRECTA",
-        "Si mantiene contenido con palabras propias → ADECUADA",
+        "Si explica o interpreta ('porque', 'eso te hace') → INCORRECTA",
       ],
+
       reglas_alternativas: [
         "Las alternativas deben ser paráfrasis",
         "Deben reformular usando palabras diferentes",
@@ -548,28 +559,30 @@ const CRITERIOS_HABILIDAD = {
     },
 
     nivel_2: {
-      objetivo: "Reformular el contenido del paciente integrando dos partes del discurso (por ejemplo, una contradicción o ambivalencia) en una sola frase clara, sin interpretar ni agregar información.",
+      objetivo: "Reformular el contenido del paciente integrando dos elementos del discurso (por ejemplo: situación + consecuencia o dos ideas relacionadas) en una sola frase clara, sin interpretar ni agregar información.",
+
       criterios_adecuada: [
         "Reformula el contenido usando palabras propias",
         "Incluye al menos dos elementos del discurso del paciente",
-        "Integra ambos elementos en una sola frase (por ejemplo: 'quieres... pero...')",
+        "Integra ambos elementos en una sola frase organizada",
         "Mantiene fidelidad al significado original",
         "Se centra en contenido, no en emoción",
         "No agrega información nueva",
         "No incluye interpretación ni explicación",
         "No incluye validación ni preguntas",
-        "Es clara y organizada",
+        "Es clara y coherente",
       ],
+
       criterios_parcial: [
-        "Reformula solo una parte del discurso (nivel 1)",
+        "Reformula correctamente pero solo incluye un elemento (nivel 1)",
         "Incluye dos elementos pero no los integra claramente",
-        "La relación entre ambas partes es confusa",
-        "Repite gran parte del contenido literal",
-        "La organización es débil o poco clara",
+        "La relación entre ideas es poco clara",
+        "Repite gran parte del contenido original",
+        "La organización es débil o poco útil clínicamente",
       ],
+
       criterios_incorrecta: [
         "No es una paráfrasis",
-        "No incluye dos elementos del discurso",
         "Agrega información que el paciente no dijo",
         "Introduce interpretación o explicación",
         "Cambia el significado del discurso",
@@ -578,34 +591,39 @@ const CRITERIOS_HABILIDAD = {
         "Hace preguntas",
         "Incluye consejo o juicio",
       ],
+
       errores_tipicos: [
-        "Quedarse en nivel 1 (reformular una sola idea)",
-        "No integrar la contradicción",
+        "Quedarse en nivel 1 (una sola idea)",
+        "No integrar las ideas",
         "Repetir literal",
-        "Agregar explicaciones ('porque')",
+        "Agregar explicaciones ('porque', 'eso genera')",
         "Interpretar en lugar de organizar",
         "Confundir con reflejo o validación",
       ],
+
       lineamientos_correccion: [
-        "Identificar dos elementos del discurso (por ejemplo: intención + acción, deseo + dificultad)",
-        "Integrarlos en una sola frase usando conectores como 'pero', 'aunque', 'y al mismo tiempo'",
-        "Usar palabras propias",
-        "Eliminar cualquier emoción, explicación o interpretación",
-        "Mantener una sola idea organizada",
+        "Identificar al menos dos elementos del discurso",
+        "Integrarlos en una sola frase clara",
+        "Usar conectores simples ('y', 'pero', 'al mismo tiempo')",
+        "Eliminar cualquier interpretación o explicación",
+        "Mantener fidelidad al contenido original",
         "No usar preguntas",
       ],
+
       reglas_decision_critica: [
         "Si incluye solo un elemento → PARCIAL",
         "Si incluye dos elementos pero no los integra → PARCIAL",
         "Si integra dos elementos claramente → ADECUADA",
         "Si agrega información → INCORRECTA",
+        "Si introduce interpretación o explicación → INCORRECTA",
         "Si incluye emoción → INCORRECTA",
         "Si incluye validación → INCORRECTA",
         "Si incluye pregunta → INCORRECTA",
       ],
+
       reglas_alternativas: [
         "Las alternativas deben ser paráfrasis",
-        "Deben incluir dos elementos del discurso del paciente",
+        "Deben incluir dos elementos del discurso",
         "Deben integrarlos en una sola frase",
         "No deben incluir emoción",
         "No deben incluir validación",
@@ -615,73 +633,81 @@ const CRITERIOS_HABILIDAD = {
     },
 
     nivel_3: {
-      objetivo: "Reformular el contenido del paciente integrando tres o más elementos del discurso en una sola estructura clara, manteniendo la complejidad sin interpretar ni simplificar.",
+      objetivo: "Reformular el contenido del paciente integrando tres o más elementos del discurso en una sola estructura organizada, manteniendo la complejidad sin interpretar ni simplificar.",
+
       criterios_adecuada: [
         "Reformula el contenido usando palabras propias",
-        "Incluye tres o más elementos del discurso del paciente",
-        "Integra los elementos en una sola estructura organizada",
+        "Incluye tres o más elementos del discurso",
+        "Integra los elementos en una sola estructura clara",
         "Mantiene fidelidad al significado original",
         "No simplifica la experiencia a una sola idea",
         "No agrega información nueva",
         "No incluye interpretación ni explicación",
-        "No incluye emoción (reflejo)",
+        "No incluye emoción",
         "No incluye validación ni preguntas",
         "Es clara y organizada",
       ],
+
       criterios_parcial: [
         "Integra solo dos elementos (nivel 2)",
         "Incluye tres elementos pero no los organiza claramente",
-        "Simplifica parcialmente la experiencia",
-        "Omite elementos relevantes del discurso",
-        "La integración es confusa o poco clara",
+        "Simplifica parcialmente el contenido",
+        "Omite elementos relevantes",
+        "La integración es confusa",
       ],
+
       criterios_incorrecta: [
         "No es una paráfrasis",
         "Incluye menos de dos elementos",
         "Agrega información que el paciente no dijo",
         "Introduce interpretación o explicación",
-        "Reduce la experiencia a una sola idea",
-        "Incluye emoción (reflejo)",
+        "Reduce el discurso a una sola idea",
+        "Incluye emoción",
         "Incluye validación",
         "Hace preguntas",
         "Incluye consejo o juicio",
       ],
+
       errores_tipicos: [
-        "Quedarse en nivel 2 (solo dos elementos)",
-        "Simplificar en exceso",
+        "Quedarse en nivel 2",
+        "Simplificar demasiado",
         "Interpretar en lugar de integrar",
         "Agregar explicaciones ('porque')",
         "Perder partes del discurso",
-        "Confundir con análisis clínico",
+        "Convertirlo en análisis clínico",
       ],
+
       lineamientos_correccion: [
-        "Identificar al menos tres elementos del discurso (por ejemplo: emoción + acción + intención)",
-        "Integrarlos en una sola frase organizada",
-        "Usar conectores como 'y al mismo tiempo', 'pero', 'mientras', 'por un lado... y por otro...'",
-        "Eliminar cualquier explicación o interpretación",
+        "Identificar tres o más elementos del discurso",
+        "Integrarlos en una sola estructura organizada",
+        "Usar conectores ('y al mismo tiempo', 'pero', 'por un lado...')",
+        "Eliminar interpretación o explicación",
         "Mantener fidelidad al contenido original",
         "No usar preguntas",
       ],
+
       reglas_decision_critica: [
         "Si incluye 3 o más elementos → ADECUADA",
         "Si incluye solo 2 elementos → PARCIAL",
         "Si incluye solo 1 elemento → INCORRECTA",
         "Si agrega información → INCORRECTA",
+        "Si introduce interpretación o explicación → INCORRECTA",
         "Si incluye emoción → INCORRECTA",
         "Si incluye validación → INCORRECTA",
-        "Si incluye explicación ('porque') → INCORRECTA",
         "Si incluye pregunta → INCORRECTA",
       ],
+
       reglas_alternativas: [
         "Las alternativas deben ser paráfrasis",
-        "Deben incluir tres o más elementos del discurso",
+        "Deben incluir tres o más elementos",
         "Deben integrarlos en una sola estructura clara",
         "No deben incluir emoción",
         "No deben incluir validación",
         "No deben incluir preguntas",
-        "Deben mantener la complejidad sin simplificar",
+        "Deben mantener la complejidad del discurso",
       ],
     },
+
   },
 
   sintesis: {

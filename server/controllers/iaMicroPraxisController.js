@@ -15,6 +15,7 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 function toBool(v, fallback = false) {
   if (typeof v === "boolean") return v;
   if (typeof v === "string") return v.trim().toLowerCase() === "true";
+  if (typeof v === "number") return v === 1;
   return fallback;
 }
 
@@ -43,7 +44,13 @@ async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, u
 
 /* =========================================================
    POST /ia/grabar-voz/analizar-caso
-   Analiza una respuesta individual de un caso
+   Analiza una respuesta individual de un caso.
+
+   Si esTutorial === true:
+   - Se ejecuta el análisis con IA igual que siempre.
+   - NO se resuelve ni se valida instancia.
+   - NO se persiste el resultado en la base de datos.
+   - NO cuenta contra ningún cupo/rate-limit del estudiante.
 ========================================================= */
 module.exports.analizarCasoGV = async (req, res) => {
   try {
@@ -57,9 +64,11 @@ module.exports.analizarCasoGV = async (req, res) => {
       casoTexto,
       transcripcion,
       replace: replaceRaw = true,
+      esTutorial: esTutorialRaw = false,
     } = req.body || {};
 
-    const replace = toBool(replaceRaw, true);
+    const replace    = toBool(replaceRaw, true);
+    const esTutorial = toBool(esTutorialRaw, false);
 
     if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId." });
     if (!habilidad)   return res.status(400).json({ message: "Falta habilidad." });
@@ -68,8 +77,12 @@ module.exports.analizarCasoGV = async (req, res) => {
 
     const userId = req.user?._id || req.user?.id || null;
 
-    const inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
-    if (!inst) return res.status(400).json({ message: "No se encontró instancia." });
+    // Solo resolvemos la instancia si NO es tutorial
+    let inst = null;
+    if (!esTutorial) {
+      inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
+      if (!inst) return res.status(400).json({ message: "No se encontró instancia." });
+    }
 
     // Construir prompt
     const prompt = buildPromptCaso({
@@ -79,7 +92,7 @@ module.exports.analizarCasoGV = async (req, res) => {
       transcripcion,
     });
 
-    // Llamar a la IA
+    // Llamar a la IA (igual en ambos casos)
     const raw = await callLLMJsonWithRetry({
       system:      "Eres un supervisor clínico experto. Evalúa la micro-intervención del estudiante. Devuelve SOLO JSON válido, sin texto adicional.",
       prompt,
@@ -90,7 +103,12 @@ module.exports.analizarCasoGV = async (req, res) => {
     // Normalizar
     const resultado = normalizeCasoResult(raw, { habilidad, nivel, casoIdx: Number(casoIdx ?? 0) });
 
-    // Persistir en instancia — guardamos por índice de caso
+    // Si es tutorial → devolver sin persistir
+    if (esTutorial) {
+      return res.json({ resultado, esTutorial: true });
+    }
+
+    // Persistencia normal (solo en ejercicio real)
     if (!inst.respuestas) inst.respuestas = {};
     if (!inst.respuestas.casosPraxis) inst.respuestas.casosPraxis = {};
     const key = `caso_${casoIdx}`;
@@ -112,7 +130,13 @@ module.exports.analizarCasoGV = async (req, res) => {
 
 /* =========================================================
    POST /ia/grabar-voz/analizar-global
-   Analiza el desempeño global en base a los resultados por caso
+   Analiza el desempeño global en base a los resultados por caso.
+
+   Si esTutorial === true:
+   - Se ejecuta el análisis con IA igual que siempre.
+   - NO se resuelve ni se valida instancia.
+   - NO se persiste en respuestas.analisisGlobal ni en analisisIA.
+   - NO dispara el flujo de perfil terapéutico.
 ========================================================= */
 module.exports.analizarGlobalGV = async (req, res) => {
   try {
@@ -124,9 +148,11 @@ module.exports.analizarGlobalGV = async (req, res) => {
       nivel,
       resultadosCasos,   // array de normalizeCasoResult
       replace: replaceRaw = true,
+      esTutorial: esTutorialRaw = false,
     } = req.body || {};
 
-    const replace = toBool(replaceRaw, true);
+    const replace    = toBool(replaceRaw, true);
+    const esTutorial = toBool(esTutorialRaw, false);
 
     if (!ejercicioId)                          return res.status(400).json({ message: "Falta ejercicioId." });
     if (!habilidad)                             return res.status(400).json({ message: "Falta habilidad." });
@@ -136,13 +162,17 @@ module.exports.analizarGlobalGV = async (req, res) => {
 
     const userId = req.user?._id || req.user?.id || null;
 
-    const inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
-    if (!inst) return res.status(400).json({ message: "No se encontró instancia." });
+    // Solo resolvemos la instancia si NO es tutorial
+    let inst = null;
+    if (!esTutorial) {
+      inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
+      if (!inst) return res.status(400).json({ message: "No se encontró instancia." });
+    }
 
     // Construir prompt global
     const prompt = buildPromptGlobal({ habilidad, nivel, resultadosCasos });
 
-    // Llamar a la IA
+    // Llamar a la IA (igual en ambos casos)
     const raw = await callLLMJsonWithRetry({
       system:      "Eres un supervisor clínico experto. Genera un análisis global pedagógico. Devuelve SOLO JSON válido, sin texto adicional.",
       prompt,
@@ -153,7 +183,12 @@ module.exports.analizarGlobalGV = async (req, res) => {
     // Normalizar
     const resultado = normalizeGlobalResult(raw, { habilidad, nivel, resultadosCasos });
 
-    // Persistir
+    // Si es tutorial → devolver sin persistir
+    if (esTutorial) {
+      return res.json({ resultado, esTutorial: true });
+    }
+
+    // Persistencia normal (solo en ejercicio real)
     if (!inst.respuestas) inst.respuestas = {};
     if (replace || !inst.respuestas.analisisGlobal) {
       inst.respuestas.analisisGlobal = resultado;
