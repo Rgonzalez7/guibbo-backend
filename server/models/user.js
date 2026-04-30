@@ -34,12 +34,14 @@ const userSchema = new mongoose.Schema(
 
     activo: { type: Boolean, default: true },
 
-    // ✅ NUEVO — índices del banco de casos ya vistos por este estudiante
-    // Aplica globalmente: nunca repite un caso de informe clínico
-    // en ningún ejercicio de toda la plataforma
+
     casosInformeClinicoUsados: {
       type: [Number],
       default: [],
+    },
+
+    flagsTutoriales: {
+      tourGrabarVozVisto: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

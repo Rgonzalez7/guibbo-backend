@@ -11,13 +11,13 @@ const {
   EjercicioCriteriosDx,
   EjercicioPruebas,
   EjercicioInterpretacionProyectiva,
-  EjercicioInformeClinico, // ✅ NUEVO
+  EjercicioInformeClinico,
 } = require("../models/modulo");
 
 const ModuloInstancia    = require("../models/moduloInstancia");
 const SubmoduloInstancia = require("../models/submoduloInstancia");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
-const Usuario            = require("../models/user"); // ✅ NUEVO
+const Usuario            = require("../models/user");
 
 /* =========================================================
    Helpers
@@ -621,6 +621,12 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
       ejercicioInstanciaId: String(inst._id),
     };
 
+    // ✅ NUEVO — flags de tutoriales del estudiante (para saltar tours ya vistos)
+    const userFlags = await Usuario.findById(estudianteId)
+      .select("flagsTutoriales")
+      .lean();
+    const tourYaVisto = Boolean(userFlags?.flagsTutoriales?.tourGrabarVozVisto);
+
     return res.json({
       materia, modulo, submodulo, ejercicio: ejercicioMerged, detalle,
       ejercicioInstancia: inst || null,
@@ -628,6 +634,8 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
       instanciaId:        inst?._id || null,
       moduloInstanciaId:  ctxBase.modInst?._id || null,
       ctx,
+      // ✅ NUEVO
+      tourYaVisto,
     });
   } catch (err) {
     console.error("❌ Error buscarEjercicioEnMateria:", err);
@@ -992,9 +1000,39 @@ exports.guardarBorradorEjercicio = async (req, res) => {
   try {
     const estudianteId = req.user?.id || req.user?._id;
     const { ejercicioId } = req.params;
-    const { materiaId, respuestas, replace = false } = req.body || {};
+    const {
+      materiaId,
+      respuestas,
+      replace = false,
+      // ✅ Flag para marcar que el estudiante ya vio el tour del ejemplo guiado
+      markTourGrabarVozVisto,
+    } = req.body || {};
 
     if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
+
+    // ✅ NUEVO — Procesar el flag de tour ANTES de cualquier validación del ejercicio.
+    // Esto es independiente del borrador: el flag puede llegar solo, sin respuestas
+    // ni materiaId, y debe persistirse igual.
+    if (markTourGrabarVozVisto === true) {
+      try {
+        await Usuario.updateOne(
+          { _id: estudianteId },
+          { $set: { "flagsTutoriales.tourGrabarVozVisto": true } }
+        );
+      } catch (e) {
+        console.warn("⚠️ No se pudo marcar tourGrabarVozVisto:", e?.message);
+      }
+
+      // Si la llamada SOLO trae el flag (sin respuestas y sin materiaId válido),
+      // retornamos aquí. No hay borrador que guardar.
+      const soloFlag =
+        respuestas == null &&
+        (!materiaId || !mongoose.Types.ObjectId.isValid(materiaId));
+      if (soloFlag) {
+        return res.json({ ok: true, tourMarked: true });
+      }
+    }
+
     if (!mongoose.Types.ObjectId.isValid(ejercicioId)) return res.status(400).json({ message: "ID de ejercicio inválido." });
     if (!mongoose.Types.ObjectId.isValid(materiaId))   return res.status(400).json({ message: "materiaId inválido." });
 
