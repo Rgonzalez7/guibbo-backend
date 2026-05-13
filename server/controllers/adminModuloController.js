@@ -294,8 +294,6 @@ exports.generarCasosGrabarVoz = async (req, res) => {
 
 /* =========================================================
    Normalizar caso del pool a string
-   Los casos de intervención son objetos { contexto, frase }
-   { contexto_paciente, frase_paciente } o { frase_paciente }
 ========================================================= */
 function normalizarCasoAString(caso) {
   if (typeof caso === "string") return caso;
@@ -313,17 +311,8 @@ function normalizarCasoAString(caso) {
   return (caso.frase_paciente || caso.frase || caso.contexto || JSON.stringify(caso)).trim();
 }
 
-
-
 /* =========================================================
    Resolver qué nivel del pool usar según disponibilidad
-   Regla:
-   - Habilidad con nivel "unico": siempre usa "unico"
-   - Habilidad con basico + avanzado (sin intermedio):
-       nivel basico → basico
-       nivel intermedio | avanzado → avanzado
-   - Habilidad con basico + intermedio + avanzado:
-       usa el nivel exacto
 ========================================================= */
 function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
   const TODOS_NIVELES = ["unico", "basico", "intermedio", "avanzado"];
@@ -335,11 +324,8 @@ function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
     });
   }
 
-  // Primero buscar con el escenario exacto
   let nivelesDisponibles = getNivelesDisponibles(escenario);
 
-  // Si no encuentra, probar con el escenario base
-  // (ej: "intervencion_estudiante" → "intervencion")
   if (!nivelesDisponibles.length) {
     const escenarioBase = escenario.split("_")[0];
     if (escenarioBase !== escenario) {
@@ -347,34 +333,25 @@ function resolverNivelPool({ CASOS, contexto, escenario, nivel, habilidad }) {
     }
   }
 
-  // Caso 1: nivel único
   if (nivelesDisponibles.includes("unico")) return "unico";
-
-  // Caso 2: sin datos — devolver el nivel tal cual (fallback)
   if (!nivelesDisponibles.length) return nivel;
 
   const tieneBasico     = nivelesDisponibles.includes("basico");
   const tieneIntermedio = nivelesDisponibles.includes("intermedio");
   const tieneAvanzado   = nivelesDisponibles.includes("avanzado");
 
-  // Caso 3: solo básico + avanzado (sin intermedio)
   if (tieneBasico && tieneAvanzado && !tieneIntermedio) {
     return nivel === "basico" ? "basico" : "avanzado";
   }
 
-  // Caso 4: tres niveles completos — usar el nivel exacto
   if (tieneBasico && tieneIntermedio && tieneAvanzado) {
     return ["basico", "intermedio", "avanzado"].includes(nivel) ? nivel : "basico";
   }
 
-  // Caso 5: un solo nivel disponible — usar ese
   if (nivelesDisponibles.length === 1) return nivelesDisponibles[0];
 
   return nivelesDisponibles[0];
 }
-
-
-
 
 /* =========================================================
    Wrappers CREATE por tipo
@@ -459,6 +436,7 @@ exports.listarModulosAdmin = async (req, res) => {
 
 /* =========================================================
    CREAR MÓDULO
+   ✅ tipoModulo ya no se valida ni se guarda
 ========================================================= */
 exports.crearModuloAdmin = async (req, res) => {
   try {
@@ -474,18 +452,18 @@ exports.crearModuloAdmin = async (req, res) => {
       return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
     }
 
-    const { titulo, descripcion, tipoModulo } = req.body;
-    if (!titulo || !tipoModulo || !descripcion?.trim()) {
-      return res.status(400).json({ message: "Título, tipo de módulo y descripción son obligatorios." });
+    const { titulo, descripcion } = req.body;
+    if (!titulo || !descripcion?.trim()) {
+      return res.status(400).json({ message: "Título y descripción son obligatorios." });
     }
 
-    const tipoNormalizado = normalizarTipoModulo(tipoModulo);
-    if (!tipoNormalizado) return res.status(400).json({ message: `El tipo de módulo '${tipoModulo}' no es válido.` });
-
     const modulo = await Modulo.create({
-      titulo: titulo.trim(), descripcion: descripcion.trim(),
-      tipoModulo: tipoNormalizado, esGlobal: false,
-      universidad: universidadId, creadoPor: creadorId || null, activo: true,
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim(),
+      esGlobal: false,
+      universidad: universidadId,
+      creadoPor: creadorId || null,
+      activo: true,
     });
 
     return res.status(201).json({ message: "Módulo creado correctamente (admin)", modulo });
@@ -536,6 +514,7 @@ exports.obtenerModuloAdmin = async (req, res) => {
 
 /* =========================================================
    ACTUALIZAR MÓDULO
+   ✅ tipoModulo ya no se acepta ni se actualiza
 ========================================================= */
 exports.actualizarModuloAdmin = async (req, res) => {
   try {
@@ -559,15 +538,10 @@ exports.actualizarModuloAdmin = async (req, res) => {
       return res.status(403).json({ message: "No tenés permisos para editar este módulo." });
     }
 
-    const { titulo, descripcion, tipoModulo, activo } = req.body;
+    const { titulo, descripcion, activo } = req.body;
     if (titulo      !== undefined) modulo.titulo      = titulo;
     if (descripcion !== undefined) modulo.descripcion = descripcion;
-    if (tipoModulo) {
-      const norm = normalizarTipoModulo(tipoModulo);
-      if (!norm) return res.status(400).json({ message: `El tipo de módulo '${tipoModulo}' no es válido.` });
-      modulo.tipoModulo = norm;
-    }
-    if (activo !== undefined) modulo.activo = !!activo;
+    if (activo      !== undefined) modulo.activo      = !!activo;
     await modulo.save();
 
     return res.json({ message: "Módulo actualizado correctamente (admin)", modulo });
@@ -869,6 +843,9 @@ exports.listarEjerciciosAdmin = async (req, res) => {
 
 /* =========================================================
    CREAR EJERCICIO
+   ⚠️ Mantengo tipoModulo aquí porque sigue siendo parte del schema de Ejercicio.
+   Como el módulo padre ya no lo tiene, el fallback será undefined y eso ya
+   está permitido por el schema de Ejercicio (no es required).
 ========================================================= */
 exports.crearEjercicioAdmin = async (req, res) => {
   try {
@@ -892,17 +869,14 @@ exports.crearEjercicioAdmin = async (req, res) => {
     if (!titulo || !String(titulo).trim()) return res.status(400).json({ message: "El título del ejercicio es obligatorio." });
     if (!tipoEjercicio)                    return res.status(400).json({ message: "tipoEjercicio es obligatorio." });
 
-    const tipoModuloInferido = submodulo?.modulo?.tipoModulo;
-    const tipoModuloSeguro   = normalizarTipoModulo(tipoModuloInferido);
-    if (!tipoModuloSeguro) {
-      return res.status(400).json({
-        message: `tipoModulo inválido heredado del módulo: '${tipoModuloInferido}'.`,
-        allowed: Ejercicio.schema.path("tipoModulo").enumValues || [],
-      });
-    }
+    // ✅ Ya no exigimos tipoModulo desde el módulo padre.
+    // Si viene en el body lo usamos; si no, lo dejamos undefined (el schema lo permite).
+    const tipoModuloEnBody = normalizarTipoModulo(req.body?.tipoModulo);
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId, tipoEjercicio, tipoModulo: tipoModuloSeguro,
+      submodulo: submoduloId,
+      tipoEjercicio,
+      ...(tipoModuloEnBody ? { tipoModulo: tipoModuloEnBody } : {}),
       titulo: String(titulo).trim(),
       tiempo: typeof tiempo === "number" ? tiempo : tiempo ? Number(tiempo) : 0,
     });

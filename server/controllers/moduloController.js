@@ -200,7 +200,8 @@ function normalizeTipoRole(inputTipoRole, inputTipoEjercicio) {
 exports.listarModulos = async (req, res) => {
   try {
     const modulos = await Modulo.find().sort({ createdAt: -1 });
-    res.json({ modulos, tiposModulo: TIPOS_MODULO });
+    // ✅ Ya no devolvemos tiposModulo (campo eliminado)
+    res.json({ modulos });
   } catch (err) {
     console.error('❌ Error listando módulos:', err);
     res.status(500).json({ message: 'Error al obtener módulos', error: err.message });
@@ -209,18 +210,18 @@ exports.listarModulos = async (req, res) => {
 
 exports.crearModulo = async (req, res) => {
   try {
-    const { titulo, descripcion, tipoModulo } = req.body;
+    const { titulo, descripcion } = req.body;
 
-    if (!titulo || !tipoModulo || !descripcion || !String(descripcion).trim()) {
+    // ✅ Ya no se valida ni se guarda tipoModulo
+    if (!titulo || !descripcion || !String(descripcion).trim()) {
       return res.status(400).json({
-        message: 'Título, tipo de módulo y descripción son obligatorios.',
+        message: 'Título y descripción son obligatorios.',
       });
     }
 
     const modulo = await Modulo.create({
       titulo: String(titulo).trim(),
       descripcion: String(descripcion).trim(),
-      tipoModulo,
     });
 
     res.status(201).json({ message: 'Módulo creado correctamente', modulo });
@@ -229,6 +230,7 @@ exports.crearModulo = async (req, res) => {
     res.status(500).json({ message: 'Error al crear módulo', error: err.message });
   }
 };
+
 
 exports.obtenerModulo = async (req, res) => {
   try {
@@ -252,7 +254,8 @@ exports.obtenerModulo = async (req, res) => {
 exports.actualizarModulo = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, descripcion, tipoModulo, activo } = req.body;
+    const { titulo, descripcion, activo } = req.body;
+    // ✅ tipoModulo ya no se acepta ni se actualiza
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID de módulo inválido.' });
@@ -263,7 +266,6 @@ exports.actualizarModulo = async (req, res) => {
 
     if (titulo !== undefined) modulo.titulo = String(titulo);
     if (descripcion !== undefined) modulo.descripcion = String(descripcion);
-    if (tipoModulo !== undefined) modulo.tipoModulo = tipoModulo;
     if (activo !== undefined) modulo.activo = toBool(activo);
 
     await modulo.save();

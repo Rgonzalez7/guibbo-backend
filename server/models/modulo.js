@@ -83,11 +83,11 @@ function defaultHerramientasRolePlay() {
 }
 
 // ===== Módulo =====
+// ✅ Se eliminó el campo tipoModulo del schema
 const moduloSchema = new Schema(
   {
     titulo:      { type: String, required: true, trim: true },
     descripcion: { type: String, trim: true, required: true },
-    tipoModulo:  { type: String, enum: TIPOS_MODULO, required: true },
     esGlobal:    { type: Boolean, default: true, index: true },
     universidad: { type: Schema.Types.ObjectId, default: null, index: true },
     creadoPor:   { type: Schema.Types.ObjectId, default: null },
@@ -108,6 +108,9 @@ const submoduloSchema = new Schema(
 );
 
 // ===== Ejercicio genérico =====
+// ⚠️ Mantengo tipoModulo aquí porque tu código en ejercicios todavía lo referencia
+// (con fallback desde submodulo.modulo?.tipoModulo, que ahora será undefined).
+// Si quieres quitarlo también, avísame.
 const ejercicioSchema = new Schema(
   {
     submodulo:     { type: Schema.Types.ObjectId, ref: "Submodulo", required: true },
