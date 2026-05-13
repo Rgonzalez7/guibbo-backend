@@ -1769,11 +1769,40 @@ function normalizeGlobalResult(raw, { habilidad, nivel, resultadosCasos }) {
   };
 }
 
+/* =========================================================
+   HELPER — Resultado sintético "sin respuesta"
+   Genera un resultado que cuenta como incorrecta para casos
+   donde el estudiante no grabó respuesta. Se identifica con
+   el flag `sinRespuesta: true` para distinguirlo de respuestas
+   reales evaluadas como incorrectas.
+========================================================= */
+function buildResultadoSinRespuesta({ habilidad, nivel, casoIdx }) {
+  const habilidadKey = normalizeHabilidadKey(habilidad);
+  return {
+    tipo:           "micro_caso",
+    casoIdx,
+    habilidad:      habilidadKey,
+    habilidadLabel: INTERVENCION_LABELS[habilidadKey] || habilidadKey,
+    nivel:          normalizeNivelKey(nivel),
+    nivelLabel:     getNivelLabel(nivel),
+    sinRespuesta:   true,
+    evaluacion: {
+      estado:       "incorrecta",
+      feedback:     "No se registró respuesta para este caso.",
+      refuerzo:     "",
+      correcciones: [],
+    },
+    meta: { createdAt: new Date().toISOString() },
+  };
+}
+
+
 module.exports = {
   buildPromptCaso,
   buildPromptGlobal,
   normalizeCasoResult,
   normalizeGlobalResult,
+  buildResultadoSinRespuesta,
   getCriterios,
   normalizeNivelKey,
   normalizeHabilidadKey,
