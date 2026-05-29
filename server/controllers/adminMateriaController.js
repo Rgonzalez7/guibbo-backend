@@ -594,6 +594,126 @@ exports.agregarEstudiantesMateriaAdmin = async (req, res) => {
 };
 
 /* =========================================================
+   REMOVER ESTUDIANTES DE UNA MATERIA (batch o single)
+   ✅ Director: ok en cualquier materia de su universidad
+   ✅ Profesor: solo en SU materia
+   ✅ Elimina ModuloInstancia + EjercicioInstancia asociados
+   ========================================================= */
+exports.removerEstudiantesMateriaAdmin = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const materiaId = req.params.id;
+    const { estudiantesIds = [] } = req.body || {};
+
+    const universidadId = await findUniversidadForUser(userId);
+    if (!universidadId) {
+      return res.status(400).json({
+        message:
+          "El usuario no tiene una universidad válida asociada. No se pueden remover estudiantes.",
+      });
+    }
+
+    const materia = await Materia.findOne({
+      _id: materiaId,
+      universidad: universidadId,
+    });
+
+    if (!materia) {
+      return res.status(404).json({
+        message: "Materia no encontrada en tu universidad.",
+      });
+    }
+
+    // ✅ Si es profesor, validar que sea SU materia
+    if (req.user?.rol === "profesor") {
+      const materiaProfesorId = String(materia.profesor);
+      if (materiaProfesorId !== String(userId)) {
+        return res.status(403).json({
+          message:
+            "Acceso denegado. Esta materia no está asignada a este profesor.",
+        });
+      }
+    }
+
+    const idsLimpios = [
+      ...new Set((estudiantesIds || []).filter(Boolean).map(String)),
+    ];
+
+    if (!idsLimpios.length) {
+      return res.status(400).json({
+        message: "No se han enviado estudiantes para remover.",
+      });
+    }
+
+    // ✅ Solo procesamos los que realmente están inscritos
+    const actualesSet = new Set(
+      (materia.estudiantes || []).map((id) => String(id))
+    );
+    const idsAEliminar = idsLimpios.filter((id) => actualesSet.has(id));
+
+    if (idsAEliminar.length === 0) {
+      return res.json({
+        message:
+          "Ninguno de los estudiantes indicados está inscrito en esta materia.",
+        materia,
+        totalEstudiantes: materia.estudiantes.length,
+        removidos: 0,
+      });
+    }
+
+    // ✅ Quitar de la lista de la materia
+    materia.estudiantes = (materia.estudiantes || []).filter(
+      (id) => !idsAEliminar.includes(String(id))
+    );
+    await materia.save();
+
+    // ✅ Borrar instancias asociadas (ejercicios primero, luego módulos)
+    // 1) Obtener todas las ModuloInstancia de esos estudiantes en esta materia
+    const moduloInstancias = await ModuloInstancia.find({
+      estudiante: { $in: idsAEliminar },
+      materia: materia._id,
+    })
+      .select("_id")
+      .lean();
+
+    const moduloInstanciaIds = moduloInstancias.map((mi) => mi._id);
+
+    let ejerciciosBorrados = 0;
+    if (moduloInstanciaIds.length) {
+      const ejRes = await EjercicioInstancia.deleteMany({
+        moduloInstancia: { $in: moduloInstanciaIds },
+      });
+      ejerciciosBorrados = ejRes?.deletedCount || 0;
+    }
+
+    const miRes = await ModuloInstancia.deleteMany({
+      estudiante: { $in: idsAEliminar },
+      materia: materia._id,
+    });
+    const modulosBorrados = miRes?.deletedCount || 0;
+
+    return res.json({
+      message:
+        idsAEliminar.length === 1
+          ? "Estudiante removido correctamente de la materia."
+          : "Estudiantes removidos correctamente de la materia.",
+      materia,
+      totalEstudiantes: materia.estudiantes.length,
+      removidos: idsAEliminar.length,
+      modulosInstanciaBorradas: modulosBorrados,
+      ejerciciosInstanciaBorradas: ejerciciosBorrados,
+    });
+  } catch (err) {
+    console.error("❌ Error removiendo estudiantes de materia:", err);
+    return res.status(500).json({
+      message: "Ocurrió un error al remover estudiantes de la materia.",
+      error: err.message,
+    });
+  }
+};
+
+
+/* =========================================================
    LISTAR ESTUDIANTES DE UNA MATERIA
    ✅ Director: ok
    ✅ Profesor: solo si es su materia

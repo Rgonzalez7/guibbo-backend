@@ -38,7 +38,6 @@ router.post( "/submodulos/:submoduloId/ejercicios", requireRole("director","prof
 
 /* ===========================
    EJERCICIOS — crear por tipo
-   (segmentos fijos ANTES de /:id)
    =========================== */
 router.post( "/submodulos/:submoduloId/ejercicios/grabar-voz",         requireRole("director","profesor"), adminModuloController.crearEjercicioGrabarVozAdmin);
 router.post( "/ejercicios/grabar-voz/generar-casos",                   requireRole("director","profesor"), adminModuloController.generarCasosGrabarVoz);
@@ -50,14 +49,13 @@ router.post( "/submodulos/:submoduloId/ejercicios/interp-proyectivas", requireRo
 router.post( "/submodulos/:submoduloId/ejercicios/informe-clinico",    requireRole("director","profesor"), adminModuloController.crearEjercicioInformeClinicoAdmin);
 
 /* ===========================
-   EJERCICIOS — obtener / eliminar (genérico /:id)
+   EJERCICIOS — obtener / eliminar
    =========================== */
 router.get(    "/ejercicios/:id", requireRole("director","profesor"), adminModuloController.obtenerEjercicioAdmin);
 router.delete( "/ejercicios/:id", requireRole("director","profesor"), adminModuloController.eliminarEjercicioAdmin);
 
 /* ===========================
    EJERCICIOS — actualizar por tipo
-   (segmentos fijos ANTES de la genérica PUT /:id)
    =========================== */
 router.put( "/ejercicios/grabar-voz/:id",         requireRole("director","profesor"), adminModuloController.actualizarEjercicioGrabarVozAdmin);
 router.put( "/ejercicios/interp-frases/:id",      requireRole("director","profesor"), adminModuloController.actualizarEjercicioInterpretacionFrasesAdmin);
@@ -96,6 +94,7 @@ router.put(    "/materias/:id",               requireRole("director"),          
 router.delete( "/materias/:id",               requireRole("director"),            adminMateriaController.eliminarMateriaAdmin);
 router.post(   "/materias/:id/modulos",       requireRole("director","profesor"), adminMateriaController.asignarModulosMateriaAdmin);
 router.post(   "/materias/:id/estudiantes",   requireRole("director","profesor"), adminMateriaController.agregarEstudiantesMateriaAdmin);
+router.delete( "/materias/:id/estudiantes",   requireRole("director","profesor"), adminMateriaController.removerEstudiantesMateriaAdmin); // ✅ NUEVO
 router.get(    "/materias/:id/estudiantes",   requireRole("director","profesor"), adminMateriaController.listarEstudiantesMateriaAdmin);
 
 /* ===========================
