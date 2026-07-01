@@ -9,6 +9,8 @@ const verifyToken = require('../middlewares/verifyToken');
 const requireRole = require('../middlewares/requireRole');
 const superController = require('../controllers/superController');
 const moduloController = require('../controllers/moduloController');
+const adminModuloController = require('../controllers/adminModuloController');
+const sandboxController = require('../controllers/sandboxController');
 
 // Middleware base: todas estas rutas requieren token + rol super
 router.use(verifyToken, requireRole('super'));
@@ -89,6 +91,9 @@ router.delete('/usuarios/:id', superController.eliminarUsuario);
 /* ===== Resumen para el dashboard principal ===== */
 router.get('/resumen-dashboard', superController.resumenDashboard);
 
+/* ===== SANDBOX (probar ejercicios sin alumnos/materias/módulos) ===== */
+router.post('/sandbox/informe-clinico/caso', sandboxController.casoInformeClinico);
+
 /* ----- Módulos ----- */
 router.get('/modulos', moduloController.listarModulos);
 router.post('/modulos', moduloController.crearModulo);
@@ -115,6 +120,10 @@ router.get(
 );
 
 /* ----- Ejercicio tipo "Grabar voz" ----- */
+router.post(
+  '/ejercicios/grabar-voz/generar-casos',
+  adminModuloController.generarCasosGrabarVoz
+);
 router.post(
   '/submodulos/:submoduloId/ejercicios/grabar-voz',
   moduloController.crearEjercicioGrabarVoz

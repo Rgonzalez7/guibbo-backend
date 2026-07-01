@@ -937,9 +937,11 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 
       replace: replaceRaw = true,
       fuente = "real",
+      esTutorial: esTutorialRaw = false,
     } = req.body || {};
 
     const replace = toBool(replaceRaw, true);
+    const esTutorial = toBool(esTutorialRaw, false);
 
     if (!ejercicioId) {
       return res.status(400).json({ message: "Falta ejercicioId" });
@@ -951,29 +953,33 @@ module.exports.analizarRolePlayIA = async (req, res) => {
 
     const userId = req.user?._id || req.user?.id || null;
 
-    const inst = await resolveInstancia({
-      instanciaId,
-      ejercicioId,
-      moduloInstanciaId,
-      userId,
-    });
-
-    if (!inst) {
-      return res.status(400).json({
-        message:
-          "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId (ctx.ejercicioInstanciaId).",
-        debug: {
-          hasReqUser: Boolean(userId),
-          instanciaId: instanciaId || null,
-          moduloInstanciaId: moduloInstanciaId || null,
-          ejercicioId: ejercicioId || null,
-        },
+    // Instancia: se omite en modo tutorial/sandbox
+    let inst = null;
+    if (!esTutorial) {
+      inst = await resolveInstancia({
+        instanciaId,
+        ejercicioId,
+        moduloInstanciaId,
+        userId,
       });
+
+      if (!inst) {
+        return res.status(400).json({
+          message:
+            "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId (ctx.ejercicioInstanciaId).",
+          debug: {
+            hasReqUser: Boolean(userId),
+            instanciaId: instanciaId || null,
+            moduloInstanciaId: moduloInstanciaId || null,
+            ejercicioId: ejercicioId || null,
+          },
+        });
+      }
     }
 
     let resolvedData = null;
     if (isObj(data)) resolvedData = data;
-    else resolvedData = extractRPDataFromInstance(inst);
+    else if (inst) resolvedData = extractRPDataFromInstance(inst);
 
     if (!isObj(resolvedData)) {
       return res.status(400).json({
@@ -1027,6 +1033,21 @@ module.exports.analizarRolePlayIA = async (req, res) => {
     result = addLabelsToResult(result, {
       herramientas,
     });
+
+    // Modo tutorial/sandbox: devolver sin persistir
+    if (esTutorial) {
+      return res.json({
+        analisisIA: result.analisisIA,
+        evaluacionHerramientas: result.evaluacionHerramientas,
+        esTutorial: true,
+        _metaPersistencia: {
+          esTutorial: true,
+          praxisNivel,
+          modeloIntervencion,
+          herramientasEvaluadas: herramientasActivas,
+        },
+      });
+    }
 
     setAnalysisInInstance(inst, result, fuente, replace);
     await inst.save();

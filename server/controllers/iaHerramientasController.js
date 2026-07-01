@@ -115,24 +115,34 @@ module.exports.analizarHerramientas = async (req, res) => {
       sessionId,
       replace: replaceRaw = true,
       fuente = "real",
+      esTutorial: esTutorialRaw = false,
     } = req.body || {};
 
     const replace = toBool(replaceRaw, true);
+    const esTutorial = toBool(esTutorialRaw, false);
 
     if (!ejercicioId) return res.status(400).json({ message: "Falta ejercicioId" });
 
     const userId = req.user?._id || req.user?.id || null;
 
-    const inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
+    // Instancia: se omite en modo tutorial/sandbox
+    let inst = null;
+    if (!esTutorial) {
+      inst = await resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId });
 
-    if (!inst) {
-      return res.status(400).json({
-        message: "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
-        debug: { hasReqUser: Boolean(userId), instanciaId: instanciaId || null, moduloInstanciaId: moduloInstanciaId || null, ejercicioId: ejercicioId || null },
-      });
+      if (!inst) {
+        return res.status(400).json({
+          message: "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
+          debug: { hasReqUser: Boolean(userId), instanciaId: instanciaId || null, moduloInstanciaId: moduloInstanciaId || null, ejercicioId: ejercicioId || null },
+        });
+      }
     }
 
-    let resolvedData = isObj(data) ? data : extractHerramientasDataFromInstance(inst);
+    let resolvedData = isObj(data)
+      ? data
+      : inst
+      ? extractHerramientasDataFromInstance(inst)
+      : null;
 
     if (!isObj(resolvedData)) {
       return res.status(400).json({ message: "Falta data (herramientas) o no se pudo obtener desde la instancia." });
@@ -156,6 +166,15 @@ module.exports.analizarHerramientas = async (req, res) => {
 
     let evaluacionHerramientas = normalizeHerramientasResult(raw, { herramientas });
     evaluacionHerramientas = addLabelsToHerramientasResult(evaluacionHerramientas, { herramientas });
+
+    // Modo tutorial/sandbox: devolver sin persistir
+    if (esTutorial) {
+      return res.json({
+        evaluacionHerramientas,
+        esTutorial: true,
+        _metaPersistencia: { esTutorial: true, herramientasEvaluadas: toolKeys },
+      });
+    }
 
     setHerramientasInInstance(inst, evaluacionHerramientas, fuente, replace);
     await inst.save();

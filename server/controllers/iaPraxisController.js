@@ -145,38 +145,47 @@ module.exports.analizarPraxis = async (req, res) => {
       sessionId,
       replace: replaceRaw = true,
       fuente = "real",
+      esTutorial: esTutorialRaw = false,
     } = req.body || {};
 
     const replace = toBool(replaceRaw, true);
+    const esTutorial = toBool(esTutorialRaw, false);
 
     if (!ejercicioId)
       return res.status(400).json({ message: "Falta ejercicioId" });
 
     const userId = req.user?._id || req.user?.id || null;
 
-    // 1. Resolver instancia
-    const inst = await resolveInstancia({
-      instanciaId,
-      ejercicioId,
-      moduloInstanciaId,
-      userId,
-    });
-
-    if (!inst) {
-      return res.status(400).json({
-        message:
-          "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
-        debug: {
-          hasReqUser: Boolean(userId),
-          instanciaId: instanciaId || null,
-          moduloInstanciaId: moduloInstanciaId || null,
-          ejercicioId: ejercicioId || null,
-        },
+    // 1. Resolver instancia (se omite en modo tutorial/sandbox)
+    let inst = null;
+    if (!esTutorial) {
+      inst = await resolveInstancia({
+        instanciaId,
+        ejercicioId,
+        moduloInstanciaId,
+        userId,
       });
+
+      if (!inst) {
+        return res.status(400).json({
+          message:
+            "No se encontró instancia (EjercicioInstancia). Asegura que el FE envía instanciaId.",
+          debug: {
+            hasReqUser: Boolean(userId),
+            instanciaId: instanciaId || null,
+            moduloInstanciaId: moduloInstanciaId || null,
+            ejercicioId: ejercicioId || null,
+          },
+        });
+      }
     }
 
     // 2. Resolver datos de sesión
-    let resolvedData = isObj(data) ? data : extractRPDataFromInstance(inst);
+    let resolvedData = isObj(data)
+      ? data
+      : inst
+      ? extractRPDataFromInstance(inst)
+      : null;
 
     if (!isObj(resolvedData)) {
       return res.status(400).json({
@@ -232,6 +241,20 @@ module.exports.analizarPraxis = async (req, res) => {
       contextoSesion,
     });
     analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion });
+
+    // Modo tutorial/sandbox: devolver el análisis sin persistir nada
+    if (esTutorial) {
+      return res.json({
+        analisisIA,
+        esTutorial: true,
+        _metaPersistencia: {
+          esTutorial: true,
+          praxisNivel,
+          modeloIntervencion,
+          contextoSesion,
+        },
+      });
+    }
 
     // 7. Persistir en instancia
     setPraxisInInstance(inst, analisisIA, fuente, replace);
