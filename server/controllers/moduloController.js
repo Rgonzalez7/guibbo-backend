@@ -10,6 +10,7 @@ const {
   EjercicioCriteriosDx,
   EjercicioPruebas,
   EjercicioInterpretacionProyectiva,
+  EjercicioInformeClinico,
   TIPOS_MODULO,
   TIPOS_EJERCICIO,
 } = require('../models/modulo');
@@ -1091,6 +1092,8 @@ exports.obtenerEjercicio = async (req, res) => {
       detalle = await EjercicioPruebas.findOne({ ejercicio: id });
     } else if (ejercicio.tipoEjercicio === 'Pruebas psicometricas') {
       detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id });
+    } else if (ejercicio.tipoEjercicio === 'Informe clínico') {
+      detalle = await EjercicioInformeClinico.findOne({ ejercicio: id });
     }
 
     res.json({ ejercicio, detalle });

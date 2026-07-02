@@ -92,6 +92,7 @@ router.delete('/usuarios/:id', superController.eliminarUsuario);
 router.get('/resumen-dashboard', superController.resumenDashboard);
 
 /* ===== SANDBOX (probar ejercicios sin alumnos/materias/módulos) ===== */
+router.get('/sandbox/ejercicios', sandboxController.listarEjerciciosPorTipo);
 router.post('/sandbox/informe-clinico/caso', sandboxController.casoInformeClinico);
 
 /* ----- Módulos ----- */
