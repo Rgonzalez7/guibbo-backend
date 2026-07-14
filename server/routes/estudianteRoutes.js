@@ -26,8 +26,8 @@ router.post( "/ejercicios/:ejercicioId/borrador", estudianteMateriaController.gu
 router.get("/ejercicios/:ejercicioId/resultado", estudianteMateriaController.obtenerResultadoEjercicio);
 
 router.get(
-  "/materias/:materiaId/submodulos/:submoduloId/entrelazados",
-  estudianteMateriaController.obtenerEntrelazadosSubmodulo
+  "/materias/:materiaId/modulos/:moduloId/entrelazados",
+  estudianteMateriaController.obtenerEntrelazadosModulo
 );
 
 router.post("/ejercicios/:ejercicioId/analisis-ia", estudianteMateriaController.guardarAnalisisIAEjercicio);

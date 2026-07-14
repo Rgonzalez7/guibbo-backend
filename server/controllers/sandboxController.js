@@ -31,7 +31,7 @@ exports.listarEjerciciosPorTipo = async (req, res) => {
 
     const ejercicios = await Ejercicio.find({ tipoEjercicio: { $in: tipos } })
       .sort({ createdAt: -1, _id: -1 })
-      .populate({ path: "submodulo", populate: { path: "modulo" } })
+      .populate("modulo")
       .lean();
 
     const items = (ejercicios || []).map((e) => ({
@@ -39,8 +39,7 @@ exports.listarEjerciciosPorTipo = async (req, res) => {
       titulo: e.titulo,
       tipoEjercicio: e.tipoEjercicio,
       tiempo: e.tiempo || 0,
-      submoduloTitulo: e?.submodulo?.titulo || "",
-      moduloTitulo: e?.submodulo?.modulo?.titulo || "",
+      moduloTitulo: e?.modulo?.titulo || "",
     }));
 
     return res.json({ tipo, total: items.length, ejercicios: items });

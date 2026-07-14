@@ -4,7 +4,7 @@ const Materia = require("../models/materia");
 const ModuloInstancia = require("../models/moduloInstancia");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const User = require("../models/user");
-const { Modulo, Submodulo, Ejercicio } = require("../models/modulo");
+const { Modulo, Ejercicio } = require("../models/modulo");
 
 function isObjectId(v) {
   return mongoose.Types.ObjectId.isValid(String(v));
@@ -57,14 +57,12 @@ const obtenerRendimientoGeneralProfesor = async (req, res) => {
         general: { promedio: null, promedioRedondeado: null, ejerciciosConsiderados: 0 },
         porMateria: [],
         porModulo: [],
-        porSubmodulo: [],
-        meta: { materias: 0, modulosConsiderados: 0, submodulosConsiderados: 0, ejerciciosConsiderados: 0 },
+        meta: { materias: 0, modulosConsiderados: 0, ejerciciosConsiderados: 0 },
       });
     }
 
     const ejerciciosInstCol = EjercicioInstancia.collection.name;
     const ejerciciosCol = Ejercicio.collection.name;
-    const submodulosCol = Submodulo.collection.name;
     const modulosCol = Modulo.collection.name;
     const materiasCol = Materia.collection.name;
 
@@ -97,18 +95,8 @@ const obtenerRendimientoGeneralProfesor = async (req, res) => {
 
       {
         $lookup: {
-          from: submodulosCol,
-          localField: "ejCat.submodulo",
-          foreignField: "_id",
-          as: "sub",
-        },
-      },
-      { $unwind: { path: "$sub", preserveNullAndEmptyArrays: false } },
-
-      {
-        $lookup: {
           from: modulosCol,
-          localField: "sub.modulo",
+          localField: "ejCat.modulo",
           foreignField: "_id",
           as: "mod",
         },
@@ -130,11 +118,8 @@ const obtenerRendimientoGeneralProfesor = async (req, res) => {
           materiaId: "$materia",
           materiaNombre: { $ifNull: ["$mat.nombre", "—"] },
 
-          moduloId: "$sub.modulo",
+          moduloId: "$ejCat.modulo",
           moduloNombre: { $ifNull: ["$mod.titulo", "—"] },
-
-          submoduloId: "$ejCat.submodulo",
-          submoduloNombre: { $ifNull: ["$sub.titulo", "—"] },
 
           calificacion: "$ejInst.calificacion",
         },
@@ -144,34 +129,6 @@ const obtenerRendimientoGeneralProfesor = async (req, res) => {
 
       {
         $facet: {
-          porSubmodulo: [
-            {
-              $group: {
-                _id: { materiaId: "$materiaId", moduloId: "$moduloId", submoduloId: "$submoduloId" },
-                materiaNombre: { $first: "$materiaNombre" },
-                moduloNombre: { $first: "$moduloNombre" },
-                submoduloNombre: { $first: "$submoduloNombre" },
-                promedio: { $avg: "$calificacion" },
-                ejercicios: { $sum: 1 },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                materiaId: "$_id.materiaId",
-                materiaNombre: 1,
-                moduloId: "$_id.moduloId",
-                moduloNombre: 1,
-                submoduloId: "$_id.submoduloId",
-                submoduloNombre: 1,
-                promedio: 1,
-                promedioRedondeado: { $round: ["$promedio", 0] },
-                ejercicios: 1,
-              },
-            },
-            { $sort: { materiaNombre: 1, moduloNombre: 1, submoduloNombre: 1 } },
-          ],
-
           porModulo: [
             {
               $group: {
@@ -238,11 +195,9 @@ const obtenerRendimientoGeneralProfesor = async (req, res) => {
       general,
       porMateria: payload.porMateria || [],
       porModulo: payload.porModulo || [],
-      porSubmodulo: payload.porSubmodulo || [],
       meta: {
         materias: materiaIds.length,
         modulosConsiderados: Array.isArray(payload.porModulo) ? payload.porModulo.length : 0,
-        submodulosConsiderados: Array.isArray(payload.porSubmodulo) ? payload.porSubmodulo.length : 0,
         ejerciciosConsiderados: general.ejerciciosConsiderados || 0,
       },
     });

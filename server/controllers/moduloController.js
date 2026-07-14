@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 const {
   Modulo,
-  Submodulo,
   Ejercicio,
   EjercicioGrabarVoz,
   EjercicioInterpretacionFrases,
@@ -244,8 +243,8 @@ exports.obtenerModulo = async (req, res) => {
     const modulo = await Modulo.findById(id);
     if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
-    const submodulos = await Submodulo.find({ modulo: id }).sort({ createdAt: -1 });
-    res.json({ modulo, submodulos });
+    const ejercicios = await Ejercicio.find({ modulo: id }).sort({ createdAt: -1 });
+    res.json({ modulo, ejercicios });
   } catch (err) {
     console.error('❌ Error obteniendo módulo:', err);
     res.status(500).json({ message: 'Error al obtener módulo', error: err.message });
@@ -255,7 +254,7 @@ exports.obtenerModulo = async (req, res) => {
 exports.actualizarModulo = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, descripcion, activo } = req.body;
+    const { titulo, descripcion, activo, reintento } = req.body;
     // ✅ tipoModulo ya no se acepta ni se actualiza
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -268,6 +267,10 @@ exports.actualizarModulo = async (req, res) => {
     if (titulo !== undefined) modulo.titulo = String(titulo);
     if (descripcion !== undefined) modulo.descripcion = String(descripcion);
     if (activo !== undefined) modulo.activo = toBool(activo);
+    if (reintento !== undefined) {
+      modulo.reintento =
+        typeof reintento === 'number' ? reintento : Number(reintento) || 0;
+    }
 
     await modulo.save();
     res.json({ message: 'Módulo actualizado correctamente', modulo });
@@ -288,10 +291,7 @@ exports.eliminarModulo = async (req, res) => {
     const modulo = await Modulo.findById(id);
     if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
-    const submodulos = await Submodulo.find({ modulo: id }).select('_id');
-    const subIds = submodulos.map((s) => s._id);
-
-    const ejercicios = await Ejercicio.find({ submodulo: { $in: subIds } }).select('_id');
+    const ejercicios = await Ejercicio.find({ modulo: id }).select('_id');
     const ejIds = ejercicios.map((e) => e._id);
 
     await EjercicioGrabarVoz.deleteMany({ ejercicio: { $in: ejIds } });
@@ -302,7 +302,6 @@ exports.eliminarModulo = async (req, res) => {
     await EjercicioInterpretacionProyectiva.deleteMany({ ejercicio: { $in: ejIds } });
 
     await Ejercicio.deleteMany({ _id: { $in: ejIds } });
-    await Submodulo.deleteMany({ modulo: id });
     await Modulo.findByIdAndDelete(id);
 
     res.json({ message: 'Módulo eliminado correctamente' });
@@ -312,11 +311,7 @@ exports.eliminarModulo = async (req, res) => {
   }
 };
 
-/* ===========================
-   SUBMÓDULOS
-   =========================== */
-
-exports.listarSubmodulosPorModulo = async (req, res) => {
+exports.listarEjerciciosPorModulo = async (req, res) => {
   try {
     const { moduloId } = req.params;
 
@@ -327,157 +322,39 @@ exports.listarSubmodulosPorModulo = async (req, res) => {
     const modulo = await Modulo.findById(moduloId);
     if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
-    const submodulos = await Submodulo.find({ modulo: moduloId }).sort({ createdAt: -1 });
-    res.json({ modulo, submodulos });
-  } catch (err) {
-    console.error('❌ Error listando submódulos:', err);
-    res.status(500).json({ message: 'Error al obtener submódulos', error: err.message });
-  }
-};
-
-exports.crearSubmodulo = async (req, res) => {
-  try {
-    const { moduloId } = req.params;
-    const { titulo, descripcion, reintento } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
-      return res.status(400).json({ message: 'ID de módulo inválido.' });
-    }
-
-    const modulo = await Modulo.findById(moduloId);
-    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
-
-    if (!titulo) {
-      return res.status(400).json({ message: 'El título del submódulo es obligatorio.' });
-    }
-
-    const submodulo = await Submodulo.create({
-      modulo: moduloId,
-      titulo: String(titulo),
-      descripcion: descripcion || '',
-      reintento:
-        typeof reintento === 'number'
-          ? reintento
-          : reintento !== undefined && reintento !== null && String(reintento).trim() !== ''
-          ? Number(reintento)
-          : 0,
-    });
-
-    res.status(201).json({ message: 'Submódulo creado correctamente', submodulo });
-  } catch (err) {
-    console.error('❌ Error creando submódulo:', err);
-    res.status(500).json({ message: 'Error al crear submódulo', error: err.message });
-  }
-};
-
-exports.actualizarSubmodulo = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { titulo, descripcion, reintento } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
-    }
-
-    const submodulo = await Submodulo.findById(id);
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
-
-    if (titulo !== undefined) submodulo.titulo = String(titulo);
-    if (descripcion !== undefined) submodulo.descripcion = String(descripcion);
-    if (reintento !== undefined)
-      submodulo.reintento = typeof reintento === 'number' ? reintento : Number(reintento) || 0;
-
-    await submodulo.save();
-    res.json({ message: 'Submódulo actualizado correctamente', submodulo });
-  } catch (err) {
-    console.error('❌ Error actualizando submódulo:', err);
-    res.status(500).json({ message: 'Error al actualizar submódulo', error: err.message });
-  }
-};
-
-exports.eliminarSubmodulo = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
-    }
-
-    const submodulo = await Submodulo.findById(id);
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
-
-    const ejercicios = await Ejercicio.find({ submodulo: id }).select('_id');
-    const ejIds = ejercicios.map((e) => e._id);
-
-    await EjercicioGrabarVoz.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioInterpretacionFrases.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioRolePlay.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioCriteriosDx.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioPruebas.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioInterpretacionProyectiva.deleteMany({ ejercicio: { $in: ejIds } });
-
-    await Ejercicio.deleteMany({ _id: { $in: ejIds } });
-    await Submodulo.findByIdAndDelete(id);
-
-    res.json({ message: 'Submódulo eliminado correctamente' });
-  } catch (err) {
-    console.error('❌ Error eliminando submódulo:', err);
-    res.status(500).json({ message: 'Error al eliminar submódulo', error: err.message });
-  }
-};
-
-/* ===========================
-   EJERCICIOS (lista por submódulo)
-   =========================== */
-
-exports.listarEjerciciosPorSubmodulo = async (req, res) => {
-  try {
-    const { submoduloId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
-    }
-
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
-
-    const ejercicios = await Ejercicio.find({ submodulo: submoduloId }).sort({ createdAt: -1 });
+    const ejercicios = await Ejercicio.find({ modulo: moduloId }).sort({ createdAt: -1 });
 
     res.json({
-      submodulo,
+      modulo,
       ejercicios,
       tiposEjercicio: TIPOS_EJERCICIO,
     });
   } catch (err) {
     console.error('❌ Error listando ejercicios:', err);
-    res.status(500).json({ message: 'Error al obtener ejercicios', error: err.message });
+    res.status(500).json({ message: 'Error al listar ejercicios', error: err.message });
   }
 };
 
-/* ===========================
-   EJERCICIO ESPECÍFICO: GRABAR VOZ
-   =========================== */
-
 exports.crearEjercicioGrabarVoz = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
+    const { moduloId } = req.params;
     const { titulo, tiempo, caso, tipoModulo, evaluaciones } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
     }
 
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
     if (!titulo || !caso) {
       return res.status(400).json({ message: 'Título y caso son obligatorios para el ejercicio.' });
     }
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio: 'Grabar voz',
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+      tipoModulo: tipoModulo || undefined,
       titulo: String(titulo).trim(),
       tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
     });
@@ -541,14 +418,14 @@ exports.actualizarEjercicioGrabarVoz = async (req, res) => {
 
 exports.crearEjercicioInterpretacionFrases = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
+    const { moduloId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
     }
 
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
     const {
       titulo,
@@ -567,9 +444,9 @@ exports.crearEjercicioInterpretacionFrases = async (req, res) => {
     if (!titulo) return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio: 'Interpretación de frases incompletas',
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+      tipoModulo: tipoModulo || undefined,
       titulo: String(titulo).trim(),
       tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
     });
@@ -652,14 +529,14 @@ exports.actualizarEjercicioInterpretacionFrases = async (req, res) => {
 
    exports.crearEjercicioRolePlay = async (req, res) => {
     try {
-      const { submoduloId } = req.params;
+      const { moduloId } = req.params;
   
-      if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-        return res.status(400).json({ message: 'ID de submódulo inválido.' });
+      if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+        return res.status(400).json({ message: 'ID de módulo inválido.' });
       }
   
-      const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-      if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+      const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
   
       const {
         titulo,
@@ -686,9 +563,9 @@ exports.actualizarEjercicioInterpretacionFrases = async (req, res) => {
           : 'Role playing persona';
   
       const ejercicio = await Ejercicio.create({
-        submodulo: submoduloId,
+        modulo: moduloId,
         tipoEjercicio: tipoEjercicioFinal,
-        tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+        tipoModulo: tipoModulo || undefined,
         titulo: String(titulo).trim(),
         tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
       });
@@ -799,23 +676,23 @@ exports.actualizarEjercicioRolePlay = async (req, res) => {
 
 exports.crearEjercicioCriteriosDx = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
+    const { moduloId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
     }
 
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
     const { titulo, tiempo, tipoModulo, caso, criterios, intentos } = req.body;
 
     if (!titulo || !caso) return res.status(400).json({ message: 'Título y caso son obligatorios.' });
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio: 'Criterios de diagnostico',
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+      tipoModulo: tipoModulo || undefined,
       titulo: String(titulo).trim(),
       tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
     });
@@ -876,23 +753,23 @@ exports.actualizarEjercicioCriteriosDx = async (req, res) => {
 
 exports.crearEjercicioPruebas = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
+    const { moduloId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
     }
 
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
     const { titulo, tipoModulo, pruebas } = req.body;
 
     if (!titulo) return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio: 'Aplicación de pruebas',
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+      tipoModulo: tipoModulo || undefined,
       titulo: String(titulo).trim(),
       tiempo: 0,
     });
@@ -947,23 +824,23 @@ exports.actualizarEjercicioPruebas = async (req, res) => {
 
 exports.crearEjercicioInterpretacionProyectivas = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
+    const { moduloId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-      return res.status(400).json({ message: 'ID de submódulo inválido.' });
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
     }
 
-    const submodulo = await Submodulo.findById(submoduloId).populate('modulo');
-    if (!submodulo) return res.status(404).json({ message: 'Submódulo no encontrado' });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
 
     const { titulo, tiempo, tipoModulo, historia, intentos, imagen } = req.body;
 
     if (!titulo) return res.status(400).json({ message: 'El título del ejercicio es obligatorio.' });
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio: 'Pruebas psicometricas',
-      tipoModulo: tipoModulo || submodulo.modulo?.tipoModulo,
+      tipoModulo: tipoModulo || undefined,
       titulo: String(titulo).trim(),
       tiempo: typeof tiempo === 'number' ? tiempo : tiempo ? Number(tiempo) : 0,
     });
@@ -1046,10 +923,7 @@ exports.obtenerEjercicio = async (req, res) => {
       return res.status(400).json({ message: 'ID de ejercicio inválido.' });
     }
 
-    const ejercicio = await Ejercicio.findById(id).populate({
-      path: 'submodulo',
-      populate: { path: 'modulo' },
-    });
+    const ejercicio = await Ejercicio.findById(id).populate('modulo');
 
     if (!ejercicio) return res.status(404).json({ message: 'Ejercicio no encontrado' });
 
@@ -1136,17 +1010,17 @@ exports.eliminarEjercicio = async (req, res) => {
 
    exports.listarEjerciciosAdmin = async (req, res) => {
     try {
-      const { submoduloId } = req.params;
+      const { moduloId } = req.params;
   
-      if (!mongoose.Types.ObjectId.isValid(submoduloId)) {
-        return res.status(400).json({ message: "ID de submódulo inválido." });
+      if (!mongoose.Types.ObjectId.isValid(moduloId)) {
+        return res.status(400).json({ message: "ID de módulo inválido." });
       }
   
-      const submodulo = await Submodulo.findById(submoduloId).populate("modulo");
-      if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado" });
+      const modulo = await Modulo.findById(moduloId);
+      if (!modulo) return res.status(404).json({ message: "Módulo no encontrado" });
   
       // ✅ Traer ejercicios como lean para poder “inyectar” fields
-      const ejerciciosRaw = await Ejercicio.find({ submodulo: submoduloId })
+      const ejerciciosRaw = await Ejercicio.find({ modulo: moduloId })
         .sort({ createdAt: -1 })
         .lean();
   
@@ -1165,11 +1039,9 @@ exports.eliminarEjercicio = async (req, res) => {
         tipoRole: roleMap.get(String(e._id)) || null, // "real" | "simulada" | null
       }));
   
-      const modulo = submodulo.modulo || null;
       const canEditGlobal = isSuperAdmin(req);
   
       res.json({
-        submodulo,
         modulo,
         ejercicios,
         tiposEjercicio: TIPOS_EJERCICIO,
@@ -1189,10 +1061,7 @@ exports.eliminarEjercicio = async (req, res) => {
         return res.status(400).json({ message: 'ID de ejercicio inválido.' });
       }
   
-      const ejercicio = await Ejercicio.findById(id).populate({
-        path: 'submodulo',
-        populate: { path: 'modulo' },
-      });
+      const ejercicio = await Ejercicio.findById(id).populate('modulo');
   
       if (!ejercicio) return res.status(404).json({ message: 'Ejercicio no encontrado' });
   
@@ -1228,7 +1097,7 @@ exports.eliminarEjercicio = async (req, res) => {
         detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id });
       }
   
-      const modulo = ejercicio.submodulo?.modulo || null;
+      const modulo = ejercicio.modulo || null;
       const canEditGlobal = isSuperAdmin(req); // ✅
   
       res.json({

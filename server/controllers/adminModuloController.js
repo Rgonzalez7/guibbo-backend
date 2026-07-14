@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const {
   Modulo,
-  Submodulo,
   Ejercicio,
   EjercicioGrabarVoz,
   EjercicioInterpretacionFrases,
@@ -485,8 +484,8 @@ exports.obtenerModuloAdmin = async (req, res) => {
     if (!modulo) return res.status(404).json({ message: "Módulo no encontrado" });
 
     if (modulo.esGlobal) {
-      const submodulos = await Submodulo.find({ modulo: id }).sort({ createdAt: -1 });
-      return res.json({ modulo, submodulos });
+      const ejercicios = await Ejercicio.find({ modulo: id }).sort({ createdAt: -1 });
+      return res.json({ modulo, ejercicios });
     }
 
     const adminId = req.user && req.user._id;
@@ -504,8 +503,8 @@ exports.obtenerModuloAdmin = async (req, res) => {
       return res.status(403).json({ message: "No tenés permisos para ver este módulo." });
     }
 
-    const submodulos = await Submodulo.find({ modulo: id }).sort({ createdAt: -1 });
-    return res.json({ modulo, submodulos });
+    const ejercicios = await Ejercicio.find({ modulo: id }).sort({ createdAt: -1 });
+    return res.json({ modulo, ejercicios });
   } catch (err) {
     console.error("❌ Error obteniendo módulo (admin):", err);
     return res.status(500).json({ message: "Error al obtener módulo (admin)", error: err.message });
@@ -576,9 +575,7 @@ exports.eliminarModuloAdmin = async (req, res) => {
       return res.status(403).json({ message: "No tenés permisos para eliminar este módulo." });
     }
 
-    const submodulos = await Submodulo.find({ modulo: id }).select("_id");
-    const subIds     = submodulos.map((s) => s._id);
-    const ejercicios = await Ejercicio.find({ submodulo: { $in: subIds } }).select("_id");
+    const ejercicios = await Ejercicio.find({ modulo: id }).select("_id");
     const ejIds      = ejercicios.map((e) => e._id);
 
     await EjercicioGrabarVoz.deleteMany({ ejercicio: { $in: ejIds } });
@@ -589,7 +586,6 @@ exports.eliminarModuloAdmin = async (req, res) => {
     await EjercicioInterpretacionProyectiva.deleteMany({ ejercicio: { $in: ejIds } });
     await EjercicioInformeClinico.deleteMany({ ejercicio: { $in: ejIds } });
     await Ejercicio.deleteMany({ _id: { $in: ejIds } });
-    await Submodulo.deleteMany({ modulo: id });
     await Modulo.findByIdAndDelete(id);
 
     return res.json({ message: "Módulo eliminado correctamente (admin)" });
@@ -602,220 +598,17 @@ exports.eliminarModuloAdmin = async (req, res) => {
 /* =========================================================
    SUBMÓDULOS
 ========================================================= */
-exports.listarSubmodulosAdmin = async (req, res) => {
-  try {
-    const { moduloId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(moduloId)) return res.status(400).json({ message: "ID de módulo inválido." });
-
-    const modulo = await Modulo.findById(moduloId);
-    if (!modulo) return res.status(404).json({ message: "Módulo no encontrado." });
-
-    if (modulo.esGlobal) {
-      const submodulos = await Submodulo.find({ modulo: moduloId }).sort({ createdAt: -1 });
-      return res.json({ modulo, submodulos });
-    }
-
-    const adminId = req.user && req.user._id;
-    const admin   = await Usuario.findById(adminId).lean();
-    let universidadId = admin?.universidad || admin?.universidadId || null;
-    if (universidadId && typeof universidadId === "object" && universidadId._id) universidadId = universidadId._id;
-    if (universidadId && typeof universidadId === "string" && !mongoose.Types.ObjectId.isValid(universidadId)) {
-      const uniDoc = await Universidad.findOne({ nombre: universidadId.trim() }).lean();
-      universidadId = uniDoc ? uniDoc._id : null;
-    }
-    if (!universidadId || !mongoose.Types.ObjectId.isValid(universidadId)) {
-      return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
-    }
-    if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para ver los submódulos de este módulo." });
-    }
-
-    const submodulos = await Submodulo.find({ modulo: moduloId }).sort({ createdAt: -1 });
-    return res.json({ modulo, submodulos });
-  } catch (err) {
-    console.error("❌ Error listando submódulos (admin):", err);
-    return res.status(500).json({ message: "Error al obtener submódulos (admin)", error: err.message });
-  }
-};
-
-exports.crearSubmoduloAdmin = async (req, res) => {
-  try {
-    const { moduloId } = req.params;
-    const { titulo, descripcion, reintento } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(moduloId)) return res.status(400).json({ message: "ID de módulo inválido." });
-    if (!titulo?.trim()) return res.status(400).json({ message: "El título del submódulo es obligatorio." });
-
-    const modulo = await Modulo.findById(moduloId);
-    if (!modulo) return res.status(404).json({ message: "Módulo no encontrado." });
-    if (modulo.esGlobal) return res.status(403).json({ message: "No se pueden crear submódulos en un módulo global." });
-
-    const adminId = req.user && req.user._id;
-    const admin   = await Usuario.findById(adminId).lean();
-    let universidadId = admin?.universidad || admin?.universidadId || null;
-    if (universidadId && typeof universidadId === "object" && universidadId._id) universidadId = universidadId._id;
-    if (universidadId && typeof universidadId === "string" && !mongoose.Types.ObjectId.isValid(universidadId)) {
-      const uniDoc = await Universidad.findOne({ nombre: universidadId.trim() }).lean();
-      universidadId = uniDoc ? uniDoc._id : null;
-    }
-    if (!universidadId || !mongoose.Types.ObjectId.isValid(universidadId)) {
-      return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
-    }
-    if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para crear submódulos en este módulo." });
-    }
-
-    const submodulo = await Submodulo.create({
-      modulo: moduloId, titulo: titulo.trim(),
-      descripcion: descripcion ? descripcion.trim() : "",
-      reintento: typeof reintento === "number" ? reintento : reintento ? Number(reintento) : 0,
-    });
-
-    return res.status(201).json({ message: "Submódulo creado correctamente (admin)", submodulo });
-  } catch (err) {
-    console.error("❌ Error creando submódulo (admin):", err);
-    return res.status(500).json({ message: "Error al crear submódulo (admin)", error: err.message });
-  }
-};
-
-exports.obtenerSubmoduloAdmin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "ID de submódulo inválido." });
-
-    const submodulo = await Submodulo.findById(id);
-    if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado." });
-
-    const modulo = await Modulo.findById(submodulo.modulo);
-    if (!modulo) return res.status(500).json({ message: "El submódulo no tiene un módulo asociado válido." });
-    if (modulo.esGlobal) return res.json({ modulo, submodulo });
-
-    const adminId = req.user && req.user._id;
-    const admin   = await Usuario.findById(adminId).lean();
-    let universidadId = admin?.universidad || admin?.universidadId || null;
-    if (universidadId && typeof universidadId === "object" && universidadId._id) universidadId = universidadId._id;
-    if (universidadId && typeof universidadId === "string" && !mongoose.Types.ObjectId.isValid(universidadId)) {
-      const uniDoc = await Universidad.findOne({ nombre: universidadId.trim() }).lean();
-      universidadId = uniDoc ? uniDoc._id : null;
-    }
-    if (!universidadId || !mongoose.Types.ObjectId.isValid(universidadId)) {
-      return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
-    }
-    if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para ver este submódulo." });
-    }
-
-    return res.json({ modulo, submodulo });
-  } catch (err) {
-    console.error("❌ Error obteniendo submódulo (admin):", err);
-    return res.status(500).json({ message: "Error al obtener submódulo (admin)", error: err.message });
-  }
-};
-
-exports.actualizarSubmoduloAdmin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { titulo, descripcion, reintento } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "ID de submódulo inválido." });
-
-    const submodulo = await Submodulo.findById(id);
-    if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado" });
-
-    const modulo = await Modulo.findById(submodulo.modulo);
-    if (!modulo) return res.status(500).json({ message: "El submódulo no tiene un módulo asociado válido." });
-    if (modulo.esGlobal) return res.status(403).json({ message: "Este submódulo pertenece a un módulo global y no puede ser editado." });
-
-    const adminId = req.user && req.user._id;
-    const admin   = await Usuario.findById(adminId).lean();
-    let universidadId = admin?.universidad || admin?.universidadId || null;
-    if (universidadId && typeof universidadId === "object" && universidadId._id) universidadId = universidadId._id;
-    if (universidadId && typeof universidadId === "string" && !mongoose.Types.ObjectId.isValid(universidadId)) {
-      const uniDoc = await Universidad.findOne({ nombre: universidadId.trim() }).lean();
-      universidadId = uniDoc ? uniDoc._id : null;
-    }
-    if (!universidadId || !mongoose.Types.ObjectId.isValid(universidadId)) {
-      return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
-    }
-    if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para editar este submódulo." });
-    }
-
-    if (titulo      !== undefined) submodulo.titulo      = titulo;
-    if (descripcion !== undefined) submodulo.descripcion = descripcion;
-    if (reintento   !== undefined) submodulo.reintento   = typeof reintento === "number" ? reintento : Number(reintento) || 0;
-    await submodulo.save();
-
-    return res.json({ message: "Submódulo actualizado correctamente (admin)", submodulo });
-  } catch (err) {
-    console.error("❌ Error actualizando submódulo (admin):", err);
-    return res.status(500).json({ message: "Error al actualizar submódulo (admin)", error: err.message });
-  }
-};
-
-exports.eliminarSubmoduloAdmin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "ID de submódulo inválido." });
-
-    const submodulo = await Submodulo.findById(id);
-    if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado" });
-
-    const modulo = await Modulo.findById(submodulo.modulo);
-    if (!modulo) return res.status(500).json({ message: "El submódulo no tiene un módulo asociado válido." });
-    if (modulo.esGlobal) return res.status(403).json({ message: "Este submódulo pertenece a un módulo global y no puede ser eliminado." });
-
-    const adminId = req.user && req.user._id;
-    const admin   = await Usuario.findById(adminId).lean();
-    let universidadId = admin?.universidad || admin?.universidadId || null;
-    if (universidadId && typeof universidadId === "object" && universidadId._id) universidadId = universidadId._id;
-    if (universidadId && typeof universidadId === "string" && !mongoose.Types.ObjectId.isValid(universidadId)) {
-      const uniDoc = await Universidad.findOne({ nombre: universidadId.trim() }).lean();
-      universidadId = uniDoc ? uniDoc._id : null;
-    }
-    if (!universidadId || !mongoose.Types.ObjectId.isValid(universidadId)) {
-      return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
-    }
-    if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para eliminar este submódulo." });
-    }
-
-    const ejercicios = await Ejercicio.find({ submodulo: id }).select("_id");
-    const ejIds      = ejercicios.map((e) => e._id);
-
-    await EjercicioGrabarVoz.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioInterpretacionFrases.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioRolePlay.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioCriteriosDx.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioPruebas.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioInterpretacionProyectiva.deleteMany({ ejercicio: { $in: ejIds } });
-    await EjercicioInformeClinico.deleteMany({ ejercicio: { $in: ejIds } });
-    await Ejercicio.deleteMany({ _id: { $in: ejIds } });
-    await Submodulo.findByIdAndDelete(id);
-
-    return res.json({ message: "Submódulo eliminado correctamente (admin)" });
-  } catch (err) {
-    console.error("❌ Error eliminando submódulo (admin):", err);
-    return res.status(500).json({ message: "Error al eliminar submódulo (admin)", error: err.message });
-  }
-};
-
-/* =========================================================
-   LISTAR EJERCICIOS
-========================================================= */
 exports.listarEjerciciosAdmin = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) return res.status(400).json({ message: "ID de submódulo inválido." });
+    const { moduloId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) return res.status(400).json({ message: "ID de módulo inválido." });
 
-    const submodulo = await Submodulo.findById(submoduloId);
-    if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado." });
-
-    const modulo = await Modulo.findById(submodulo.modulo);
-    if (!modulo) return res.status(404).json({ message: "Módulo padre no encontrado." });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: "Módulo no encontrado." });
 
     if (modulo.esGlobal) {
-      const ejercicios = await Ejercicio.find({ submodulo: submoduloId }).sort({ createdAt: -1 });
-      return res.json({ modulo, submodulo, ejercicios });
+      const ejercicios = await Ejercicio.find({ modulo: moduloId }).sort({ createdAt: -1 });
+      return res.json({ modulo, ejercicios });
     }
 
     const adminId = req.user && req.user._id;
@@ -830,11 +623,11 @@ exports.listarEjerciciosAdmin = async (req, res) => {
       return res.status(400).json({ message: "El usuario admin no tiene una universidad válida asociada." });
     }
     if (!modulo.universidad || modulo.universidad.toString() !== universidadId.toString()) {
-      return res.status(403).json({ message: "No tenés permisos para ver los ejercicios de este submódulo." });
+      return res.status(403).json({ message: "No tenés permisos para ver los ejercicios de este módulo." });
     }
 
-    const ejercicios = await Ejercicio.find({ submodulo: submoduloId }).sort({ createdAt: -1 });
-    return res.json({ modulo, submodulo, ejercicios });
+    const ejercicios = await Ejercicio.find({ modulo: moduloId }).sort({ createdAt: -1 });
+    return res.json({ modulo, ejercicios });
   } catch (err) {
     console.error("❌ Error listando ejercicios (admin):", err);
     return res.status(500).json({ message: "Error al listar ejercicios (admin)", error: err.message });
@@ -849,11 +642,11 @@ exports.listarEjerciciosAdmin = async (req, res) => {
 ========================================================= */
 exports.crearEjercicioAdmin = async (req, res) => {
   try {
-    const { submoduloId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) return res.status(400).json({ message: "ID de submódulo inválido." });
+    const { moduloId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(moduloId)) return res.status(400).json({ message: "ID de módulo inválido." });
 
-    const submodulo = await Submodulo.findById(submoduloId).populate("modulo");
-    if (!submodulo) return res.status(404).json({ message: "Submódulo no encontrado" });
+    const modulo = await Modulo.findById(moduloId);
+    if (!modulo) return res.status(404).json({ message: "Módulo no encontrado" });
 
     const {
       titulo, tiempo, tipoEjercicio,
@@ -874,7 +667,7 @@ exports.crearEjercicioAdmin = async (req, res) => {
     const tipoModuloEnBody = normalizarTipoModulo(req.body?.tipoModulo);
 
     const ejercicio = await Ejercicio.create({
-      submodulo: submoduloId,
+      modulo: moduloId,
       tipoEjercicio,
       ...(tipoModuloEnBody ? { tipoModulo: tipoModuloEnBody } : {}),
       titulo: String(titulo).trim(),
@@ -1135,7 +928,7 @@ exports.obtenerEjercicioAdmin = async (req, res) => {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "ID de ejercicio inválido." });
 
-    const ejercicio = await Ejercicio.findById(id).populate({ path: "submodulo", populate: { path: "modulo" } });
+    const ejercicio = await Ejercicio.findById(id).populate("modulo");
     if (!ejercicio) return res.status(404).json({ message: "Ejercicio no encontrado" });
 
     let detalle = null;
@@ -1149,8 +942,7 @@ exports.obtenerEjercicioAdmin = async (req, res) => {
 
     return res.json({
       ejercicio, detalle,
-      submodulo:     ejercicio.submodulo,
-      modulo:        ejercicio.submodulo?.modulo || null,
+      modulo:        ejercicio.modulo || null,
       canEditGlobal: true,
     });
   } catch (err) {
@@ -1170,8 +962,7 @@ exports.eliminarEjercicioAdmin = async (req, res) => {
     const ejercicio = await Ejercicio.findById(id);
     if (!ejercicio) return res.status(404).json({ message: "Ejercicio no encontrado." });
 
-    const submodulo = await Submodulo.findById(ejercicio.submodulo);
-    const modulo    = submodulo ? await Modulo.findById(submodulo.modulo) : null;
+    const modulo    = ejercicio.modulo ? await Modulo.findById(ejercicio.modulo) : null;
     if (!modulo) return res.status(404).json({ message: "Módulo padre no encontrado." });
     if (modulo.esGlobal) return res.status(403).json({ message: "Este módulo es global y no puede eliminarse desde el admin." });
 

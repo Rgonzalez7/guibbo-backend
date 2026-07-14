@@ -2,7 +2,7 @@
 const mongoose = require("mongoose");
 const Materia = require("../models/materia");
 const User = require("../models/user");
-const { Modulo, Submodulo, Ejercicio } = require("../models/modulo");
+const { Modulo, Ejercicio } = require("../models/modulo");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const ModuloInstancia = require("../models/moduloInstancia");
 
@@ -155,11 +155,9 @@ exports.listarEntregasModuloProfesor = async (req, res) => {
     }
 
     // (Opcional) Calificación/Intentos/Última desde EjercicioInstancia
-    const submodulos = await Submodulo.find({ modulo: oidModulo }).select("_id").lean();
-    const subIds = submodulos.map((s) => s._id);
 
     const ejercicios = subIds.length
-      ? await Ejercicio.find({ submodulo: { $in: subIds } }).select("_id").lean()
+      ? await Ejercicio.find({ modulo: oidModulo }).select("_id").lean()
       : [];
     const ejercicioIds = ejercicios.map((e) => e._id);
 
@@ -294,24 +292,15 @@ exports.obtenerDetalleEvaluacionProfesor = async (req, res) => {
         },
         modulo: { id: String(modulo._id), nombre: modulo.titulo || "Módulo" },
         estudiante: { id: String(est._id), nombre: est.nombre || "—", correo: est.email || "—" },
-        submodulos: [],
+        ejercicios: [],
         debug: { hint: "No existe ModuloInstancia para este estudiante en este curso+modulo." },
       });
     }
 
-    const submods = await Submodulo.find({ modulo: oidModulo })
-      .select("_id titulo orden")
+    const ejercicios = await Ejercicio.find({ modulo: oidModulo })
+      .select("_id titulo tipoEjercicio modulo orden")
       .sort({ orden: 1, createdAt: 1 })
       .lean();
-
-    const subIds = submods.map((s) => s._id);
-
-    const ejercicios = subIds.length
-      ? await Ejercicio.find({ submodulo: { $in: subIds } })
-          .select("_id titulo tipoEjercicio submodulo orden")
-          .sort({ orden: 1, createdAt: 1 })
-          .lean()
-      : [];
 
     const ejercicioIds = ejercicios.map((e) => e._id);
 
@@ -330,13 +319,11 @@ exports.obtenerDetalleEvaluacionProfesor = async (req, res) => {
     const instMap = new Map();
     for (const i of instancias) instMap.set(String(i.ejercicio), i);
 
-    const ejerciciosPorSub = new Map();
+    const ejerciciosOut = [];
     for (const e of ejercicios) {
-      const sid = String(e.submodulo);
-      if (!ejerciciosPorSub.has(sid)) ejerciciosPorSub.set(sid, []);
       const inst = instMap.get(String(e._id)) || null;
 
-      ejerciciosPorSub.get(sid).push({
+      ejerciciosOut.push({
         id: String(e._id),
         titulo: e.titulo || "Ejercicio",
         tipoEjercicio: e.tipoEjercicio || "—",
@@ -380,12 +367,6 @@ exports.obtenerDetalleEvaluacionProfesor = async (req, res) => {
       });
     }
 
-    const submodulosOut = (submods || []).map((s) => ({
-      id: String(s._id),
-      nombre: s.titulo || "Submódulo",
-      ejercicios: ejerciciosPorSub.get(String(s._id)) || [],
-    }));
-
     return res.json({
       curso: {
         id: String(materia._id),
@@ -400,10 +381,9 @@ exports.obtenerDetalleEvaluacionProfesor = async (req, res) => {
         nombre: est.nombre || "—",
         correo: est.email || "—",
       },
-      submodulos: submodulosOut,
+      ejercicios: ejerciciosOut,
       debug: {
         moduloInstanciaId: String(modInst._id),
-        submodulos: submods.length,
         ejercicios: ejercicios.length,
         ejercicioInstancias: instancias.length,
       },

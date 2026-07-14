@@ -3,7 +3,6 @@ const Materia = require("../models/materia");
 
 const {
   Modulo,
-  Submodulo,
   Ejercicio,
   EjercicioGrabarVoz,
   EjercicioInterpretacionFrases,
@@ -15,7 +14,6 @@ const {
 } = require("../models/modulo");
 
 const ModuloInstancia    = require("../models/moduloInstancia");
-const SubmoduloInstancia = require("../models/submoduloInstancia");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const Usuario            = require("../models/user");
 
@@ -93,31 +91,14 @@ async function asegurarModuloInstancia({ estudianteId, materiaId, moduloId }) {
   return modInst;
 }
 
-async function asegurarEstadosSubmodulo({
-  estudianteId, materiaId, moduloId, submoduloId,
-  submoduloPendiente = false, primerEjercicioPendiente = false,
+async function asegurarEstadosModulo({
+  estudianteId, materiaId, moduloId, primerEjercicioPendiente = false,
 }) {
   const modInst = await asegurarModuloInstancia({ estudianteId, materiaId, moduloId });
 
-  let subInst = await SubmoduloInstancia.findOne({
-    estudiante: estudianteId, materia: materiaId, submodulo: submoduloId,
-  });
-  if (!subInst) {
-    subInst = await SubmoduloInstancia.create({
-      estudiante: estudianteId, materia: materiaId, modulo: moduloId, submodulo: submoduloId,
-      estado: submoduloPendiente ? "pendiente" : "bloqueado",
-    });
-  } else {
-    const st = normEstadoInstancia(subInst.estado);
-    if (submoduloPendiente && st === "bloqueado") {
-      subInst.estado = "pendiente";
-      await subInst.save();
-    }
-  }
-
-  const ejercicios = await Ejercicio.find({ submodulo: submoduloId })
+  const ejercicios = await Ejercicio.find({ modulo: moduloId })
     .select("_id createdAt").sort({ createdAt: 1 }).lean();
-  if (!ejercicios.length) return { modInst, subInst };
+  if (!ejercicios.length) return { modInst };
 
   const ejIds = ejercicios.map((e) => e._id);
   const existentes = await EjercicioInstancia.find({
@@ -127,7 +108,7 @@ async function asegurarEstadosSubmodulo({
   if (existentes.length > 0) {
     if (primerEjercicioPendiente) {
       const estados = existentes.map((x) => normEstadoInstancia(x.estado));
-      const allLocked = estados.every((s) => s === "bloqueado");
+      const allLocked = estados.every((st) => st === "bloqueado");
       if (allLocked) {
         const firstEjId = ejIds[0];
         await EjercicioInstancia.findOneAndUpdate(
@@ -137,7 +118,7 @@ async function asegurarEstadosSubmodulo({
         );
       }
     }
-    return { modInst, subInst };
+    return { modInst };
   }
 
   const ops = [];
@@ -152,24 +133,22 @@ async function asegurarEstadosSubmodulo({
     });
   }
   await EjercicioInstancia.bulkWrite(ops);
-  return { modInst, subInst };
+  return { modInst };
 }
 
 async function completarEjercicioYAvanzar({ estudianteId, materiaId, ejercicioId }) {
-  const ejercicio = await Ejercicio.findById(ejercicioId)
-    .populate({ path: "submodulo", populate: { path: "modulo" } }).lean();
+  const ejercicio = await Ejercicio.findById(ejercicioId).populate("modulo").lean();
   if (!ejercicio?._id) return { ok: false, code: 404, message: "Ejercicio no encontrado." };
 
-  const submoduloId = ejercicio.submodulo?._id;
-  const moduloId    = ejercicio.submodulo?.modulo?._id;
-  if (!submoduloId || !moduloId) return { ok: false, code: 404, message: "No se encontró el contexto del ejercicio." };
+  const moduloId = ejercicio.modulo?._id;
+  if (!moduloId) return { ok: false, code: 404, message: "No se encontró el contexto del ejercicio." };
 
-  const { modInst } = await asegurarEstadosSubmodulo({ estudianteId, materiaId, moduloId, submoduloId });
+  const { modInst } = await asegurarEstadosModulo({ estudianteId, materiaId, moduloId });
 
-  const lista = await Ejercicio.find({ submodulo: submoduloId })
+  const lista = await Ejercicio.find({ modulo: moduloId })
     .select("_id createdAt").sort({ createdAt: 1 }).lean();
   const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
-  if (idx < 0) return { ok: false, code: 404, message: "Ejercicio no pertenece al submódulo." };
+  if (idx < 0) return { ok: false, code: 404, message: "Ejercicio no pertenece al módulo." };
 
   await EjercicioInstancia.findOneAndUpdate(
     { estudiante: estudianteId, moduloInstancia: modInst._id, ejercicio: ejercicioId },
@@ -178,6 +157,7 @@ async function completarEjercicioYAvanzar({ estudianteId, materiaId, ejercicioId
   );
 
   const next = lista[idx + 1] || null;
+
   if (next) {
     const nextInst = await EjercicioInstancia.findOne({
       estudiante: estudianteId, moduloInstancia: modInst._id, ejercicio: next._id,
@@ -190,52 +170,35 @@ async function completarEjercicioYAvanzar({ estudianteId, materiaId, ejercicioId
       const st = normEstadoInstancia(nextInst.estado);
       if (st === "bloqueado") { nextInst.estado = "pendiente"; await nextInst.save(); }
     }
-    await SubmoduloInstancia.findOneAndUpdate(
-      { estudiante: estudianteId, materia: materiaId, submodulo: submoduloId },
-      { $set: { estado: "en_progreso", modulo: moduloId } },
+
+    await ModuloInstancia.findOneAndUpdate(
+      { estudiante: estudianteId, materia: materiaId, modulo: moduloId },
+      { $set: { estado: "en_progreso" } },
       { upsert: true }
     );
-    return { ok: true, moduloId, submoduloId, nextEjercicioId: next._id };
+
+    return { ok: true, moduloId, nextEjercicioId: next._id };
   }
 
-  await SubmoduloInstancia.findOneAndUpdate(
-    { estudiante: estudianteId, materia: materiaId, submodulo: submoduloId },
-    { $set: { estado: "completado", modulo: moduloId } },
+  // No hay más ejercicios → módulo completado
+  await ModuloInstancia.findOneAndUpdate(
+    { estudiante: estudianteId, materia: materiaId, modulo: moduloId },
+    { $set: { estado: "completado", progreso: 100, fechaFinalizacion: new Date() } },
     { upsert: true }
   );
 
-  const listaSubs = await Submodulo.find({ modulo: moduloId })
-    .select("_id createdAt").sort({ createdAt: 1 }).lean();
-  const subIdx = listaSubs.findIndex((x) => String(x._id) === String(submoduloId));
-  const nextSub = subIdx >= 0 ? listaSubs[subIdx + 1] || null : null;
-
-  if (nextSub) {
-    await SubmoduloInstancia.findOneAndUpdate(
-      { estudiante: estudianteId, materia: materiaId, submodulo: nextSub._id },
-      { $setOnInsert: { estado: "pendiente", modulo: moduloId } },
-      { upsert: true }
-    );
-    await asegurarEstadosSubmodulo({
-      estudianteId, materiaId, moduloId, submoduloId: nextSub._id,
-      submoduloPendiente: true, primerEjercicioPendiente: true,
-    });
-    return { ok: true, moduloId, submoduloId, nextEjercicioId: null, submoduloCompletado: true, nextSubmoduloId: nextSub._id };
-  }
-
-  return { ok: true, moduloId, submoduloId, nextEjercicioId: null, submoduloCompletado: true };
+  return { ok: true, moduloId, nextEjercicioId: null, moduloCompletado: true };
 }
 
 async function getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId }) {
-  const ejercicio = await Ejercicio.findById(ejercicioId)
-    .populate({ path: "submodulo", populate: { path: "modulo" } }).lean();
+  const ejercicio = await Ejercicio.findById(ejercicioId).populate("modulo").lean();
   if (!ejercicio?._id) return { ok: false, code: 404, message: "Ejercicio no encontrado." };
 
-  const submoduloId = ejercicio.submodulo?._id;
-  const moduloId    = ejercicio.submodulo?.modulo?._id;
-  if (!submoduloId || !moduloId) return { ok: false, code: 404, message: "Contexto del ejercicio no encontrado." };
+  const moduloId = ejercicio.modulo?._id;
+  if (!moduloId) return { ok: false, code: 404, message: "Contexto del ejercicio no encontrado." };
 
-  const { modInst } = await asegurarEstadosSubmodulo({ estudianteId, materiaId, moduloId, submoduloId });
-  return { ok: true, ejercicio, submoduloId, moduloId, modInst };
+  const { modInst } = await asegurarEstadosModulo({ estudianteId, materiaId, moduloId });
+  return { ok: true, ejercicio, moduloId, modInst };
 }
 
 function nowDate() { return new Date(); }
@@ -457,12 +420,8 @@ exports.obtenerContenidoMateria = async (req, res) => {
     const modulosOrdenados= modulosIds.map((id) => modulosMap.get(String(id))).filter(Boolean);
     const modulosObjIds   = modulosOrdenados.map((m) => m._id);
 
-    const submodulos = await Submodulo.find({ modulo: { $in: modulosObjIds } })
-      .select("modulo titulo descripcion reintento createdAt").sort({ createdAt: 1 }).lean();
-
-    const subIds    = submodulos.map((s) => s._id);
-    const ejercicios= await Ejercicio.find({ submodulo: { $in: subIds } })
-      .select("submodulo tipoEjercicio tipoModulo titulo tiempo createdAt").sort({ createdAt: 1 }).lean();
+    const ejercicios = await Ejercicio.find({ modulo: { $in: modulosObjIds } })
+      .select("modulo tipoEjercicio tipoModulo titulo tiempo createdAt").sort({ createdAt: 1 }).lean();
 
     // grabar voz
     const grabarIds = ejercicios.filter((e) => e.tipoEjercicio === "Grabar voz").map((e) => e._id);
@@ -481,21 +440,11 @@ exports.obtenerContenidoMateria = async (req, res) => {
       roleMap = new Map(rd.map((d) => [String(d.ejercicio), d]));
     }
 
-    // inicialización por módulo
-    const subsByModuloInit = new Map();
-    for (const s of submodulos) {
-      const key = String(s.modulo);
-      if (!subsByModuloInit.has(key)) subsByModuloInit.set(key, []);
-      subsByModuloInit.get(key).push(s);
-    }
-    for (const [, subs] of subsByModuloInit.entries()) {
-      for (let i = 0; i < subs.length; i++) {
-        const s = subs[i];
-        await asegurarEstadosSubmodulo({
-          estudianteId, materiaId, moduloId: s.modulo, submoduloId: s._id,
-          submoduloPendiente: i === 0, primerEjercicioPendiente: i === 0,
-        });
-      }
+    // inicialización por módulo (el primer ejercicio de cada módulo queda pendiente)
+    for (const m of modulosOrdenados) {
+      await asegurarEstadosModulo({
+        estudianteId, materiaId, moduloId: m._id, primerEjercicioPendiente: true,
+      });
     }
 
     // instancias
@@ -516,37 +465,26 @@ exports.obtenerContenidoMateria = async (req, res) => {
       ejercicioInstMap = new Map(ejInst.map((x) => [String(x.ejercicio), x]));
     }
 
-    const subByModulo = new Map();
-    submodulos.forEach((s) => {
-      const key = String(s.modulo);
-      if (!subByModulo.has(key)) subByModulo.set(key, []);
-      subByModulo.get(key).push(s);
-    });
-
-    const ejBySub = new Map();
+    const ejByModulo = new Map();
     ejercicios.forEach((e) => {
-      const key = String(e.submodulo);
-      if (!ejBySub.has(key)) ejBySub.set(key, []);
-      ejBySub.get(key).push(e);
+      const key = String(e.modulo);
+      if (!ejByModulo.has(key)) ejByModulo.set(key, []);
+      ejByModulo.get(key).push(e);
     });
 
     const modulosTree = modulosOrdenados.map((m) => {
       const modKey      = String(m._id);
       const modInstItem = moduloInstMap.get(modKey) || null;
-      const subs        = (subByModulo.get(modKey) || []).map((s) => {
-        const subKey = String(s._id);
-        const ejs    = (ejBySub.get(subKey) || []).map((e) => {
-          const inst   = ejercicioInstMap.get(String(e._id)) || null;
-          let merged   = { ...e };
-          const gv     = grabarMap.get(String(e._id));
-          if (gv) merged = { ...merged, caso: gv.caso, evaluaciones: gv.evaluaciones };
-          const rp = roleMap.get(String(e._id));
-          if (rp) merged = { ...merged, rolePlaying: rp };
-          return { ...merged, instancia: inst };
-        });
-        return { ...s, ejercicios: ejs };
+      const ejs         = (ejByModulo.get(modKey) || []).map((e) => {
+        const inst   = ejercicioInstMap.get(String(e._id)) || null;
+        let merged   = { ...e };
+        const gv     = grabarMap.get(String(e._id));
+        if (gv) merged = { ...merged, caso: gv.caso, evaluaciones: gv.evaluaciones };
+        const rp = roleMap.get(String(e._id));
+        if (rp) merged = { ...merged, rolePlaying: rp };
+        return { ...merged, instancia: inst };
       });
-      return { ...m, instancia: modInstItem, submodulos: subs };
+      return { ...m, instancia: modInstItem, ejercicios: ejs };
     });
 
     return res.json({ materia, modulos: modulosTree });
@@ -573,11 +511,10 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
     if (!materia) return res.status(404).json({ message: "Materia no encontrada o no estás inscrito." });
 
     const ejercicio = await Ejercicio.findById(ejercicioId)
-      .populate({ path: "submodulo", populate: { path: "modulo" } }).lean();
+      .populate("modulo").lean();
     if (!ejercicio) return res.status(404).json({ message: "Ejercicio no encontrado." });
 
-    const submodulo = ejercicio.submodulo || null;
-    const modulo    = submodulo?.modulo   || null;
+    const modulo    = ejercicio.modulo || null;
     if (!modulo?._id) return res.status(404).json({ message: "No se encontró el módulo del ejercicio." });
 
     const modulosIds = [
@@ -615,7 +552,6 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
     const ctx = {
       materiaId:            String(materiaId),
       moduloId:             String(modulo._id),
-      submoduloId:          String(submodulo?._id || ""),
       ejercicioId:          String(ejercicioId),
       moduloInstanciaId:    String(ctxBase.modInst._id),
       ejercicioInstanciaId: String(inst._id),
@@ -628,7 +564,7 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
     const tourYaVisto = Boolean(userFlags?.flagsTutoriales?.tourGrabarVozVisto);
 
     return res.json({
-      materia, modulo, submodulo, ejercicio: ejercicioMerged, detalle,
+      materia, modulo, ejercicio: ejercicioMerged, detalle,
       ejercicioInstancia: inst || null,
       instancia:          inst || null,
       instanciaId:        inst?._id || null,
@@ -686,12 +622,8 @@ exports.dashboardResumen = async (req, res) => {
       .select("_id titulo tipoModulo").lean();
     const modulosObjIds = modulos.map((m) => m._id);
 
-    const submodulos = await Submodulo.find({ modulo: { $in: modulosObjIds } })
-      .select("_id modulo titulo").lean();
-    const subIds = submodulos.map((s) => s._id);
-
-    const ejercicios = await Ejercicio.find({ submodulo: { $in: subIds } })
-      .select("_id submodulo titulo tiempo tipoEjercicio").lean();
+    const ejercicios = await Ejercicio.find({ modulo: { $in: modulosObjIds } })
+      .select("_id modulo titulo tiempo tipoEjercicio").lean();
 
     const modInst = await ModuloInstancia.find({
       estudiante: estudianteId, modulo: { $in: modulosObjIds },
@@ -794,16 +726,15 @@ exports.abrirEjercicio = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(materiaId))   return res.status(400).json({ message: "materiaId inválido." });
 
     const ejercicio = await Ejercicio.findById(ejercicioId)
-      .populate({ path: "submodulo", populate: { path: "modulo" } }).lean();
+      .populate("modulo").lean();
     if (!ejercicio) return res.status(404).json({ message: "Ejercicio no encontrado." });
 
-    const submoduloId = ejercicio.submodulo?._id;
-    const moduloId    = ejercicio.submodulo?.modulo?._id;
-    if (!submoduloId || !moduloId) return res.status(404).json({ message: "Contexto del ejercicio no encontrado." });
+    const moduloId = ejercicio.modulo?._id;
+    if (!moduloId) return res.status(404).json({ message: "Contexto del ejercicio no encontrado." });
 
-    const { modInst } = await asegurarEstadosSubmodulo({ estudianteId, materiaId, moduloId, submoduloId });
+    const { modInst } = await asegurarEstadosModulo({ estudianteId, materiaId, moduloId });
 
-    const lista = await Ejercicio.find({ submodulo: submoduloId })
+    const lista = await Ejercicio.find({ modulo: moduloId })
       .select("_id createdAt").sort({ createdAt: 1 }).lean();
     const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
     if (idx < 0) return res.status(404).json({ message: "Ejercicio no pertenece al submódulo." });
@@ -848,9 +779,9 @@ exports.abrirEjercicio = async (req, res) => {
       await inst.save();
     }
 
-    await SubmoduloInstancia.findOneAndUpdate(
-      { estudiante: estudianteId, materia: materiaId, submodulo: submoduloId },
-      { $set: { estado: "en_progreso", modulo: moduloId } },
+    await ModuloInstancia.findOneAndUpdate(
+      { estudiante: estudianteId, materia: materiaId, modulo: moduloId },
+      { $set: { estado: "en_progreso" } },
       { upsert: true }
     );
 
@@ -861,7 +792,6 @@ exports.abrirEjercicio = async (req, res) => {
       ctx: {
         materiaId:            String(materiaId),
         moduloId:             String(moduloId),
-        submoduloId:          String(submoduloId),
         ejercicioId:          String(ejercicioId),
         moduloInstanciaId:    String(modInst._id),
         ejercicioInstanciaId: String(inst._id),
@@ -1039,7 +969,7 @@ exports.guardarBorradorEjercicio = async (req, res) => {
     const ctx = await getContextForEjercicioInstancia({ estudianteId, materiaId, ejercicioId });
     if (!ctx.ok) return res.status(ctx.code || 400).json({ message: ctx.message });
 
-    const lista = await Ejercicio.find({ submodulo: ctx.submoduloId })
+    const lista = await Ejercicio.find({ modulo: ctx.moduloId })
       .select("_id createdAt").sort({ createdAt: 1 }).lean();
     const idx = lista.findIndex((x) => String(x._id) === String(ejercicioId));
     if (idx < 0) return res.status(404).json({ message: "Ejercicio no pertenece al submódulo." });
@@ -1123,7 +1053,7 @@ exports.obtenerResultadoEjercicio = async (req, res) => {
 
     // ── Enriquecer con el ejercicio y su detalle ──
     const ejercicio = await Ejercicio.findById(ejercicioId)
-      .populate({ path: "submodulo", populate: { path: "modulo" } })
+      .populate("modulo")
       .lean();
 
     const detalle = ejercicio ? await obtenerDetalleEjercicioPorTipo(ejercicio) : null;
@@ -1164,8 +1094,7 @@ exports.obtenerResultadoEjercicio = async (req, res) => {
       // ── NUEVO ──
       ejercicio: ejercicioMerged,
       detalle,
-      submodulo: ejercicio?.submodulo || null,
-      modulo:    ejercicio?.submodulo?.modulo || null,
+      modulo:    ejercicio?.modulo || null,
     });
   } catch (err) {
     console.error("❌ Error obtenerResultadoEjercicio:", err);
@@ -1174,22 +1103,16 @@ exports.obtenerResultadoEjercicio = async (req, res) => {
 };
 
 /* =========================================================
-   GET /estudiante/materias/:materiaId/submodulos/:submoduloId/entrelazados
+   GET /estudiante/materias/:materiaId/modulos/:moduloId/entrelazados
 ========================================================= */
-exports.obtenerEntrelazadosSubmodulo = async (req, res) => {
+exports.obtenerEntrelazadosModulo = async (req, res) => {
   try {
     const estudianteId = req.user?.id || req.user?._id;
-    const { materiaId, submoduloId } = req.params;
+    const { materiaId, moduloId } = req.params;
 
     if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
-    if (!mongoose.Types.ObjectId.isValid(materiaId))   return res.status(400).json({ message: "materiaId inválido." });
-    if (!mongoose.Types.ObjectId.isValid(submoduloId)) return res.status(400).json({ message: "submoduloId inválido." });
-
-    const sub = await Submodulo.findById(submoduloId).select("_id modulo").lean();
-    if (!sub) return res.status(404).json({ message: "Submódulo no encontrado." });
-
-    const moduloId = sub.modulo;
-    if (!moduloId) return res.status(404).json({ message: "Submódulo sin módulo." });
+    if (!mongoose.Types.ObjectId.isValid(materiaId)) return res.status(400).json({ message: "materiaId inválido." });
+    if (!mongoose.Types.ObjectId.isValid(moduloId))  return res.status(400).json({ message: "moduloId inválido." });
 
     const modInst = await ModuloInstancia.findOne({
       estudiante: estudianteId, materia: materiaId, modulo: moduloId,
@@ -1197,7 +1120,7 @@ exports.obtenerEntrelazadosSubmodulo = async (req, res) => {
 
     if (!modInst?._id) return res.json({ entrelazados: {} });
 
-    const ejercicios = await Ejercicio.find({ submodulo: submoduloId }).select("_id").lean();
+    const ejercicios = await Ejercicio.find({ modulo: moduloId }).select("_id").lean();
     const ejIds      = ejercicios.map((e) => e._id);
     if (!ejIds.length) return res.json({ entrelazados: {} });
 
@@ -1214,14 +1137,11 @@ exports.obtenerEntrelazadosSubmodulo = async (req, res) => {
 
     return res.json({ entrelazados });
   } catch (e) {
-    console.error("❌ obtenerEntrelazadosSubmodulo error:", e);
+    console.error("❌ obtenerEntrelazadosModulo error:", e);
     return res.status(500).json({ message: "Error obteniendo entrelazados", error: e.message });
   }
 };
 
-/* =========================================================
-   POST /estudiante/ejercicios/:ejercicioId/analisis-ia
-========================================================= */
 exports.guardarAnalisisIAEjercicio = async (req, res) => {
   try {
     const estudianteId = req.user?.id || req.user?._id;
@@ -1288,7 +1208,7 @@ exports.obtenerResultadoPorInstanciaId = async (req, res) => {
 
     // ── Enriquecer con el ejercicio y su detalle ──
     const ejercicio = await Ejercicio.findById(inst.ejercicio)
-      .populate({ path: "submodulo", populate: { path: "modulo" } })
+      .populate("modulo")
       .lean();
 
     const detalle = ejercicio ? await obtenerDetalleEjercicioPorTipo(ejercicio) : null;
@@ -1329,8 +1249,7 @@ exports.obtenerResultadoPorInstanciaId = async (req, res) => {
       // ── NUEVO ──
       ejercicio: ejercicioMerged,
       detalle,
-      submodulo: ejercicio?.submodulo || null,
-      modulo:    ejercicio?.submodulo?.modulo || null,
+      modulo:    ejercicio?.modulo || null,
     });
   } catch (err) {
     console.error("❌ Error obtenerResultadoPorInstanciaId:", err);

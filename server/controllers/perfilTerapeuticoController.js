@@ -198,7 +198,6 @@ module.exports.obtenerPerfilTerapeutico = async (req, res) => {
       ejercicioTitulo: inst?.ejercicio?.titulo || "Ejercicio de Role Playing",
       materiaTitulo:  inst?.moduloInstancia?.materia?.titulo || null,
       moduloTitulo:   inst?.moduloInstancia?.modulo?.titulo  || null,
-      submoduloTitulo: null,
       completedAt:    inst?.completedAt || inst?.updatedAt || null,
       analisisIA:     inst?.analisisIA
         ? { generalScore: extractPraxisScoreGlobal(inst.analisisIA) }

@@ -84,10 +84,13 @@ function defaultHerramientasRolePlay() {
 
 // ===== Módulo =====
 // ✅ Se eliminó el campo tipoModulo del schema
+// ✅ Los ejercicios ahora cuelgan DIRECTO del módulo (ya no existen submódulos)
+// ✅ `reintento` se movió del submódulo al módulo
 const moduloSchema = new Schema(
   {
     titulo:      { type: String, required: true, trim: true },
     descripcion: { type: String, trim: true, required: true },
+    reintento:   { type: Number, default: 0 },
     esGlobal:    { type: Boolean, default: true, index: true },
     universidad: { type: Schema.Types.ObjectId, default: null, index: true },
     creadoPor:   { type: Schema.Types.ObjectId, default: null },
@@ -96,24 +99,11 @@ const moduloSchema = new Schema(
   { timestamps: true }
 );
 
-// ===== Submódulo =====
-const submoduloSchema = new Schema(
-  {
-    modulo:      { type: Schema.Types.ObjectId, ref: "Modulo", required: true },
-    titulo:      { type: String, required: true, trim: true },
-    descripcion: { type: String, trim: true, default: "" },
-    reintento:   { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
-
 // ===== Ejercicio genérico =====
-// ⚠️ Mantengo tipoModulo aquí porque tu código en ejercicios todavía lo referencia
-// (con fallback desde submodulo.modulo?.tipoModulo, que ahora será undefined).
-// Si quieres quitarlo también, avísame.
+// ⚠️ Los ejercicios cuelgan directamente del módulo.
 const ejercicioSchema = new Schema(
   {
-    submodulo:     { type: Schema.Types.ObjectId, ref: "Submodulo", required: true },
+    modulo:        { type: Schema.Types.ObjectId, ref: "Modulo", required: true, index: true },
     tipoEjercicio: { type: String, enum: TIPOS_EJERCICIO, required: true },
     tipoModulo:    { type: String, enum: TIPOS_MODULO },
     titulo:        { type: String, required: true, trim: true },
@@ -289,7 +279,6 @@ const ejercicioInformeClinicoSchema = new Schema(
 
 // ── Modelos ───────────────────────────────────────────────
 const Modulo                            = mongoose.model("Modulo",                            moduloSchema);
-const Submodulo                         = mongoose.model("Submodulo",                         submoduloSchema);
 const Ejercicio                         = mongoose.model("Ejercicio",                         ejercicioSchema);
 const EjercicioGrabarVoz                = mongoose.model("EjercicioGrabarVoz",                ejercicioGrabarVozSchema);
 const EjercicioInterpretacionFrases     = mongoose.model("EjercicioInterpretacionFrases",     ejercicioInterpretacionFrasesSchema);
@@ -301,7 +290,6 @@ const EjercicioInformeClinico           = mongoose.model("EjercicioInformeClinic
 
 module.exports = {
   Modulo,
-  Submodulo,
   Ejercicio,
   EjercicioGrabarVoz,
   casoGVSchema,

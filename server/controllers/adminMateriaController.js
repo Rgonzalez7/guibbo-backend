@@ -5,7 +5,7 @@ const Materia = require("../models/materia");
 const { Modulo } = require("../models/modulo");
 const ModuloInstancia = require("../models/moduloInstancia");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
-const { Submodulo, Ejercicio } = require("../models/modulo");
+const { Ejercicio } = require("../models/modulo");
 
 /**
  * Helper: encontrar universidad del usuario (director o profesor)
@@ -434,11 +434,9 @@ exports.eliminarMateriaAdmin = async (req, res) => {
           continue;
         }
 
-        const submodulos = await Submodulo.find({ modulo: moduloId }).select("_id");
-        const subIds = submodulos.map((s) => s._id);
 
         const ejercicios = await Ejercicio.find({
-          submodulo: { $in: subIds },
+          modulo: moduloId,
         }).select("_id");
 
         for (const ej of ejercicios) {
@@ -561,11 +559,9 @@ exports.agregarEstudiantesMateriaAdmin = async (req, res) => {
           continue;
         }
 
-        const submodulos = await Submodulo.find({ modulo: moduloId }).select("_id");
-        const subIds = submodulos.map((s) => s._id);
 
         const ejercicios = await Ejercicio.find({
-          submodulo: { $in: subIds },
+          modulo: moduloId,
         }).select("_id");
 
         for (const ej of ejercicios) {

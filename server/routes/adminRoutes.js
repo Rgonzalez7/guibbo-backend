@@ -24,29 +24,24 @@ router.delete( "/modulos/:id", requireRole("director","profesor"), adminModuloCo
 /* ===========================
    SUBMÓDULOS
    =========================== */
-router.get(    "/modulos/:moduloId/submodulos", requireRole("director","profesor"), adminModuloController.listarSubmodulosAdmin);
-router.post(   "/modulos/:moduloId/submodulos", requireRole("director","profesor"), adminModuloController.crearSubmoduloAdmin);
-router.get(    "/submodulos/:id",               requireRole("director","profesor"), adminModuloController.obtenerSubmoduloAdmin);
-router.put(    "/submodulos/:id",               requireRole("director","profesor"), adminModuloController.actualizarSubmoduloAdmin);
-router.delete( "/submodulos/:id",               requireRole("director","profesor"), adminModuloController.eliminarSubmoduloAdmin);
 
 /* ===========================
    EJERCICIOS — genérico
    =========================== */
-router.get(  "/submodulos/:submoduloId/ejercicios", requireRole("director","profesor"), adminModuloController.listarEjerciciosAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios", requireRole("director","profesor"), adminModuloController.crearEjercicioAdmin);
+router.get(  "/modulos/:moduloId/ejercicios", requireRole("director","profesor"), adminModuloController.listarEjerciciosAdmin);
+router.post( "/modulos/:moduloId/ejercicios", requireRole("director","profesor"), adminModuloController.crearEjercicioAdmin);
 
 /* ===========================
    EJERCICIOS — crear por tipo
    =========================== */
-router.post( "/submodulos/:submoduloId/ejercicios/grabar-voz",         requireRole("director","profesor"), adminModuloController.crearEjercicioGrabarVozAdmin);
+router.post( "/modulos/:moduloId/ejercicios/grabar-voz",         requireRole("director","profesor"), adminModuloController.crearEjercicioGrabarVozAdmin);
 router.post( "/ejercicios/grabar-voz/generar-casos",                   requireRole("director","profesor"), adminModuloController.generarCasosGrabarVoz);
-router.post( "/submodulos/:submoduloId/ejercicios/interp-frases",      requireRole("director","profesor"), adminModuloController.crearEjercicioInterpretacionFrasesAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios/role-play",          requireRole("director","profesor"), adminModuloController.crearEjercicioRolePlayAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios/criterios-dx",       requireRole("director","profesor"), adminModuloController.crearEjercicioCriteriosDxAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios/pruebas",            requireRole("director","profesor"), adminModuloController.crearEjercicioPruebasAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios/interp-proyectivas", requireRole("director","profesor"), adminModuloController.crearEjercicioInterpretacionProyectivasAdmin);
-router.post( "/submodulos/:submoduloId/ejercicios/informe-clinico",    requireRole("director","profesor"), adminModuloController.crearEjercicioInformeClinicoAdmin);
+router.post( "/modulos/:moduloId/ejercicios/interp-frases",      requireRole("director","profesor"), adminModuloController.crearEjercicioInterpretacionFrasesAdmin);
+router.post( "/modulos/:moduloId/ejercicios/role-play",          requireRole("director","profesor"), adminModuloController.crearEjercicioRolePlayAdmin);
+router.post( "/modulos/:moduloId/ejercicios/criterios-dx",       requireRole("director","profesor"), adminModuloController.crearEjercicioCriteriosDxAdmin);
+router.post( "/modulos/:moduloId/ejercicios/pruebas",            requireRole("director","profesor"), adminModuloController.crearEjercicioPruebasAdmin);
+router.post( "/modulos/:moduloId/ejercicios/interp-proyectivas", requireRole("director","profesor"), adminModuloController.crearEjercicioInterpretacionProyectivasAdmin);
+router.post( "/modulos/:moduloId/ejercicios/informe-clinico",    requireRole("director","profesor"), adminModuloController.crearEjercicioInformeClinicoAdmin);
 
 /* ===========================
    EJERCICIOS — obtener / eliminar

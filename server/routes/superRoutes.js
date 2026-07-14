@@ -103,85 +103,91 @@ router.put('/modulos/:id', moduloController.actualizarModulo);
 router.delete('/modulos/:id', moduloController.eliminarModulo);
 
 /* ----- Submódulos ----- */
+/* ----- Ejercicios (lista por módulo) ----- */
 router.get(
-  '/modulos/:moduloId/submodulos',
-  moduloController.listarSubmodulosPorModulo
-);
-router.post(
-  '/modulos/:moduloId/submodulos',
-  moduloController.crearSubmodulo
-);
-router.put('/submodulos/:id', moduloController.actualizarSubmodulo);
-router.delete('/submodulos/:id', moduloController.eliminarSubmodulo);
-
-/* ----- Ejercicios (lista por submódulo) ----- */
-router.get(
-  '/submodulos/:submoduloId/ejercicios',
-  moduloController.listarEjerciciosPorSubmodulo
+  '/modulos/:moduloId/ejercicios',
+  moduloController.listarEjerciciosPorModulo
 );
 
-/* ----- Ejercicio tipo "Grabar voz" ----- */
+/* ============================================================
+   CREAR / ACTUALIZAR EJERCICIOS
+   Se usan los handlers de adminModuloController porque son los
+   que soportan el esquema actual (casos[], contexto, habilidades,
+   herramientas, etc.). Los de moduloController quedaron legacy.
+   ============================================================ */
+
+/* ----- Ejercicio tipo "Grabar voz" (Micro-Praxis) ----- */
 router.post(
   '/ejercicios/grabar-voz/generar-casos',
   adminModuloController.generarCasosGrabarVoz
 );
 router.post(
-  '/submodulos/:submoduloId/ejercicios/grabar-voz',
-  moduloController.crearEjercicioGrabarVoz
+  '/modulos/:moduloId/ejercicios/grabar-voz',
+  adminModuloController.crearEjercicioGrabarVozAdmin
 );
 router.put(
   '/ejercicios/grabar-voz/:id',
-  moduloController.actualizarEjercicioGrabarVoz
-);
-
-/* ----- Ejercicio tipo "Interpretación de frases incompletas" ----- */
-router.post(
-  '/submodulos/:submoduloId/ejercicios/interpretacion-frases',
-  moduloController.crearEjercicioInterpretacionFrases
-);
-router.put(
-  '/ejercicios/interpretacion-frases/:id',
-  moduloController.actualizarEjercicioInterpretacionFrases
+  adminModuloController.actualizarEjercicioGrabarVozAdmin
 );
 
 /* ----- Ejercicio tipo "Role playing" ----- */
 router.post(
-  '/submodulos/:submoduloId/ejercicios/role-play',
-  moduloController.crearEjercicioRolePlay
+  '/modulos/:moduloId/ejercicios/role-play',
+  adminModuloController.crearEjercicioRolePlayAdmin
 );
 router.put(
   '/ejercicios/role-play/:id',
-  moduloController.actualizarEjercicioRolePlay
+  adminModuloController.actualizarEjercicioRolePlayAdmin
+);
+
+/* ----- Ejercicio tipo "Informe clínico" ----- */
+router.post(
+  '/modulos/:moduloId/ejercicios/informe-clinico',
+  adminModuloController.crearEjercicioInformeClinicoAdmin
+);
+router.put(
+  '/ejercicios/informe-clinico/:id',
+  adminModuloController.actualizarEjercicioInformeClinicoAdmin
+);
+
+/* ----- Ejercicio tipo "Interpretación de frases incompletas" ----- */
+router.post(
+  '/modulos/:moduloId/ejercicios/interpretacion-frases',
+  adminModuloController.crearEjercicioInterpretacionFrasesAdmin
+);
+router.put(
+  '/ejercicios/interpretacion-frases/:id',
+  adminModuloController.actualizarEjercicioInterpretacionFrasesAdmin
 );
 
 /* ----- Ejercicio tipo "Criterios de diagnóstico" ----- */
 router.post(
-  '/submodulos/:submoduloId/ejercicios/criterios-dx',
-  moduloController.crearEjercicioCriteriosDx
+  '/modulos/:moduloId/ejercicios/criterios-dx',
+  adminModuloController.crearEjercicioCriteriosDxAdmin
 );
 router.put(
   '/ejercicios/criterios-dx/:id',
-  moduloController.actualizarEjercicioCriteriosDx
+  adminModuloController.actualizarEjercicioCriteriosDxAdmin
 );
 
 /* ----- Ejercicio tipo "Pruebas" ----- */
 router.post(
-  '/submodulos/:submoduloId/ejercicios/pruebas',
-  moduloController.crearEjercicioPruebas
+  '/modulos/:moduloId/ejercicios/pruebas',
+  adminModuloController.crearEjercicioPruebasAdmin
 );
 router.put(
   '/ejercicios/pruebas/:id',
-  moduloController.actualizarEjercicioPruebas
+  adminModuloController.actualizarEjercicioPruebasAdmin
 );
 
 /* ----- Ejercicio tipo "Interpretación proyectivas" ----- */
 router.post(
-  '/submodulos/:submoduloId/ejercicios/interpretacion-proyectivas',
-  moduloController.crearEjercicioInterpretacionProyectivas
+  '/modulos/:moduloId/ejercicios/interpretacion-proyectivas',
+  adminModuloController.crearEjercicioInterpretacionProyectivasAdmin
 );
 router.put(
   '/ejercicios/interpretacion-proyectivas/:id',
-  moduloController.actualizarEjercicioInterpretacionProyectivas
+  adminModuloController.actualizarEjercicioInterpretacionProyectivasAdmin
 );
 
 /* ----- Ejercicio (genérico: obtener / eliminar) ----- */
