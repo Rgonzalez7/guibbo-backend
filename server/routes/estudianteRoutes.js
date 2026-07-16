@@ -4,6 +4,7 @@ const router = express.Router();
 const verifyToken = require("../middlewares/verifyToken");
 const requireRole = require("../middlewares/requireRole");
 const estudianteMateriaController = require("../controllers/estudianteMateriaController");
+const multiSesionController = require("../controllers/multiSesionController");
 
 router.use(verifyToken, requireRole("estudiante"));
 
@@ -39,5 +40,13 @@ router.post(
   "/ejercicios/:ejercicioId/informe-clinico/obtener-caso",
   estudianteMateriaController.obtenerCasoInformeClinoco
 );
+
+/* ===== Multi Sesión (runtime del estudiante) ===== */
+router.get(   "/materias/:materiaId/multisesion/:ejercicioId",                     multiSesionController.obtenerEstado);
+router.post(  "/materias/:materiaId/multisesion/:ejercicioId/sesion",             multiSesionController.crearSesion);
+router.put(   "/materias/:materiaId/multisesion/:ejercicioId/sesion/:sesionId",   multiSesionController.guardarSesion);
+router.delete("/materias/:materiaId/multisesion/:ejercicioId/sesion/:sesionId",   multiSesionController.eliminarSesion);
+router.put(   "/materias/:materiaId/multisesion/:ejercicioId/plan",               multiSesionController.guardarPlan);
+router.post(  "/materias/:materiaId/multisesion/:ejercicioId/completar",          multiSesionController.completar);
 
 module.exports = router;

@@ -142,6 +142,15 @@ router.put(
 
 /* ----- Ejercicio tipo "Informe clínico" ----- */
 router.post(
+  '/modulos/:moduloId/ejercicios/multi-sesion',
+  adminModuloController.crearEjercicioMultiSesionAdmin
+);
+router.put(
+  '/ejercicios/multi-sesion/:id',
+  adminModuloController.actualizarEjercicioMultiSesionAdmin
+);
+
+router.post(
   '/modulos/:moduloId/ejercicios/informe-clinico',
   adminModuloController.crearEjercicioInformeClinicoAdmin
 );

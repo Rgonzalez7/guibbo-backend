@@ -11,6 +11,7 @@ const TIPOS_EJERCICIO = [
   "Role Playing IA",
   "Grabar voz",
   "Informe clínico",
+  "Multi Sesion",
 ];
 
 const PRAXIS_NIVELES = ["nivel_1", "nivel_2", "nivel_3"];
@@ -288,6 +289,52 @@ const EjercicioPruebas                  = mongoose.model("EjercicioPruebas",    
 const EjercicioInterpretacionProyectiva = mongoose.model("EjercicioInterpretacionProyectiva", ejercicioInterpretacionProyectivaSchema);
 const EjercicioInformeClinico           = mongoose.model("EjercicioInformeClinico",           ejercicioInformeClinicoSchema);
 
+
+/* =========================================================
+   Multi Sesión — CONFIG del ejercicio
+   Título (en Ejercicio) + herramientas clínicas que el
+   estudiante usará en cada sesión + nivel praxis / modelo.
+   Un solo paciente por ejercicio. El trabajo del estudiante
+   (sesiones + plan) vive en EjercicioInstancia.respuestas.
+   ========================================================= */
+const ejercicioMultiSesionSchema = new Schema(
+  {
+    ejercicio:          { type: Schema.Types.ObjectId, ref: "Ejercicio", required: true, unique: true },
+    praxisNivel:        { type: String, enum: PRAXIS_NIVELES, default: "nivel_1", index: true },
+    modeloIntervencion: { type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
+    contextoSesion:     { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica", trim: true },
+    herramientas: {
+      manejoExpediente: { type: Boolean, default: false },
+      ficha:            { type: Boolean, default: false },
+      hc:               { type: Boolean, default: false },
+      examen:           { type: Boolean, default: false },
+      convergencia:     { type: Boolean, default: false },
+      hipotesis:        { type: Boolean, default: false },
+      diagnostico:      { type: Boolean, default: false },
+      pruebas:          { type: Boolean, default: false },
+      interpretacion:   { type: Boolean, default: false },
+      recomendaciones:  { type: Boolean, default: false },
+      anexos:           { type: Boolean, default: false },
+      plan:             { type: Boolean, default: false },
+    },
+    pruebasConfig: { type: Schema.Types.Mixed, default: {} },
+    evaluaciones:  { type: Schema.Types.Mixed, default: null, select: false },
+  },
+  { timestamps: true }
+);
+
+ejercicioMultiSesionSchema.pre("validate", function (next) {
+  if (!this.herramientas || typeof this.herramientas !== "object") {
+    this.herramientas = defaultHerramientasRolePlay();
+  }
+  if (!this.praxisNivel)                           this.praxisNivel = "nivel_1";
+  if (typeof this.modeloIntervencion !== "string") this.modeloIntervencion = "";
+  if (!this.contextoSesion)                        this.contextoSesion = "exploracion_clinica";
+  next();
+});
+
+const EjercicioMultiSesion = mongoose.model("EjercicioMultiSesion", ejercicioMultiSesionSchema);
+
 module.exports = {
   Modulo,
   Ejercicio,
@@ -299,6 +346,7 @@ module.exports = {
   EjercicioPruebas,
   EjercicioInterpretacionProyectiva,
   EjercicioInformeClinico,
+  EjercicioMultiSesion,
   TIPOS_MODULO,
   TIPOS_EJERCICIO,
   PRAXIS_NIVELES,

@@ -10,6 +10,7 @@ const {
   EjercicioPruebas,
   EjercicioInterpretacionProyectiva,
   EjercicioInformeClinico,
+  EjercicioMultiSesion,
   PRAXIS_NIVELES,
   MODELOS_INTERVENCION,
   CONTEXTOS_GV,
@@ -386,6 +387,11 @@ exports.crearEjercicioInformeClinicoAdmin = async (req, res) => {
   return exports.crearEjercicioAdmin(req, res);
 };
 
+exports.crearEjercicioMultiSesionAdmin = async (req, res) => {
+  req.body = { ...(req.body || {}), tipoEjercicio: "Multi Sesion" };
+  return exports.crearEjercicioAdmin(req, res);
+};
+
 /* =========================================================
    Wrappers UPDATE por tipo
 ========================================================= */
@@ -396,6 +402,7 @@ exports.actualizarEjercicioCriteriosDxAdmin          = (req, res) => exports.act
 exports.actualizarEjercicioPruebasAdmin              = (req, res) => exports.actualizarEjercicioAdmin(req, res);
 exports.actualizarEjercicioInterpretacionProyectivasAdmin = (req, res) => exports.actualizarEjercicioAdmin(req, res);
 exports.actualizarEjercicioInformeClinicoAdmin       = (req, res) => exports.actualizarEjercicioAdmin(req, res);
+exports.actualizarEjercicioMultiSesionAdmin          = (req, res) => exports.actualizarEjercicioAdmin(req, res);
 
 /* =========================================================
    LISTAR MÓDULOS
@@ -747,6 +754,16 @@ exports.crearEjercicioAdmin = async (req, res) => {
         intentos: typeof intentos === "number" ? intentos : intentos ? Number(intentos) : 1,
       });
 
+    } else if (tipoEjercicio === "Multi Sesion") {
+      detalle = await EjercicioMultiSesion.create({
+        ejercicio:          ejercicio._id,
+        praxisNivel:        normalizePraxisNivel(praxisNivel),
+        modeloIntervencion: normalizeModeloIntervencion(modeloIntervencion),
+        herramientas:       normalizeHerramientasRolePlay(herramientas || {}),
+        pruebasConfig:      (pruebasConfigRolePlay && typeof pruebasConfigRolePlay === "object") ? pruebasConfigRolePlay : {},
+        evaluaciones:       null,
+      });
+
     } else if (tipoEjercicio === "Informe clínico") {
       const herramientasNorm = normalizeHerramientasInforme(herramientas || {});
       if (!Object.values(herramientasNorm).some(Boolean)) {
@@ -895,6 +912,22 @@ exports.actualizarEjercicioAdmin = async (req, res) => {
       if (intentos !== undefined) detalle.intentos = typeof intentos === "number" ? intentos : Number(intentos) || 1;
       await detalle.save();
 
+    } else if (ejercicio.tipoEjercicio === "Multi Sesion") {
+      detalle = await EjercicioMultiSesion.findOne({ ejercicio: id });
+      if (!detalle) detalle = new EjercicioMultiSesion({ ejercicio: id });
+      if (contextoSesion     !== undefined) detalle.contextoSesion     = normalizeContextoSesion(contextoSesion);
+      if (modeloIntervencion !== undefined) detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
+      if (praxisNivel        !== undefined) detalle.praxisNivel        = normalizePraxisNivel(praxisNivel);
+      if (herramientas !== undefined) {
+        detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
+        if (typeof detalle.markModified === "function") detalle.markModified("herramientas");
+      }
+      if (pruebasConfig !== undefined) {
+        detalle.pruebasConfig = pruebasConfig || {};
+        if (typeof detalle.markModified === "function") detalle.markModified("pruebasConfig");
+      }
+      await detalle.save();
+
     } else if (ejercicio.tipoEjercicio === "Informe clínico") {
       detalle = await EjercicioInformeClinico.findOne({ ejercicio: id });
       if (!detalle) detalle = new EjercicioInformeClinico({ ejercicio: id });
@@ -939,6 +972,7 @@ exports.obtenerEjercicioAdmin = async (req, res) => {
     else if (ejercicio.tipoEjercicio === "Aplicación de pruebas")                detalle = await EjercicioPruebas.findOne({ ejercicio: id }).lean();
     else if (ejercicio.tipoEjercicio === "Pruebas psicometricas")                detalle = await EjercicioInterpretacionProyectiva.findOne({ ejercicio: id }).lean();
     else if (ejercicio.tipoEjercicio === "Informe clínico")                      detalle = await EjercicioInformeClinico.findOne({ ejercicio: id }).lean();
+    else if (ejercicio.tipoEjercicio === "Multi Sesion")                         detalle = await EjercicioMultiSesion.findOne({ ejercicio: id }).lean();
 
     return res.json({
       ejercicio, detalle,

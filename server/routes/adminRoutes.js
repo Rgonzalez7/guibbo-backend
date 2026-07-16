@@ -41,6 +41,7 @@ router.post( "/modulos/:moduloId/ejercicios/role-play",          requireRole("di
 router.post( "/modulos/:moduloId/ejercicios/criterios-dx",       requireRole("director","profesor"), adminModuloController.crearEjercicioCriteriosDxAdmin);
 router.post( "/modulos/:moduloId/ejercicios/pruebas",            requireRole("director","profesor"), adminModuloController.crearEjercicioPruebasAdmin);
 router.post( "/modulos/:moduloId/ejercicios/interp-proyectivas", requireRole("director","profesor"), adminModuloController.crearEjercicioInterpretacionProyectivasAdmin);
+router.post( "/modulos/:moduloId/ejercicios/multi-sesion",      requireRole("director","profesor"), adminModuloController.crearEjercicioMultiSesionAdmin);
 router.post( "/modulos/:moduloId/ejercicios/informe-clinico",    requireRole("director","profesor"), adminModuloController.crearEjercicioInformeClinicoAdmin);
 
 /* ===========================
@@ -58,6 +59,7 @@ router.put( "/ejercicios/role-play/:id",          requireRole("director","profes
 router.put( "/ejercicios/criterios-dx/:id",       requireRole("director","profesor"), adminModuloController.actualizarEjercicioCriteriosDxAdmin);
 router.put( "/ejercicios/pruebas/:id",            requireRole("director","profesor"), adminModuloController.actualizarEjercicioPruebasAdmin);
 router.put( "/ejercicios/interp-proyectivas/:id", requireRole("director","profesor"), adminModuloController.actualizarEjercicioInterpretacionProyectivasAdmin);
+router.put( "/ejercicios/multi-sesion/:id",      requireRole("director","profesor"), adminModuloController.actualizarEjercicioMultiSesionAdmin);
 router.put( "/ejercicios/informe-clinico/:id",    requireRole("director","profesor"), adminModuloController.actualizarEjercicioInformeClinicoAdmin);
 router.put( "/ejercicios/:id",                    requireRole("director","profesor"), adminModuloController.actualizarEjercicioAdmin);
 

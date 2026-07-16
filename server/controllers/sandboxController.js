@@ -14,6 +14,7 @@ const TIPO_MAP = {
   roleplay: ["Role playing persona", "Role Playing IA"],
   grabar_voz: ["Grabar voz"],
   informe_clinico: ["Informe clínico"],
+  multi_sesion: ["Multi Sesion"],
 };
 
 /**
@@ -26,7 +27,7 @@ exports.listarEjerciciosPorTipo = async (req, res) => {
     const tipo = String(req.query.tipo || "").trim();
     const tipos = TIPO_MAP[tipo];
     if (!tipos) {
-      return res.status(400).json({ message: "Tipo inválido. Usa: roleplay, grabar_voz o informe_clinico." });
+      return res.status(400).json({ message: "Tipo inválido. Usa: roleplay, grabar_voz, informe_clinico o multi_sesion." });
     }
 
     const ejercicios = await Ejercicio.find({ tipoEjercicio: { $in: tipos } })

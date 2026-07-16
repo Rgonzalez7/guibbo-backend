@@ -22,6 +22,7 @@ const {
 } = require("../controllers/perfilTerapeuticoController");
 
 const { analizarCasoGV, analizarGlobalGV } = require("../controllers/iaMicroPraxisController");
+const { analizarCumplimientoPlan } = require("../controllers/iaMultiSesionController");
 
 
 // Consejo diario
@@ -49,5 +50,8 @@ router.post("/perfil-terapeutico/generar-ultimo", verifyToken, generarPerfilUlti
 // Grabar Voz — evaluación por habilidad
 router.post("/grabar-voz/analizar-caso",   verifyToken, analizarCasoGV);
 router.post("/grabar-voz/analizar-global", verifyToken, analizarGlobalGV);
+
+// Multi Sesión — cumplimiento del plan de intervención
+router.post("/multisesion/cumplimiento-plan", verifyToken, analizarCumplimientoPlan);
 
 module.exports = router;
