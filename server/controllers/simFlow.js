@@ -183,6 +183,8 @@ async function appendTurn({ ejercicioInstanciaId, speaker, text }) {
   const id = String(ejercicioInstanciaId || "").trim();
   const clean = String(text || "").trim();
   if (!id || !clean) return;
+  // En sandbox (id no-ObjectId) no persistimos
+  if (!/^[a-f0-9]{24}$/i.test(id)) return;
 
   const ts = new Date();
 
@@ -253,6 +255,7 @@ function createSimWSS() {
     let startMs = Date.now();
 
     let voiceIdResolved = "";
+    let isSandbox = false;
 
     // half-duplex
     let speaking = false;
@@ -489,7 +492,13 @@ function createSimWSS() {
           instanciaId = String(hello.ejercicioInstanciaId || "").trim();
           ejercicioId = String(hello.ejercicioId || "").trim();
 
-          if (!instanciaId || !ejercicioId) {
+          // ✅ Modo sandbox (super): sin instancia real, sin persistir, trastorno desde el hello
+          isSandbox =
+            hello.sandbox === true ||
+            String(instanciaId).toLowerCase() === "sandbox" ||
+            String(ejercicioId).toLowerCase() === "sandbox";
+
+          if (!isSandbox && (!instanciaId || !ejercicioId)) {
             safeSend(ws, {
               type: "error",
               message: "Faltan ejercicioInstanciaId o ejercicioId en hello",
@@ -498,48 +507,54 @@ function createSimWSS() {
             return;
           }
 
-          const inst = await EjercicioInstancia.findOne({
-            _id: instanciaId,
-            estudiante: userId,
-          })
-            .select("_id ejercicio")
-            .lean();
+          if (isSandbox) {
+            // Sin instancia real: asumimos simulación y tomamos el trastorno del hello
+            tipoRole = "simulada";
+            problema = String(hello.problema || "").trim();
+          } else {
+            const inst = await EjercicioInstancia.findOne({
+              _id: instanciaId,
+              estudiante: userId,
+            })
+              .select("_id ejercicio")
+              .lean();
 
-          if (!inst?._id) {
-            safeSend(ws, {
-              type: "error",
-              message: "Instancia no válida para este usuario",
-            });
-            ws.close();
-            return;
+            if (!inst?._id) {
+              safeSend(ws, {
+                type: "error",
+                message: "Instancia no válida para este usuario",
+              });
+              ws.close();
+              return;
+            }
+
+            if (String(inst.ejercicio) !== String(ejercicioId)) {
+              safeSend(ws, {
+                type: "error",
+                message:
+                  "La instancia no corresponde a ese ejercicio (mismatch ejercicioId)",
+              });
+              ws.close();
+              return;
+            }
+
+            const rp = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
+              .select("tipoRole trastorno")
+              .lean();
+
+            tipoRole = rp?.tipoRole || "simulada";
+
+            if (String(tipoRole).toLowerCase() !== "simulada") {
+              safeSend(ws, {
+                type: "error",
+                message: "Este ejercicio NO es simulación IA (tipoRole != simulada).",
+              });
+              ws.close();
+              return;
+            }
+
+            problema = String(rp?.trastorno || hello.problema || "").trim();
           }
-
-          if (String(inst.ejercicio) !== String(ejercicioId)) {
-            safeSend(ws, {
-              type: "error",
-              message:
-                "La instancia no corresponde a ese ejercicio (mismatch ejercicioId)",
-            });
-            ws.close();
-            return;
-          }
-
-          const rp = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
-            .select("tipoRole trastorno")
-            .lean();
-
-          tipoRole = rp?.tipoRole || "simulada";
-
-          if (String(tipoRole).toLowerCase() !== "simulada") {
-            safeSend(ws, {
-              type: "error",
-              message: "Este ejercicio NO es simulación IA (tipoRole != simulada).",
-            });
-            ws.close();
-            return;
-          }
-
-          problema = String(rp?.trastorno || hello.problema || "").trim();
 
           limitSec = getRoleplayLimitSeconds(tipoRole);
           startMs = Date.now();
@@ -797,7 +812,8 @@ function createSimWSS() {
           if (ff && ff.stdin?.writable) ff.stdin.write(Buffer.from(message));
         }
       } catch (err) {
-        safeSend(ws, { type: "error", message: "Mensaje inválido" });
+        console.error("❌ [SIM] excepción procesando mensaje:", err?.stack || err?.message || err);
+        safeSend(ws, { type: "error", message: err?.message || "Mensaje inválido" });
       }
     });
   });

@@ -12,6 +12,8 @@ const { Ejercicio } = require("../models/modulo");
 // Mapa: clave del sandbox -> strings de tipoEjercicio en la BD
 const TIPO_MAP = {
   roleplay: ["Role playing persona", "Role Playing IA"],
+  roleplay_real: ["Role playing persona"],
+  roleplay_sim: ["Role Playing IA"],
   grabar_voz: ["Grabar voz"],
   informe_clinico: ["Informe clínico"],
   multi_sesion: ["Multi Sesion"],
@@ -27,7 +29,7 @@ exports.listarEjerciciosPorTipo = async (req, res) => {
     const tipo = String(req.query.tipo || "").trim();
     const tipos = TIPO_MAP[tipo];
     if (!tipos) {
-      return res.status(400).json({ message: "Tipo inválido. Usa: roleplay, grabar_voz, informe_clinico o multi_sesion." });
+      return res.status(400).json({ message: "Tipo inválido. Usa: roleplay_real, roleplay_sim, grabar_voz, informe_clinico o multi_sesion." });
     }
 
     const ejercicios = await Ejercicio.find({ tipoEjercicio: { $in: tipos } })
