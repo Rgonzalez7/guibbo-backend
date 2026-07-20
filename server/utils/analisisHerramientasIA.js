@@ -202,21 +202,21 @@ function safeInt(n) {
   
   Responde SOLO JSON válido.
   No agregues texto fuera del JSON.
-  Evalúa ÚNICAMENTE el contenido de las herramientas clínicas proporcionadas.
+  Evalúa ÚNICAMENTE el contenido de las secciones del expediente clínico proporcionadas.
   No inventes contenido clínico.
   
   ---
   
-  CRITERIOS DE EVALUACIÓN POR HERRAMIENTA
+  CRITERIOS DE EVALUACIÓN POR SECCIÓN DEL EXPEDIENTE CLÍNICO
   
-  Cada herramienta se evalúa en tres ejes (score 0–100 cada uno):
+  Cada sección del expediente clínico se evalúa en tres ejes (score 0–100 cada uno):
   
   coherencia   — ¿La información es clínicamente consistente y no contradictoria?
   redaccion    — ¿Está redactada con lenguaje técnico apropiado?
   alineacion   — ¿Es coherente con la transcripción de la sesión proporcionada?
   
-  El score general de cada herramienta es el promedio de sus tres métricas.
-  El generalScore es el promedio de todos los scores de herramientas.
+  El score general de cada sección del expediente clínico es el promedio de sus tres métricas.
+  El generalScore es el promedio de todos los scores de las secciones del expediente clínico.
   
   ---
   
@@ -224,13 +224,13 @@ function safeInt(n) {
   
   Evalúa únicamente lo observable en los datos proporcionados.
   
-  Si una herramienta está vacía o incompleta: indícalo en recommendations y penaliza proporcionalmente.
-  Si una herramienta está bien elaborada: reconócelo en studentGuidance.whatWentWell.
+  Si una sección del expediente clínico está vacía o incompleta: indícalo en recommendations y penaliza proporcionalmente.
+  Si una sección del expediente clínico está bien elaborada: reconócelo en studentGuidance.whatWentWell.
   No inventes información que no esté en los datos.
   
   ---
   
-  DATOS DE LAS HERRAMIENTAS CLÍNICAS (JSON):
+  DATOS DE LAS SECCIONES DEL EXPEDIENTE CLÍNICO (JSON):
   
   ${JSON.stringify(
       {

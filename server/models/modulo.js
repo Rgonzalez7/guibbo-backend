@@ -271,6 +271,7 @@ const ejercicioInformeClinicoSchema = new Schema(
       recomendaciones: { type: Boolean, default: false },
       anexos:          { type: Boolean, default: false },
       plan:            { type: Boolean, default: false },
+      sintesis:        { type: Boolean, default: false },
     },
 
     pruebasConfig: { type: Schema.Types.Mixed, default: {} },

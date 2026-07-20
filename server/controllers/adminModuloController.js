@@ -91,6 +91,7 @@ const DEFAULT_HERRAMIENTAS_INFORME = {
   ficha: false, hc: false, examen: false, convergencia: false,
   hipotesis: false, diagnostico: false, pruebas: false,
   interpretacion: false, recomendaciones: false, anexos: false, plan: false,
+  sintesis: false,
 };
 
 function normalizeHerramientasInforme(h = {}) {
