@@ -354,6 +354,7 @@ function createSimWSS() {
 
     async function handleTherapistFinal(transcript) {
       const clean = String(transcript || "").trim();
+      log("FINAL terapeuta:", clean ? `"${clean.slice(0, 80)}"` : "(vacío → se ignora)");
       if (!clean) return;
       if (checkTimeUp()) return;
       if (speaking) return;
@@ -414,6 +415,8 @@ function createSimWSS() {
         ts: new Date().toISOString(),
       });
 
+      log("RESPUESTA paciente:", `"${String(reply || "").slice(0, 80)}"`, "| sintetizando con voiceId =", voiceIdResolved || "(NINGUNO)");
+
       try {
         const ttsRes = await ttsSynthesizeBase64({
           text: reply,
@@ -429,6 +432,7 @@ function createSimWSS() {
         } else if (!looksLikeMp3Base64(audio_b64)) {
           log("TTS INVALID base64 (len =", audio_b64.length, ")");
         } else {
+          log("TTS OK → enviando audio | bytes b64 =", audio_b64.length, "| mime =", mime);
           safeSend(ws, {
             type: "tts_audio",
             audio_b64,
@@ -492,7 +496,7 @@ function createSimWSS() {
           instanciaId = String(hello.ejercicioInstanciaId || "").trim();
           ejercicioId = String(hello.ejercicioId || "").trim();
 
-          // ✅ Modo sandbox (super): sin instancia real, sin persistir, trastorno desde el hello
+          // ✅ Modo sandbox (demo guiada / super): sin instancia real
           isSandbox =
             hello.sandbox === true ||
             String(instanciaId).toLowerCase() === "sandbox" ||
@@ -569,6 +573,7 @@ function createSimWSS() {
           }
 
           voiceIdResolved = resolveElevenVoiceIdFromProblema(problema);
+          log("VOZ resuelta | problema =", problema || "(vacío)", "| voiceId =", voiceIdResolved || "(NINGUNO)");
           if (!voiceIdResolved) {
             safeSend(ws, {
               type: "error",
