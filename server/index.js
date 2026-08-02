@@ -331,6 +331,25 @@ async function connectMongoWithRetry() {
     try {
       await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
       console.log("✅ Conectado a MongoDB");
+
+      // 🧠 Prompts de IA editables desde el panel de súper usuario.
+      // Cargamos en memoria las versiones personalizadas (si las hay).
+      try {
+        const { initPromptStore } = require("./utils/promptStore");
+        // Requerimos los módulos que registran los prompts por defecto
+        require("./utils/analisisIA");
+        require("./utils/analisisPraxisIA");
+        require("./utils/analisisMicroPraxis");
+        require("./utils/analisisHerramientasIA");
+        require("./utils/perfilTerapeuticoIA");
+        require("./controllers/simFlow");
+        require("./controllers/iaMultiSesionController");
+        require("./controllers/consejoDiarioController");
+        await initPromptStore();
+      } catch (e) {
+        console.error("⚠️  No se pudo inicializar promptStore:", e?.message || e);
+      }
+
       return;
     } catch (err) {
       console.error(

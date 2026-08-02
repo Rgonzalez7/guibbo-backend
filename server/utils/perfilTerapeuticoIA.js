@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("./promptStore");
 // server/utils/perfilTerapeuticoIA.js
 // =========================================================
 // Prompt para generar el perfil terapéutico del estudiante.
@@ -47,52 +48,12 @@ const PERFILES_DEF = {
   ${historialResumen}`
       : "No hay historial previo de sesiones.";
   
-    return `
-  Eres un supervisor clínico experto en formación de terapeutas. Analiza la transcripción de una sesión clínica y genera el perfil terapéutico del estudiante.
-  
-  PERFILES TERAPÉUTICOS (todos los terapeutas tienen algo de cada uno):
-  ${perfilesList}
-  
-  INSTRUCCIONES:
-  - Analiza las intervenciones del terapeuta (no del paciente) en la transcripción.
-  - Asigna un valor entre 0.0 y 1.0 a cada perfil según qué tan presente está en la sesión.
-  - Los valores NO deben sumar 1.0 exactamente; cada uno es independiente.
-  - Si existe un perfil previo, actualiza con ponderación: nuevo = (0.7 × nuevo) + (0.3 × previo).
-  - Genera un resumen narrativo de 2 a 4 frases en español, en segunda persona, que describa el estilo clínico del estudiante de forma constructiva y pedagógica.
-  - NO inventes información que no esté en la transcripción.
-  - Si la transcripción es muy corta o no tiene suficientes intervenciones del terapeuta, indica valores bajos y señálalo en el resumen.
-  
-  ${perfilPrevioTxt}
-  
-  ${historialTxt}
-  
-  TRANSCRIPCIÓN DE LA SESIÓN:
-  ${transcripcion || "(sin transcripción disponible)"}
-  
-  Devuelve SOLO JSON válido con esta estructura EXACTA:
-  {
-    "perfilTerapeutico": {
-      "validante": 0.0,
-      "directivo": 0.0,
-      "colaborativo": 0.0,
-      "confrontativo": 0.0,
-      "exploratorio": 0.0,
-      "contenedor": 0.0
-    },
-    "resumenPerfil": "",
-    "meta": {
-      "perfilDominante": "",
-      "sesionesAnalizadas": 0,
-      "notaDelSupervisor": ""
-    }
-  }
-  
-  REGLAS DE SALIDA:
-  - Responde SOLO JSON válido.
-  - No agregues texto fuera del JSON.
-  - Los valores de perfilTerapeutico deben ser números entre 0.0 y 1.0.
-  - perfilDominante debe ser la key del perfil con valor más alto.
-  `.trim();
+    return render(getPrompt("perfil.terapeutico"), {
+      perfilesList: perfilesList,
+      perfilPrevioTxt: perfilPrevioTxt,
+      historialTxt: historialTxt,
+      transcripcion: transcripcion || "(sin transcripción disponible)",
+    }).trim();
   }
   
   function normalizePerfilResult(raw) {
@@ -150,3 +111,63 @@ const PERFILES_DEF = {
     PERFILES_DEF,
   };
   
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: perfil.terapeutico
+========================================================= */
+const PROMPT_PERFIL_TERAPEUTICO = `
+  Eres un supervisor clínico experto en formación de terapeutas. Analiza la transcripción de una sesión clínica y genera el perfil terapéutico del estudiante.
+  
+  PERFILES TERAPÉUTICOS (todos los terapeutas tienen algo de cada uno):
+  {{perfilesList}}
+  
+  INSTRUCCIONES:
+  - Analiza las intervenciones del terapeuta (no del paciente) en la transcripción.
+  - Asigna un valor entre 0.0 y 1.0 a cada perfil según qué tan presente está en la sesión.
+  - Los valores NO deben sumar 1.0 exactamente; cada uno es independiente.
+  - Si existe un perfil previo, actualiza con ponderación: nuevo = (0.7 × nuevo) + (0.3 × previo).
+  - Genera un resumen narrativo de 2 a 4 frases en español, en segunda persona, que describa el estilo clínico del estudiante de forma constructiva y pedagógica.
+  - NO inventes información que no esté en la transcripción.
+  - Si la transcripción es muy corta o no tiene suficientes intervenciones del terapeuta, indica valores bajos y señálalo en el resumen.
+  
+  {{perfilPrevioTxt}}
+  
+  {{historialTxt}}
+  
+  TRANSCRIPCIÓN DE LA SESIÓN:
+  {{transcripcion}}
+  
+  Devuelve SOLO JSON válido con esta estructura EXACTA:
+  {
+    "perfilTerapeutico": {
+      "validante": 0.0,
+      "directivo": 0.0,
+      "colaborativo": 0.0,
+      "confrontativo": 0.0,
+      "exploratorio": 0.0,
+      "contenedor": 0.0
+    },
+    "resumenPerfil": "",
+    "meta": {
+      "perfilDominante": "",
+      "sesionesAnalizadas": 0,
+      "notaDelSupervisor": ""
+    }
+  }
+  
+  REGLAS DE SALIDA:
+  - Responde SOLO JSON válido.
+  - No agregues texto fuera del JSON.
+  - Los valores de perfilTerapeutico deben ser números entre 0.0 y 1.0.
+  - perfilDominante debe ser la key del perfil con valor más alto.
+  `;
+
+registerPrompt({
+  clave: "perfil.terapeutico",
+  nombre: "Perfil terapéutico del estudiante",
+  categoria: "Perfil terapéutico",
+  descripcion: "Construye o actualiza el perfil terapéutico del estudiante a partir de la transcripción y del perfil previo.",
+  variables: ['historialTxt', 'perfilPrevioTxt', 'perfilesList', 'transcripcion'],
+  defecto: PROMPT_PERFIL_TERAPEUTICO,
+});

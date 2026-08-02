@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("./promptStore");
 // utils/analisisIA.js
 const MODELOS = [
     'Terapia Cognitivo-Conductual (TCC)',
@@ -28,8 +29,19 @@ const MODELOS = [
       transcripcion: clamp(input.transcripcion || '')
     };
   
-    return `
-  Eres un supervisor clínico experto. Analiza la sesión en base al **modelo declarado** por el estudiante: "${modeloSeleccionado}" y fundamenta los comnetarios en base a documentacion academica actualizada, no menos del 2015, citando a los autores de dicha documentación.
+    return render(getPrompt("analisis.sesion"), {
+      modeloSeleccionado: modeloSeleccionado,
+      datosJson: JSON.stringify(datos, null, 2),
+    }).trim();
+  }
+  
+  module.exports = { buildPrompt, MODELOS };
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+========================================================= */
+const PROMPT_ANALISIS_SESION = `
+  Eres un supervisor clínico experto. Analiza la sesión en base al **modelo declarado** por el estudiante: "{{modeloSeleccionado}}" y fundamenta los comnetarios en base a documentacion academica actualizada, no menos del 2015, citando a los autores de dicha documentación.
   
   Devuelve **SOLO JSON válido** con esta estructura EXACTA (sin comentarios, sin texto fuera del JSON):
   
@@ -61,7 +73,7 @@ const MODELOS = [
       "Creencias y Valores": "..."
     },
     "analisisPorModelo": {
-      "modelo": "${modeloSeleccionado}",
+      "modelo": "{{modeloSeleccionado}}",
       "esperado": ["Viñetas con técnicas y principios esperados del modelo"],
       "observado": "Lo que sí se hizo (o no) en relación al modelo.",
       "errores": "Errores o desalineaciones respecto al modelo.",
@@ -77,7 +89,7 @@ const MODELOS = [
   - Parafraseo, reflejo, empatía con propósito, preguntas abiertas, revelación, humor, sarcasmo, confrontación, quiebres.
   - Relevancia de preguntas, no repetirse, no cambiar abruptamente.
   - Indagar motivo de consulta, infancia, vínculos familiares, ocupación/estudios, pareja, hijos, sexualidad, creencias/valores.
-  - Ajustar el análisis a ${modeloSeleccionado}:
+  - Ajustar el análisis a {{modeloSeleccionado}}:
     - TCC: ABC, PA/distorsiones, reestructuración/experimentos, activación, tareas específicas.
     - Psicoanálisis: asociación, clarificación, interpretación defensas, transferencia/contratransferencia, timing.
     - Logoterapia: sentido/valores/responsabilidad, intención paradójica cuando aplique, sin minimizar dolor.
@@ -91,8 +103,15 @@ const MODELOS = [
     - Mindfulness: práctica real guiada, contraindicaciones, evitar espiritualizar o “meditar de palabra”.
   
   DATOS DE LA SESIÓN (JSON):
-  ${JSON.stringify(datos, null, 2)}
-    `.trim();
-  }
-  
-  module.exports = { buildPrompt, MODELOS };
+  {{datosJson}}
+    `;
+
+registerPrompt({
+  clave: "analisis.sesion",
+  nombre: "Análisis de sesión (Role playing)",
+  categoria: "Análisis de sesión",
+  descripcion:
+    "Supervisión clínica de la sesión de Role playing: técnicas conversacionales, cobertura temática y análisis según el modelo declarado.",
+  variables: ['datosJson', 'modeloSeleccionado'],
+  defecto: PROMPT_ANALISIS_SESION,
+});

@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("../utils/promptStore");
 // server/controllers/consejoDiarioController.js
 const OpenAI = require("openai");
 const DailyAdvice = require("../models/dailyAdvice");
@@ -228,38 +229,14 @@ exports.generarConsejoDiario = async (req, res) => {
       .map((f, i) => `${i + 1}) ${f.focus}. Guía: ${f.howTo}`)
       .join("\n");
 
-    const system = `
-Eres un supervisor/tutor académico para estudiantes de psicología clínica.
-Genera un CONSEJO DE ESTUDIO DIARIO en español, breve, útil y accionable.
+    const system = render(getPrompt("consejo.diario.system"), {}).trim();
 
-Reglas:
-- NO menciones que eres IA.
-- Consejo de 2 a 4 frases (máx ~420 caracteres).
-- Debe incluir 1 micro-acción concreta para hoy (tiempo + qué hacer).
-- Tono empático, profesional y motivador.
-- SIN viñetas.
-- Evita consejos genéricos sin instrucciones.
-- Devuelve SOLO JSON estricto:
-{
-  "titulo": "string (máx 8 palabras)",
-  "texto": "string (2 a 4 frases, máx ~420 caracteres)"
-}
-`.trim();
-
-    const user = `
-Fecha: ${dateKey}
-
-Base (siempre presente):
-- ${base.focus}. Guía: ${base.howTo}
-
-Foco(s) sugerido(s) para hoy (elige uno y aplícalo):
-${focoTxt}
-
-Instrucciones:
-- Integra la base + el foco elegido de forma natural (sin listar).
-- Incluye micro-acción con tiempo (10–20 minutos) y un resultado observable.
-- Devuelve SOLO el JSON.
-`.trim();
+    const user = render(getPrompt("consejo.diario.user"), {
+      dateKey: dateKey,
+      base_focus: base.focus,
+      base_howTo: base.howTo,
+      focoTxt: focoTxt,
+    }).trim();
 
     const resp = await client.chat.completions.create({
       model,
@@ -303,3 +280,63 @@ Instrucciones:
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: consejo.diario.system
+========================================================= */
+const PROMPT_CONSEJO_SYSTEM = `
+Eres un supervisor/tutor académico para estudiantes de psicología clínica.
+Genera un CONSEJO DE ESTUDIO DIARIO en español, breve, útil y accionable.
+
+Reglas:
+- NO menciones que eres IA.
+- Consejo de 2 a 4 frases (máx ~420 caracteres).
+- Debe incluir 1 micro-acción concreta para hoy (tiempo + qué hacer).
+- Tono empático, profesional y motivador.
+- SIN viñetas.
+- Evita consejos genéricos sin instrucciones.
+- Devuelve SOLO JSON estricto:
+{
+  "titulo": "string (máx 8 palabras)",
+  "texto": "string (2 a 4 frases, máx ~420 caracteres)"
+}
+`;
+
+registerPrompt({
+  clave: "consejo.diario.system",
+  nombre: "Consejo diario — Instrucción de sistema",
+  categoria: "Consejo diario",
+  descripcion: "Reglas de formato y tono del consejo de estudio diario.",
+  variables: [],
+  defecto: PROMPT_CONSEJO_SYSTEM,
+});
+
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: consejo.diario.user
+========================================================= */
+const PROMPT_CONSEJO_USER = `
+Fecha: {{dateKey}}
+
+Base (siempre presente):
+- {{base_focus}}. Guía: {{base_howTo}}
+
+Foco(s) sugerido(s) para hoy (elige uno y aplícalo):
+{{focoTxt}}
+
+Instrucciones:
+- Integra la base + el foco elegido de forma natural (sin listar).
+- Incluye micro-acción con tiempo (10–20 minutos) y un resultado observable.
+- Devuelve SOLO el JSON.
+`;
+
+registerPrompt({
+  clave: "consejo.diario.user",
+  nombre: "Consejo diario — Contenido del día",
+  categoria: "Consejo diario",
+  descripcion: "Arma el consejo del día combinando la base con el foco sugerido.",
+  variables: ['base_focus', 'base_howTo', 'dateKey', 'focoTxt'],
+  defecto: PROMPT_CONSEJO_USER,
+});

@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("./promptStore");
 // server/utils/analisisMicroPraxis.js
 // =========================================================
 // Evaluación de micro-intervenciones (Grabar Voz)
@@ -1400,27 +1401,12 @@ function buildPromptCaso({ habilidad, nivel, caso, transcripcion }) {
 
   // Si no hay criterios definidos, evaluación con criterio clínico general
   if (!criterios) {
-    return `Actúa como un supervisor clínico experto en psicoterapia.
-
-No hay criterios específicos definidos para ${habilidadLabel} nivel ${nivelLabel}.
-Evalúa con criterio clínico general.
-
-CASO (paciente):
-"${caso || ""}"
-
-RESPUESTA DEL ESTUDIANTE:
-"${transcripcion || ""}"
-
-Responde SOLO en JSON con esta estructura:
-
-{
-  "evaluacion": {
-    "estado": "adecuada | parcial | incorrecta",
-    "feedback": "string",
-    "refuerzo": "string",
-    "correcciones": ["string", "string"]
-  }
-}`.trim();
+    return render(getPrompt("micro.caso.general"), {
+      habilidadLabel: habilidadLabel,
+      nivelLabel: nivelLabel,
+      caso: caso || "",
+      transcripcion: transcripcion || "",
+    }).trim();
   }
 
   // Construcción de cada sección — se omite si no hay datos
@@ -1446,149 +1432,21 @@ Responde SOLO en JSON con esta estructura:
   const reglasAlternativasBlock = reglasAlternativasStr ? `\n\nREGLAS DE ALTERNATIVAS:\n${reglasAlternativasStr}`           : "";
   const seguridadBlock          = reglasSeguridadStr    ? `\n\nREGLAS DE SEGURIDAD CLÍNICA:\n${reglasSeguridadStr}`         : "";
 
-  return `Actúa como un supervisor clínico experto en psicoterapia.
-
-Tu tarea es evaluar la intervención de un estudiante dentro de un ejercicio de micro práctica clínica.
-
-IMPORTANTE:
-Debes evaluar de forma ESTRICTAMENTE OPERATIVA, no interpretativa.
-Debes priorizar las REGLAS DE DECISIÓN sobre los criterios descriptivos.
-
-RESTRICCIÓN CRÍTICA DE TÉCNICA:
-
-- Solo evalúa si la intervención corresponde EXACTAMENTE a la habilidad indicada.
-- Si corresponde a otra técnica → INCORRECTA
-- No mezcles habilidades
-
-DISTINCIÓN OPERATIVA:
-
-- Pregunta abierta → debe ser pregunta
-- Validacion → no debe tener preguntas
-- Reflejo → solo emocion, sin contenido
-- Paráfrasis → contenido sin emocion
-- Interpretacion → debe usar contexto + significado nuevo
-- Confrontacion → debe mostrar contradiccion explicita
-
-Si no cumple esto → INCORRECTA
-
----
-
-HABILIDAD: ${habilidadLabel}
-NIVEL: ${nivelLabel}
-
----
-
-CRITERIOS DE EVALUACIÓN:
-
-OBJETIVO:
-${objetivo}
-
-CRITERIOS — ADECUADA:
-${adecuadaStr || "—"}
-
-CRITERIOS — PARCIAL:
-${parcialStr || "—"}
-
-CRITERIOS — INCORRECTA:
-${incorrectaStr || "—"}
-
-ERRORES TÍPICOS:
-${erroresStr || "—"}
-
-LINEAMIENTOS PARA CORRECCIÓN:
-${lineamientosStr || "—"}${reglasDecisionBlock}${reglasAlternativasBlock}${seguridadBlock}
-
----
-
-CASO (paciente):
-"${caso || ""}"
-
-RESPUESTA DEL ESTUDIANTE:
-"${transcripcion || ""}"
-
----
-
-TAREA:
-
-1. IDENTIFICACIÓN DE LA INTERVENCIÓN
-- Determina qué tipo de intervención realizó el estudiante
-- Si NO corresponde a la habilidad evaluada → clasificar como INCORRECTA directamente
-
----
-
-2. VALIDACIÓN ESTRUCTURAL
-- Verifica si cumple la forma mínima de la técnica (ej: pregunta, validación, etc.)
-- Si falla estructura → INCORRECTA
-
----
-
-3. APLICACIÓN DE REGLAS CRÍTICAS (PRIORIDAD MÁXIMA)
-- Evalúa cada regla crítica una por una
-- Si alguna regla indica INCORRECTA → detener evaluación y clasificar como INCORRECTA
-- NO continúes justificando como adecuada o parcial si una regla crítica se rompe
-
----
-
-4. CLASIFICACIÓN FINAL
-- Si cumple reglas críticas → ADECUADA o PARCIAL según precisión
-- Si hay ambigüedad → PARCIAL
-- Justifica SIEMPRE con base en criterios y reglas
-
----
-
-5. JUSTIFICACIÓN CLÍNICA
-Explica:
-- Qué hizo bien o mal el estudiante
-- Qué criterio cumplió o no
-- Qué regla se activó
-
----
-
-6. CORRECCIÓN
-- Indica cómo mejorar la intervención
-- Debe mantenerse dentro de la MISMA técnica
-- No introducir otras habilidades
-
----
-
-7. ALTERNATIVA CORRECTA
-Genera UNA alternativa que:
-- Cumpla completamente la habilidad evaluada
-- Respete reglas de alternativas
-- NO contamine con otras técnicas
-- Sea clara, breve y clínicamente correcta
-
----
-
-REGLAS IMPORTANTES PARA EL OUTPUT:
-- No expliques teoría
-- No salgas del formato JSON
-- No mezcles técnicas
-- Evalúa únicamente con base en los criterios proporcionados
-- Si corresponde a otra técnica → incorrecta
-- Si corresponde a un nivel inferior → parcial
-- Mantente dentro del nivel indicado
-- Usa lenguaje clínico claro y natural
-
----
-
-MAPEO PARA EL JSON DE RESPUESTA:
-
-- Campo "estado": tu CLASIFICACIÓN final ("adecuada" | "parcial" | "incorrecta")
-- Campo "feedback": tu JUSTIFICACIÓN clínica (qué hizo bien/mal, qué criterio o regla se activó). Mantenlo claro y concreto, en 1–3 oraciones.
-- Campo "refuerzo": SOLO si estado = "adecuada". Mensaje breve y motivador resaltando lo que hizo bien. Si no es adecuada, deja como string vacío "".
-- Campo "correcciones": SOLO si estado != "adecuada". Array con UNA o DOS alternativas correctas (la ALTERNATIVA CORRECTA, eventualmente con una variante). Cada elemento debe ser la intervención sugerida, no una explicación. Si estado = "adecuada", deja como array vacío [].
-
-Responde SOLO en JSON con esta estructura exacta:
-
-{
-  "evaluacion": {
-    "estado": "adecuada | parcial | incorrecta",
-    "feedback": "string",
-    "refuerzo": "string",
-    "correcciones": ["string", "string"]
-  }
-}`.trim();
+  return render(getPrompt("micro.caso"), {
+    habilidadLabel: habilidadLabel,
+    nivelLabel: nivelLabel,
+    objetivo: objetivo,
+    adecuadaStr: adecuadaStr || "—",
+    parcialStr: parcialStr || "—",
+    incorrectaStr: incorrectaStr || "—",
+    erroresStr: erroresStr || "—",
+    lineamientosStr: lineamientosStr || "—",
+    reglasDecisionBlock: reglasDecisionBlock,
+    reglasAlternativasBlock: reglasAlternativasBlock,
+    seguridadBlock: seguridadBlock,
+    caso: caso || "",
+    transcripcion: transcripcion || "",
+  }).trim();
 }
 
 /* =========================================================
@@ -1616,85 +1474,17 @@ ${e.correcciones?.length ? `- Correcciones sugeridas:\n${e.correcciones.map((c) 
   const parciales      = resultadosCasos.filter((r) => r?.evaluacion?.estado === "parcial").length;
   const incorrectas    = resultadosCasos.filter((r) => r?.evaluacion?.estado === "incorrecta").length;
 
-  return `Actúa como un supervisor clínico experto en psicoterapia.
-
-Vas a generar un análisis global del desempeño de un estudiante en un ejercicio de micro práctica clínica.
-
-HABILIDAD EVALUADA: ${habilidadLabel}
-NIVEL: ${nivelLabel}
-TOTAL DE CASOS: ${totalCasos}
-RESUMEN: ${adecuadas} adecuadas · ${parciales} parciales · ${incorrectas} incorrectas
-
----
-
-RESULTADOS POR CASO:
-
-${resumenCasos}
-
----
-
-TAREA:
-
-Genera un análisis global pedagógico con:
-
-1. Una apertura motivadora (1-2 oraciones) que contextualice el desempeño general
-2. Lo que el estudiante demostró bien de forma consistente (2-3 puntos)
-3. El patrón de error más frecuente o la oportunidad de mejora principal (1-2 puntos)
-4. Un paso concreto de práctica recomendado para mejorar esta habilidad
-
-Además, asigna un score global de 0-100 basado en:
-- adecuada = 100 puntos
-- parcial   = 50 puntos
-- incorrecta = 0 puntos
-- El score es el promedio ponderado
-
----
-
-CRITERIOS PARA EL ANÁLISIS GLOBAL:
-
-- Identifica patrones clínicos, no solo conteos
-- Distingue si los errores parciales se deben a:
-  - superficialidad (nivel básico)
-  - falta de exploración de procesos internos
-  - dirección leve de la respuesta
-  - interpretación leve o contaminación técnica
-- Si muchas respuestas adecuadas son básicas o poco profundas, señálalo como observación clínica
-- Si predominan incorrectas, identifica si el problema es:
-  - preguntas cerradas
-  - interpretación directa
-  - dirección fuerte
-  - mezcla de técnica
-- Prioriza el patrón dominante del desempeño
-- Usa el score como referencia, no como única base del análisis
-
----
-
-REGLAS:
-- No repitas el feedback caso por caso
-- Habla de patrones, no de casos individuales
-- Usa lenguaje clínico claro, motivador y constructivo
-- No sobreinterpretes el score
-- No salgas del formato JSON
-
-Responde SOLO en JSON con esta estructura:
-
-{
-  "globalHabilidad": {
-    "habilidad": "${habilidadKey}",
-    "habilidadLabel": "${habilidadLabel}",
-    "nivel": "${nivelKey}",
-    "nivelLabel": "${nivelLabel}",
-    "score": 0,
-    "totalCasos": ${totalCasos},
-    "adecuadas": ${adecuadas},
-    "parciales": ${parciales},
-    "incorrectas": ${incorrectas},
-    "apertura": "string",
-    "loQueDominas": ["string", "string"],
-    "oportunidadMejora": ["string"],
-    "pasoSiguiente": "string"
-  }
-}`.trim();
+  return render(getPrompt("micro.global"), {
+    habilidadLabel: habilidadLabel,
+    nivelLabel: nivelLabel,
+    totalCasos: totalCasos,
+    adecuadas: adecuadas,
+    parciales: parciales,
+    incorrectas: incorrectas,
+    resumenCasos: resumenCasos,
+    habilidadKey: habilidadKey,
+    nivelKey: nivelKey,
+  }).trim();
 }
 
 /* =========================================================
@@ -1812,3 +1602,290 @@ module.exports = {
   TIPO_ENTRENAMIENTO_LABELS,
   CRITERIOS_HABILIDAD,
 };
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: micro.caso.general
+========================================================= */
+const PROMPT_MICRO_CASO_GENERAL = `Actúa como un supervisor clínico experto en psicoterapia.
+
+No hay criterios específicos definidos para {{habilidadLabel}} nivel {{nivelLabel}}.
+Evalúa con criterio clínico general.
+
+CASO (paciente):
+"{{caso}}"
+
+RESPUESTA DEL ESTUDIANTE:
+"{{transcripcion}}"
+
+Responde SOLO en JSON con esta estructura:
+
+{
+  "evaluacion": {
+    "estado": "adecuada | parcial | incorrecta",
+    "feedback": "string",
+    "refuerzo": "string",
+    "correcciones": ["string", "string"]
+  }
+}`;
+
+registerPrompt({
+  clave: "micro.caso.general",
+  nombre: "Micro práctica — Caso sin criterios definidos",
+  categoria: "Micro práctica",
+  descripcion: "Evaluación de un caso de micro práctica cuando la habilidad/nivel no tiene criterios específicos.",
+  variables: ['caso', 'habilidadLabel', 'nivelLabel', 'transcripcion'],
+  defecto: PROMPT_MICRO_CASO_GENERAL,
+});
+
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: micro.caso
+========================================================= */
+const PROMPT_MICRO_CASO = `Actúa como un supervisor clínico experto en psicoterapia.
+
+Tu tarea es evaluar la intervención de un estudiante dentro de un ejercicio de micro práctica clínica.
+
+IMPORTANTE:
+Debes evaluar de forma ESTRICTAMENTE OPERATIVA, no interpretativa.
+Debes priorizar las REGLAS DE DECISIÓN sobre los criterios descriptivos.
+
+RESTRICCIÓN CRÍTICA DE TÉCNICA:
+
+- Solo evalúa si la intervención corresponde EXACTAMENTE a la habilidad indicada.
+- Si corresponde a otra técnica → INCORRECTA
+- No mezcles habilidades
+
+DISTINCIÓN OPERATIVA:
+
+- Pregunta abierta → debe ser pregunta
+- Validacion → no debe tener preguntas
+- Reflejo → solo emocion, sin contenido
+- Paráfrasis → contenido sin emocion
+- Interpretacion → debe usar contexto + significado nuevo
+- Confrontacion → debe mostrar contradiccion explicita
+
+Si no cumple esto → INCORRECTA
+
+---
+
+HABILIDAD: {{habilidadLabel}}
+NIVEL: {{nivelLabel}}
+
+---
+
+CRITERIOS DE EVALUACIÓN:
+
+OBJETIVO:
+{{objetivo}}
+
+CRITERIOS — ADECUADA:
+{{adecuadaStr}}
+
+CRITERIOS — PARCIAL:
+{{parcialStr}}
+
+CRITERIOS — INCORRECTA:
+{{incorrectaStr}}
+
+ERRORES TÍPICOS:
+{{erroresStr}}
+
+LINEAMIENTOS PARA CORRECCIÓN:
+{{lineamientosStr}}{{reglasDecisionBlock}}{{reglasAlternativasBlock}}{{seguridadBlock}}
+
+---
+
+CASO (paciente):
+"{{caso}}"
+
+RESPUESTA DEL ESTUDIANTE:
+"{{transcripcion}}"
+
+---
+
+TAREA:
+
+1. IDENTIFICACIÓN DE LA INTERVENCIÓN
+- Determina qué tipo de intervención realizó el estudiante
+- Si NO corresponde a la habilidad evaluada → clasificar como INCORRECTA directamente
+
+---
+
+2. VALIDACIÓN ESTRUCTURAL
+- Verifica si cumple la forma mínima de la técnica (ej: pregunta, validación, etc.)
+- Si falla estructura → INCORRECTA
+
+---
+
+3. APLICACIÓN DE REGLAS CRÍTICAS (PRIORIDAD MÁXIMA)
+- Evalúa cada regla crítica una por una
+- Si alguna regla indica INCORRECTA → detener evaluación y clasificar como INCORRECTA
+- NO continúes justificando como adecuada o parcial si una regla crítica se rompe
+
+---
+
+4. CLASIFICACIÓN FINAL
+- Si cumple reglas críticas → ADECUADA o PARCIAL según precisión
+- Si hay ambigüedad → PARCIAL
+- Justifica SIEMPRE con base en criterios y reglas
+
+---
+
+5. JUSTIFICACIÓN CLÍNICA
+Explica:
+- Qué hizo bien o mal el estudiante
+- Qué criterio cumplió o no
+- Qué regla se activó
+
+---
+
+6. CORRECCIÓN
+- Indica cómo mejorar la intervención
+- Debe mantenerse dentro de la MISMA técnica
+- No introducir otras habilidades
+
+---
+
+7. ALTERNATIVA CORRECTA
+Genera UNA alternativa que:
+- Cumpla completamente la habilidad evaluada
+- Respete reglas de alternativas
+- NO contamine con otras técnicas
+- Sea clara, breve y clínicamente correcta
+
+---
+
+REGLAS IMPORTANTES PARA EL OUTPUT:
+- No expliques teoría
+- No salgas del formato JSON
+- No mezcles técnicas
+- Evalúa únicamente con base en los criterios proporcionados
+- Si corresponde a otra técnica → incorrecta
+- Si corresponde a un nivel inferior → parcial
+- Mantente dentro del nivel indicado
+- Usa lenguaje clínico claro y natural
+
+---
+
+MAPEO PARA EL JSON DE RESPUESTA:
+
+- Campo "estado": tu CLASIFICACIÓN final ("adecuada" | "parcial" | "incorrecta")
+- Campo "feedback": tu JUSTIFICACIÓN clínica (qué hizo bien/mal, qué criterio o regla se activó). Mantenlo claro y concreto, en 1–3 oraciones.
+- Campo "refuerzo": SOLO si estado = "adecuada". Mensaje breve y motivador resaltando lo que hizo bien. Si no es adecuada, deja como string vacío "".
+- Campo "correcciones": SOLO si estado != "adecuada". Array con UNA o DOS alternativas correctas (la ALTERNATIVA CORRECTA, eventualmente con una variante). Cada elemento debe ser la intervención sugerida, no una explicación. Si estado = "adecuada", deja como array vacío [].
+
+Responde SOLO en JSON con esta estructura exacta:
+
+{
+  "evaluacion": {
+    "estado": "adecuada | parcial | incorrecta",
+    "feedback": "string",
+    "refuerzo": "string",
+    "correcciones": ["string", "string"]
+  }
+}`;
+
+registerPrompt({
+  clave: "micro.caso",
+  nombre: "Micro práctica — Evaluación de caso",
+  categoria: "Micro práctica",
+  descripcion: "Evalúa la intervención del estudiante en un caso de micro práctica aplicando las reglas de decisión de la habilidad.",
+  variables: ['adecuadaStr', 'caso', 'erroresStr', 'habilidadLabel', 'incorrectaStr', 'lineamientosStr', 'nivelLabel', 'objetivo', 'parcialStr', 'reglasAlternativasBlock', 'reglasDecisionBlock', 'seguridadBlock', 'transcripcion'],
+  defecto: PROMPT_MICRO_CASO,
+});
+
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: micro.global
+========================================================= */
+const PROMPT_MICRO_GLOBAL = `Actúa como un supervisor clínico experto en psicoterapia.
+
+Vas a generar un análisis global del desempeño de un estudiante en un ejercicio de micro práctica clínica.
+
+HABILIDAD EVALUADA: {{habilidadLabel}}
+NIVEL: {{nivelLabel}}
+TOTAL DE CASOS: {{totalCasos}}
+RESUMEN: {{adecuadas}} adecuadas · {{parciales}} parciales · {{incorrectas}} incorrectas
+
+---
+
+RESULTADOS POR CASO:
+
+{{resumenCasos}}
+
+---
+
+TAREA:
+
+Genera un análisis global pedagógico con:
+
+1. Una apertura motivadora (1-2 oraciones) que contextualice el desempeño general
+2. Lo que el estudiante demostró bien de forma consistente (2-3 puntos)
+3. El patrón de error más frecuente o la oportunidad de mejora principal (1-2 puntos)
+4. Un paso concreto de práctica recomendado para mejorar esta habilidad
+
+Además, asigna un score global de 0-100 basado en:
+- adecuada = 100 puntos
+- parcial   = 50 puntos
+- incorrecta = 0 puntos
+- El score es el promedio ponderado
+
+---
+
+CRITERIOS PARA EL ANÁLISIS GLOBAL:
+
+- Identifica patrones clínicos, no solo conteos
+- Distingue si los errores parciales se deben a:
+  - superficialidad (nivel básico)
+  - falta de exploración de procesos internos
+  - dirección leve de la respuesta
+  - interpretación leve o contaminación técnica
+- Si muchas respuestas adecuadas son básicas o poco profundas, señálalo como observación clínica
+- Si predominan incorrectas, identifica si el problema es:
+  - preguntas cerradas
+  - interpretación directa
+  - dirección fuerte
+  - mezcla de técnica
+- Prioriza el patrón dominante del desempeño
+- Usa el score como referencia, no como única base del análisis
+
+---
+
+REGLAS:
+- No repitas el feedback caso por caso
+- Habla de patrones, no de casos individuales
+- Usa lenguaje clínico claro, motivador y constructivo
+- No sobreinterpretes el score
+- No salgas del formato JSON
+
+Responde SOLO en JSON con esta estructura:
+
+{
+  "globalHabilidad": {
+    "habilidad": "{{habilidadKey}}",
+    "habilidadLabel": "{{habilidadLabel}}",
+    "nivel": "{{nivelKey}}",
+    "nivelLabel": "{{nivelLabel}}",
+    "score": 0,
+    "totalCasos": {{totalCasos}},
+    "adecuadas": {{adecuadas}},
+    "parciales": {{parciales}},
+    "incorrectas": {{incorrectas}},
+    "apertura": "string",
+    "loQueDominas": ["string", "string"],
+    "oportunidadMejora": ["string"],
+    "pasoSiguiente": "string"
+  }
+}`;
+
+registerPrompt({
+  clave: "micro.global",
+  nombre: "Micro práctica — Análisis global",
+  categoria: "Micro práctica",
+  descripcion: "Genera el análisis global del desempeño del estudiante a partir de los resultados de todos los casos.",
+  variables: ['adecuadas', 'habilidadKey', 'habilidadLabel', 'incorrectas', 'nivelKey', 'nivelLabel', 'parciales', 'resumenCasos', 'totalCasos'],
+  defecto: PROMPT_MICRO_GLOBAL,
+});

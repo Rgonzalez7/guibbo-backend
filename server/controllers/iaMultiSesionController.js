@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("../utils/promptStore");
 // server/controllers/iaMultiSesionController.js
 //
 // Análisis de "cumplimiento del plan de intervención" para una sesión de un
@@ -15,38 +16,12 @@ function toStr(v) {
 }
 
 function buildPrompt({ planIntervencion, transcripcion, expediente, numeroSesion }) {
-  return `
-Eres un supervisor clínico. Analiza si la sesión de terapia cumple con los objetivos
-definidos en el PLAN DE INTERVENCIÓN del paciente.
-
-PLAN DE INTERVENCIÓN (compartido entre todas las sesiones):
-${toStr(planIntervencion) || "(sin plan definido)"}
-
-NÚMERO DE SESIÓN: ${numeroSesion || "?"}
-
-TRANSCRIPCIÓN DE LA SESIÓN:
-${toStr(transcripcion) || "(sin transcripción)"}
-
-EXPEDIENTE DE LA SESIÓN (datos clínicos registrados por el estudiante):
-${toStr(expediente) || "(vacío)"}
-
-Devuelve SOLO un JSON válido con esta forma:
-{
-  "cumplimientoGeneral": <número 0-100>,
-  "resumen": "<2-4 oraciones sobre el grado de cumplimiento>",
-  "objetivos": [
-    {
-      "objetivo": "<texto del objetivo del plan>",
-      "estado": "cumplido" | "parcial" | "no_abordado",
-      "evidencia": "<qué en la sesión lo respalda o por qué no>",
-      "sugerencia": "<recomendación breve para próximas sesiones>"
-    }
-  ],
-  "recomendacionesGenerales": "<texto>"
-}
-Si el plan no tiene objetivos claros, devuelve cumplimientoGeneral 0 y explica en resumen
-que aún no hay un plan de intervención definido.
-`.trim();
+  return render(getPrompt("multisesion.analisis"), {
+    planIntervencion: toStr(planIntervencion) || "(sin plan definido)",
+    numeroSesion: numeroSesion || "?",
+    transcripcion: toStr(transcripcion) || "(sin transcripción)",
+    expediente: toStr(expediente) || "(vacío)",
+  }).trim();
 }
 
 /**
@@ -80,3 +55,50 @@ exports.analizarCumplimientoPlan = async (req, res) => {
     return res.status(500).json({ message: e?.message || "Error al analizar el cumplimiento del plan." });
   }
 };
+
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: multisesion.analisis
+========================================================= */
+const PROMPT_MULTISESION = `
+Eres un supervisor clínico. Analiza si la sesión de terapia cumple con los objetivos
+definidos en el PLAN DE INTERVENCIÓN del paciente.
+
+PLAN DE INTERVENCIÓN (compartido entre todas las sesiones):
+{{planIntervencion}}
+
+NÚMERO DE SESIÓN: {{numeroSesion}}
+
+TRANSCRIPCIÓN DE LA SESIÓN:
+{{transcripcion}}
+
+EXPEDIENTE DE LA SESIÓN (datos clínicos registrados por el estudiante):
+{{expediente}}
+
+Devuelve SOLO un JSON válido con esta forma:
+{
+  "cumplimientoGeneral": <número 0-100>,
+  "resumen": "<2-4 oraciones sobre el grado de cumplimiento>",
+  "objetivos": [
+    {
+      "objetivo": "<texto del objetivo del plan>",
+      "estado": "cumplido" | "parcial" | "no_abordado",
+      "evidencia": "<qué en la sesión lo respalda o por qué no>",
+      "sugerencia": "<recomendación breve para próximas sesiones>"
+    }
+  ],
+  "recomendacionesGenerales": "<texto>"
+}
+Si el plan no tiene objetivos claros, devuelve cumplimientoGeneral 0 y explica en resumen
+que aún no hay un plan de intervención definido.
+`;
+
+registerPrompt({
+  clave: "multisesion.analisis",
+  nombre: "Análisis de sesión de intervención (Multi Sesión)",
+  categoria: "Multi Sesión",
+  descripcion: "Analiza si la sesión de terapia cumple los objetivos del plan de intervención del paciente.",
+  variables: ['expediente', 'numeroSesion', 'planIntervencion', 'transcripcion'],
+  defecto: PROMPT_MULTISESION,
+});

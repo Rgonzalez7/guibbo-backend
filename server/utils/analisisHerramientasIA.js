@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("./promptStore");
 // server/utils/analisisHerramientasIA.js
 // =========================================================
 // Evaluación de Herramientas Clínicas — analiza la calidad
@@ -153,25 +154,8 @@ function safeInt(n) {
     const toolList = toolKeys.map((k) => ({ key: k, label: TOOL_LABELS[k] || k }));
     const toolPayloads = buildToolPayloads(data, herramientas);
   
-    return `
-  Devuelve SOLO JSON válido con esta estructura EXACTA:
-  
-  {
-    "evaluacionHerramientas": {
-      "generalScore": 0,
-      "general": {
-        "score": 0,
-        "summary": ""
-      },
-      "studentSummary": {
-        "whatWentWell": [""],
-        "whatToImprove": [""],
-        "howToImprove": [
-          { "explanation": "", "example": "" }
-        ]
-      },
-      "tools": {
-        ${toolList
+    return render(getPrompt("analisis.herramientas"), {
+      esquemaHerramientas: toolList
           .map(
             (t) => `
         "${t.key}": {
@@ -192,47 +176,8 @@ function safeInt(n) {
           }
         }`
           )
-          .join(",")}
-      }
-    },
-    "meta": {}
-  }
-  
-  REGLAS DE SALIDA
-  
-  Responde SOLO JSON válido.
-  No agregues texto fuera del JSON.
-  Evalúa ÚNICAMENTE el contenido de las secciones del expediente clínico proporcionadas.
-  No inventes contenido clínico.
-  
-  ---
-  
-  CRITERIOS DE EVALUACIÓN POR SECCIÓN DEL EXPEDIENTE CLÍNICO
-  
-  Cada sección del expediente clínico se evalúa en tres ejes (score 0–100 cada uno):
-  
-  coherencia   — ¿La información es clínicamente consistente y no contradictoria?
-  redaccion    — ¿Está redactada con lenguaje técnico apropiado?
-  alineacion   — ¿Es coherente con la transcripción de la sesión proporcionada?
-  
-  El score general de cada sección del expediente clínico es el promedio de sus tres métricas.
-  El generalScore es el promedio de todos los scores de las secciones del expediente clínico.
-  
-  ---
-  
-  REGLA FUNDAMENTAL
-  
-  Evalúa únicamente lo observable en los datos proporcionados.
-  
-  Si una sección del expediente clínico está vacía o incompleta: indícalo en recommendations y penaliza proporcionalmente.
-  Si una sección del expediente clínico está bien elaborada: reconócelo en studentGuidance.whatWentWell.
-  No inventes información que no esté en los datos.
-  
-  ---
-  
-  DATOS DE LAS SECCIONES DEL EXPEDIENTE CLÍNICO (JSON):
-  
-  ${JSON.stringify(
+          .join(","),
+      datosHerramientasJson: JSON.stringify(
       {
         herramientas: toolPayloads,
         contexto: {
@@ -242,8 +187,8 @@ function safeInt(n) {
       },
       null,
       2
-    )}
-  `.trim();
+    ),
+    }).trim();
   }
   
   function parseRawJson(raw) {
@@ -325,3 +270,77 @@ function safeInt(n) {
     TOOL_LABELS,
   };
   
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: analisis.herramientas
+========================================================= */
+const PROMPT_ANALISIS_HERRAMIENTAS = `
+  Devuelve SOLO JSON válido con esta estructura EXACTA:
+  
+  {
+    "evaluacionHerramientas": {
+      "generalScore": 0,
+      "general": {
+        "score": 0,
+        "summary": ""
+      },
+      "studentSummary": {
+        "whatWentWell": [""],
+        "whatToImprove": [""],
+        "howToImprove": [
+          { "explanation": "", "example": "" }
+        ]
+      },
+      "tools": {
+        {{esquemaHerramientas}}
+      }
+    },
+    "meta": {}
+  }
+  
+  REGLAS DE SALIDA
+  
+  Responde SOLO JSON válido.
+  No agregues texto fuera del JSON.
+  Evalúa ÚNICAMENTE el contenido de las secciones del expediente clínico proporcionadas.
+  No inventes contenido clínico.
+  
+  ---
+  
+  CRITERIOS DE EVALUACIÓN POR SECCIÓN DEL EXPEDIENTE CLÍNICO
+  
+  Cada sección del expediente clínico se evalúa en tres ejes (score 0–100 cada uno):
+  
+  coherencia   — ¿La información es clínicamente consistente y no contradictoria?
+  redaccion    — ¿Está redactada con lenguaje técnico apropiado?
+  alineacion   — ¿Es coherente con la transcripción de la sesión proporcionada?
+  
+  El score general de cada sección del expediente clínico es el promedio de sus tres métricas.
+  El generalScore es el promedio de todos los scores de las secciones del expediente clínico.
+  
+  ---
+  
+  REGLA FUNDAMENTAL
+  
+  Evalúa únicamente lo observable en los datos proporcionados.
+  
+  Si una sección del expediente clínico está vacía o incompleta: indícalo en recommendations y penaliza proporcionalmente.
+  Si una sección del expediente clínico está bien elaborada: reconócelo en studentGuidance.whatWentWell.
+  No inventes información que no esté en los datos.
+  
+  ---
+  
+  DATOS DE LAS SECCIONES DEL EXPEDIENTE CLÍNICO (JSON):
+  
+  {{datosHerramientasJson}}
+  `;
+
+registerPrompt({
+  clave: "analisis.herramientas",
+  nombre: "Evaluación de herramientas clínicas",
+  categoria: "Análisis de expediente",
+  descripcion: "Evalúa la calidad de los instrumentos del expediente clínico completados por el estudiante.",
+  variables: ['datosHerramientasJson', 'esquemaHerramientas'],
+  defecto: PROMPT_ANALISIS_HERRAMIENTAS,
+});

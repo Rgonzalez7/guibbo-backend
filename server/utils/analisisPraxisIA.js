@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("./promptStore");
 // server/utils/analisisPraxisIA.js
 
 /* =========================================================
@@ -311,330 +312,16 @@ function normalizePraxisDimension(rawBlock, key, weight) {
 ========================================================= */
 
 function buildBasePrompt({ nivel, modelo, weights, contextoSesion, data }) {
-  return `
-Devuelve SOLO JSON válido con esta estructura EXACTA:
-
-{
-  "praxisTH": {
-    "praxisNivel": ${JSON.stringify(nivel)},
-    "modeloIntervencion": ${JSON.stringify(modelo)},
-    "contextoSesion": ${JSON.stringify(contextoSesion)},
-    "ponderaciones": {
-      "ASC": ${weights.ASC},
-      "IIT": ${weights.IIT},
-      "IRI": ${weights.IRI},
-      "MMD": ${weights.MMD},
-      "MLT": ${weights.MLT}
-    },
-    "indiceGlobal": {
-      "bruto": 0,
-      "porcentaje": 0,
-      "nivelDesempeno": "",
-      "summary": ""
-    },
-    "studentSummary": {
-      "opening": "",
-      "whatWentWell": [""],
-      "whatToImprove": [""],
-      "nextStep": "",
-      "closingRecommendation": ""
-    },
-    "dimensiones": {
-      "ASC": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "IIT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "IRI": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "MMD": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "MLT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } }
-    },
-    "retroalimentacionGlobal": {
-      "fortalezas": [""],
-      "areasMejora": [""],
-      "recomendacionCentral": ""
-    }
-  },
-  "meta": {
-    "praxisNivel": ${JSON.stringify(nivel)},
-    "modeloIntervencion": ${JSON.stringify(modelo)},
-    "contextoSesion": ${JSON.stringify(contextoSesion)}
-  }
-}
-
----
-
-ESCALA DE SCORES
-
-Todos los scores deben ser ENTEROS entre 0 y 100.
-
----
-
-NIVEL DE DESEMPEÑO (OBLIGATORIO)
-
-0–39 → "Incipiente"  
-40–59 → "En desarrollo"  
-60–74 → "Competente"  
-75–89 → "Sólido"  
-90–100 → "Destacado"
-
----
-
-ROL
-
-Eres un supervisor clínico experto en psicoterapia.
-
----
-
-REGLA FUNDAMENTAL
-
-Evalúa SOLO lo observable.
-
----
-
-# 🔥 PRIMACÍA DEL CONTEXTO
-
-Exploración → preguntar, escuchar  
-Intervención → ayudar adecuadamente  
-Pruebas → aplicar  
-Devolución → explicar  
-
----
-
-# 🔥 REGLAS — INTERVENCIÓN CLÍNICA
-
-Evaluar CALIDAD, no solo intención.
-
-Intervenciones adecuadas:
-- validan
-- acompañan
-- abren reflexión
-
-Intervenciones inadecuadas:
-- imponen
-- corrigen sin explorar
-- minimizan emoción
-
----
-
-# 🚨 REGLA CRÍTICA — CONSEJO Y DIRECTIVIDAD
-
-En intervención clínica:
-
-- consejo prematuro = intervención inadecuada  
-- "tienes que", "deberías", "todo depende de ti" = intervención inadecuada  
-- moralizar o corregir rápido = intervención inadecuada  
-- minimizar emoción = intervención inadecuada  
-- dar soluciones sin suficiente exploración = intervención inadecuada  
-- promover cambio sin comprensión previa = intervención inadecuada  
-
-Estas intervenciones:
-
-- NO son ayuda válida  
-- bajan IIT a 40–55  
-- bajan MMD si generan cierre, resistencia o falta de apertura  
-
-NO subir score por intención.
-
----
-
-# 🚨 VALIDACIÓN DE MMD (CRÍTICO)
-
-NO asignar puntuaciones altas (≥75) en MMD si NO existe evidencia explícita en el discurso del paciente de:
-
-- cambio de perspectiva
-- apertura nueva
-- identificación de alternativa
-- reducción de resistencia
-- expresión de intención de cambio
-- mayor claridad emocional o cognitiva
-
-EVIDENCIA requerida en el paciente (no en el terapeuta).
-
-Ejemplos válidos:
-- "tal vez podría..."
-- "podría intentarlo..."
-- "me hace sentido..."
-- "no lo había visto así..."
-- "quizá sí..."
-- "me siento un poco más tranquilo..."
-- "probablemente sí..."
-- "podría ser..."
-
-Si NO existe este tipo de respuesta:
-
-→ limitar MMD a máximo 70
-
-IMPORTANTE:
-
-Buena conversación, empatía o fluidez
-NO son evidencia de avance.
-
-MMD evalúa cambio en el paciente,
-NO desempeño del terapeuta.
-
----
-
-# 🚨 UMBRAL DE MICRO-CAMBIO (CRÍTICO)
-
-NO considerar como micro-cambio clínico alto respuestas ambiguas o débiles del paciente como:
-
-- "puede ser"
-- "tal vez"
-- "supongo"
-- "no sé"
-- "quizá"
-- "podría ser" (sin desarrollo adicional)
-
-Estas respuestas indican:
-
-→ apertura leve  
-→ disposición mínima  
-→ pero NO cambio clínico consolidado  
-
-En estos casos:
-
-→ MMD debe mantenerse en rango medio (65–72)  
-→ NO subir a rango alto  
-
----
-
-Para considerar micro-cambio válido en rango alto (75–85), debe existir al menos uno de estos:
-
-- intención de acción más clara  
-  ("voy a intentar", "lo voy a hacer")
-- reconocimiento más definido  
-  ("sí tiene sentido", "creo que sí podría")
-- alivio emocional explícito  
-  ("me siento más tranquilo", "me ayuda verlo así")
-- construcción propia de alternativa  
-
-Si el cambio es ambiguo o débil:
-
-→ clasificar como avance procesual  
-→ NO como micro-cambio clínico
-
----
-
-# 🚨 GRADIENTE DE INTENCIÓN (CRÍTICO)
-
-Diferenciar entre tipos de cambio en el lenguaje del paciente:
-
----
-
-Nivel bajo (NO cuenta como micro-cambio):
-- "puede ser"
-- "tal vez"
-- "supongo"
-- "no sé"
-
-→ mantener MMD en 65–70
-
----
-
-Nivel medio (apertura leve):
-- "podría"
-- "quizá podría"
-- "tal vez podría intentarlo"
-
-→ MMD máximo 72–75  
-→ NO clasificar como desempeño alto automáticamente
-
----
-
-Nivel alto (micro-cambio válido):
-- "voy a intentar"
-- "lo voy a hacer"
-- "sí, tiene sentido"
-- "me siento mejor / más tranquilo"
-- "creo que sí puedo hacerlo"
-
-→ MMD puede subir a 75–85
-
----
-
-IMPORTANTE:
-
-Lenguaje hipotético ≠ cambio consolidado
-
-Para considerar desempeño alto:
-→ el cambio debe ser más definido, no solo posibilidad
-
----
-
-# 🚨 DIFERENCIACIÓN MEDIO VS ALTO (CRÍTICO)
-
-En intervención clínica:
-
-NO clasificar como desempeño alto si:
-
-- la intervención es adecuada pero básica
-- hay validación sin dirección clara
-- hay preguntas abiertas pero sin generar cambio observable
-- el paciente responde, pero no hay modificación en su perspectiva
-- el avance es leve o solamente conversacional
-
-CRITERIO:
-
-Desempeño medio (65–70):
-- intervención adecuada pero simple
-- acompañamiento correcto
-- apertura leve
-- avance limitado
-
-Desempeño alto (80–90):
-- intervención ajustada al problema
-- genera micro-cambio observable
-- modifica ligeramente la perspectiva del paciente
-- facilita pasos concretos o nuevas posibilidades
-
-IMPORTANTE:
-
-No subir a rango alto si el avance es solo superficial.
-
----
-
-# 🚨 CRITERIO ESTRICTO — DESEMPEÑO ALTO (CRÍTICO)
-
-En intervención clínica:
-
-NO asignar puntuaciones altas (≥80) si NO existe evidencia clara de:
-
-- generación de reflexión en el paciente
-- apertura emocional o cognitiva observable
-- cambio en la forma en que el paciente expresa su problema
-- avance clínico evidente dentro de la sesión
-
-IMPORTANTE:
-
-Buena conversación, empatía o coherencia
-NO son suficientes para desempeño alto.
-
-Para puntuar alto debe existir:
-
-- impacto clínico observable
-- no solo interacción adecuada
-
-Si el desempeño es adecuado pero sin impacto claro:
-
-→ clasificar como desempeño medio (65–75)
-
----
-
-# 🚨 NO COMPENSACIÓN
-
-No compensar mala intervención con buena fluidez.
-
----
-
-# 🔥 PRIORIDAD
-
-1. calidad clínica  
-2. coherencia  
-3. organización  
-
----
-
-DATOS DE LA SESIÓN
-
-${JSON.stringify(
+  return render(getPrompt("praxis.base"), {
+    nivelJson: JSON.stringify(nivel),
+    modeloJson: JSON.stringify(modelo),
+    contextoSesionJson: JSON.stringify(contextoSesion),
+    weights_ASC: weights.ASC,
+    weights_IIT: weights.IIT,
+    weights_IRI: weights.IRI,
+    weights_MMD: weights.MMD,
+    weights_MLT: weights.MLT,
+    datosSesionJson: JSON.stringify(
   {
     transcripcion: data?.transcripcion || "",
     transcripcionDiarizada:
@@ -647,8 +334,8 @@ ${JSON.stringify(
   },
   null,
   2
-)}
-`.trim();
+),
+  }).trim();
 }
 
 /* =========================================================
@@ -1562,6 +1249,36 @@ Evalúa si el terapeuta logra generar cambio clínico real.
 };
 
 /* =========================================================
+   Extensiones por nivel — editables desde el súper usuario
+========================================================= */
+registerPrompt({
+  clave: "praxis.nivel_1",
+  nombre: "PRAXIS-TH — Ajustes Nivel I (formación inicial)",
+  categoria: "PRAXIS-TH",
+  descripcion: "Extensión del prompt base con los criterios específicos del Nivel I.",
+  variables: [],
+  defecto: NIVEL_PROMPT.nivel_1,
+});
+
+registerPrompt({
+  clave: "praxis.nivel_2",
+  nombre: "PRAXIS-TH — Ajustes Nivel II (desarrollo intermedio)",
+  categoria: "PRAXIS-TH",
+  descripcion: "Extensión del prompt base con los criterios específicos del Nivel II.",
+  variables: [],
+  defecto: NIVEL_PROMPT.nivel_2,
+});
+
+registerPrompt({
+  clave: "praxis.nivel_3",
+  nombre: "PRAXIS-TH — Ajustes Nivel III (formación avanzada)",
+  categoria: "PRAXIS-TH",
+  descripcion: "Extensión del prompt base con los criterios específicos del Nivel III.",
+  variables: [],
+  defecto: NIVEL_PROMPT.nivel_3,
+});
+
+/* =========================================================
    PROMPT PRAXIS-TH — ENSAMBLADO FINAL (BASE + NIVEL)
 ========================================================= */
 
@@ -1572,7 +1289,8 @@ function buildPraxisPrompt({ praxisNivel, modeloIntervencion, data }) {
   const contextoSesion = normalizeContextoSesion(data?.contextoSesion);
 
   const basePrompt = buildBasePrompt({ nivel, modelo, weights, contextoSesion, data });
-  const nivelPrompt = NIVEL_PROMPT[nivel] || NIVEL_PROMPT.nivel_1;
+  const nivelPrompt =
+    getPrompt(`praxis.${nivel}`) || NIVEL_PROMPT[nivel] || NIVEL_PROMPT.nivel_1;
 
   return `${basePrompt}\n\n${nivelPrompt}`;
 }
@@ -1812,3 +1530,343 @@ module.exports = {
   computePraxisIndex,
   aplicarTechoIntervencion,
 };
+
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: praxis.base
+========================================================= */
+const PROMPT_PRAXIS_BASE = `
+Devuelve SOLO JSON válido con esta estructura EXACTA:
+
+{
+  "praxisTH": {
+    "praxisNivel": {{nivelJson}},
+    "modeloIntervencion": {{modeloJson}},
+    "contextoSesion": {{contextoSesionJson}},
+    "ponderaciones": {
+      "ASC": {{weights_ASC}},
+      "IIT": {{weights_IIT}},
+      "IRI": {{weights_IRI}},
+      "MMD": {{weights_MMD}},
+      "MLT": {{weights_MLT}}
+    },
+    "indiceGlobal": {
+      "bruto": 0,
+      "porcentaje": 0,
+      "nivelDesempeno": "",
+      "summary": ""
+    },
+    "studentSummary": {
+      "opening": "",
+      "whatWentWell": [""],
+      "whatToImprove": [""],
+      "nextStep": "",
+      "closingRecommendation": ""
+    },
+    "dimensiones": {
+      "ASC": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "IIT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "IRI": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "MMD": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
+      "MLT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } }
+    },
+    "retroalimentacionGlobal": {
+      "fortalezas": [""],
+      "areasMejora": [""],
+      "recomendacionCentral": ""
+    }
+  },
+  "meta": {
+    "praxisNivel": {{nivelJson}},
+    "modeloIntervencion": {{modeloJson}},
+    "contextoSesion": {{contextoSesionJson}}
+  }
+}
+
+---
+
+ESCALA DE SCORES
+
+Todos los scores deben ser ENTEROS entre 0 y 100.
+
+---
+
+NIVEL DE DESEMPEÑO (OBLIGATORIO)
+
+0–39 → "Incipiente"  
+40–59 → "En desarrollo"  
+60–74 → "Competente"  
+75–89 → "Sólido"  
+90–100 → "Destacado"
+
+---
+
+ROL
+
+Eres un supervisor clínico experto en psicoterapia.
+
+---
+
+REGLA FUNDAMENTAL
+
+Evalúa SOLO lo observable.
+
+---
+
+# 🔥 PRIMACÍA DEL CONTEXTO
+
+Exploración → preguntar, escuchar  
+Intervención → ayudar adecuadamente  
+Pruebas → aplicar  
+Devolución → explicar  
+
+---
+
+# 🔥 REGLAS — INTERVENCIÓN CLÍNICA
+
+Evaluar CALIDAD, no solo intención.
+
+Intervenciones adecuadas:
+- validan
+- acompañan
+- abren reflexión
+
+Intervenciones inadecuadas:
+- imponen
+- corrigen sin explorar
+- minimizan emoción
+
+---
+
+# 🚨 REGLA CRÍTICA — CONSEJO Y DIRECTIVIDAD
+
+En intervención clínica:
+
+- consejo prematuro = intervención inadecuada  
+- "tienes que", "deberías", "todo depende de ti" = intervención inadecuada  
+- moralizar o corregir rápido = intervención inadecuada  
+- minimizar emoción = intervención inadecuada  
+- dar soluciones sin suficiente exploración = intervención inadecuada  
+- promover cambio sin comprensión previa = intervención inadecuada  
+
+Estas intervenciones:
+
+- NO son ayuda válida  
+- bajan IIT a 40–55  
+- bajan MMD si generan cierre, resistencia o falta de apertura  
+
+NO subir score por intención.
+
+---
+
+# 🚨 VALIDACIÓN DE MMD (CRÍTICO)
+
+NO asignar puntuaciones altas (≥75) en MMD si NO existe evidencia explícita en el discurso del paciente de:
+
+- cambio de perspectiva
+- apertura nueva
+- identificación de alternativa
+- reducción de resistencia
+- expresión de intención de cambio
+- mayor claridad emocional o cognitiva
+
+EVIDENCIA requerida en el paciente (no en el terapeuta).
+
+Ejemplos válidos:
+- "tal vez podría..."
+- "podría intentarlo..."
+- "me hace sentido..."
+- "no lo había visto así..."
+- "quizá sí..."
+- "me siento un poco más tranquilo..."
+- "probablemente sí..."
+- "podría ser..."
+
+Si NO existe este tipo de respuesta:
+
+→ limitar MMD a máximo 70
+
+IMPORTANTE:
+
+Buena conversación, empatía o fluidez
+NO son evidencia de avance.
+
+MMD evalúa cambio en el paciente,
+NO desempeño del terapeuta.
+
+---
+
+# 🚨 UMBRAL DE MICRO-CAMBIO (CRÍTICO)
+
+NO considerar como micro-cambio clínico alto respuestas ambiguas o débiles del paciente como:
+
+- "puede ser"
+- "tal vez"
+- "supongo"
+- "no sé"
+- "quizá"
+- "podría ser" (sin desarrollo adicional)
+
+Estas respuestas indican:
+
+→ apertura leve  
+→ disposición mínima  
+→ pero NO cambio clínico consolidado  
+
+En estos casos:
+
+→ MMD debe mantenerse en rango medio (65–72)  
+→ NO subir a rango alto  
+
+---
+
+Para considerar micro-cambio válido en rango alto (75–85), debe existir al menos uno de estos:
+
+- intención de acción más clara  
+  ("voy a intentar", "lo voy a hacer")
+- reconocimiento más definido  
+  ("sí tiene sentido", "creo que sí podría")
+- alivio emocional explícito  
+  ("me siento más tranquilo", "me ayuda verlo así")
+- construcción propia de alternativa  
+
+Si el cambio es ambiguo o débil:
+
+→ clasificar como avance procesual  
+→ NO como micro-cambio clínico
+
+---
+
+# 🚨 GRADIENTE DE INTENCIÓN (CRÍTICO)
+
+Diferenciar entre tipos de cambio en el lenguaje del paciente:
+
+---
+
+Nivel bajo (NO cuenta como micro-cambio):
+- "puede ser"
+- "tal vez"
+- "supongo"
+- "no sé"
+
+→ mantener MMD en 65–70
+
+---
+
+Nivel medio (apertura leve):
+- "podría"
+- "quizá podría"
+- "tal vez podría intentarlo"
+
+→ MMD máximo 72–75  
+→ NO clasificar como desempeño alto automáticamente
+
+---
+
+Nivel alto (micro-cambio válido):
+- "voy a intentar"
+- "lo voy a hacer"
+- "sí, tiene sentido"
+- "me siento mejor / más tranquilo"
+- "creo que sí puedo hacerlo"
+
+→ MMD puede subir a 75–85
+
+---
+
+IMPORTANTE:
+
+Lenguaje hipotético ≠ cambio consolidado
+
+Para considerar desempeño alto:
+→ el cambio debe ser más definido, no solo posibilidad
+
+---
+
+# 🚨 DIFERENCIACIÓN MEDIO VS ALTO (CRÍTICO)
+
+En intervención clínica:
+
+NO clasificar como desempeño alto si:
+
+- la intervención es adecuada pero básica
+- hay validación sin dirección clara
+- hay preguntas abiertas pero sin generar cambio observable
+- el paciente responde, pero no hay modificación en su perspectiva
+- el avance es leve o solamente conversacional
+
+CRITERIO:
+
+Desempeño medio (65–70):
+- intervención adecuada pero simple
+- acompañamiento correcto
+- apertura leve
+- avance limitado
+
+Desempeño alto (80–90):
+- intervención ajustada al problema
+- genera micro-cambio observable
+- modifica ligeramente la perspectiva del paciente
+- facilita pasos concretos o nuevas posibilidades
+
+IMPORTANTE:
+
+No subir a rango alto si el avance es solo superficial.
+
+---
+
+# 🚨 CRITERIO ESTRICTO — DESEMPEÑO ALTO (CRÍTICO)
+
+En intervención clínica:
+
+NO asignar puntuaciones altas (≥80) si NO existe evidencia clara de:
+
+- generación de reflexión en el paciente
+- apertura emocional o cognitiva observable
+- cambio en la forma en que el paciente expresa su problema
+- avance clínico evidente dentro de la sesión
+
+IMPORTANTE:
+
+Buena conversación, empatía o coherencia
+NO son suficientes para desempeño alto.
+
+Para puntuar alto debe existir:
+
+- impacto clínico observable
+- no solo interacción adecuada
+
+Si el desempeño es adecuado pero sin impacto claro:
+
+→ clasificar como desempeño medio (65–75)
+
+---
+
+# 🚨 NO COMPENSACIÓN
+
+No compensar mala intervención con buena fluidez.
+
+---
+
+# 🔥 PRIORIDAD
+
+1. calidad clínica  
+2. coherencia  
+3. organización  
+
+---
+
+DATOS DE LA SESIÓN
+
+{{datosSesionJson}}
+`;
+
+registerPrompt({
+  clave: "praxis.base",
+  nombre: "PRAXIS-TH — Prompt base",
+  categoria: "PRAXIS-TH",
+  descripcion: "Núcleo del análisis PRAXIS-TH: estructura JSON, dimensiones (ASC, IIT, IRI, MMD, MLT) y criterios generales.",
+  variables: ['contextoSesionJson', 'modeloJson', 'datosSesionJson', 'nivelJson', 'weights_ASC', 'weights_IIT', 'weights_IRI', 'weights_MLT', 'weights_MMD'],
+  defecto: PROMPT_PRAXIS_BASE,
+});

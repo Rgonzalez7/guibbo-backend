@@ -11,6 +11,7 @@ const superController = require('../controllers/superController');
 const moduloController = require('../controllers/moduloController');
 const adminModuloController = require('../controllers/adminModuloController');
 const sandboxController = require('../controllers/sandboxController');
+const promptIAController = require('../controllers/promptIAController');
 
 // Middleware base: todas estas rutas requieren token + rol super
 router.use(verifyToken, requireRole('super'));
@@ -202,5 +203,12 @@ router.put(
 /* ----- Ejercicio (genérico: obtener / eliminar) ----- */
 router.get('/ejercicios/:id', moduloController.obtenerEjercicio);
 router.delete('/ejercicios/:id', moduloController.eliminarEjercicio);
+
+/* ========== PROMPTS DE IA ========== */
+router.get('/prompts', promptIAController.listarPrompts);
+router.get('/prompts/:clave', promptIAController.obtenerPrompt);
+router.put('/prompts/:clave', promptIAController.actualizarPrompt);
+router.post('/prompts/:clave/restaurar', promptIAController.restaurarPrompt);
+router.post('/prompts/:clave/vista-previa', promptIAController.vistaPrevia);
 
 module.exports = router;

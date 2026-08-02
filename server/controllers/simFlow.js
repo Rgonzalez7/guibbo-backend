@@ -1,3 +1,4 @@
+const { registerPrompt, getPrompt, render } = require("../utils/promptStore");
 // server/controllers/simFlow.js
 const { WebSocketServer, WebSocket } = require("ws");
 const ffmpeg = require("fluent-ffmpeg");
@@ -129,14 +130,12 @@ function resolveElevenVoiceIdFromProblema(problema) {
    ========================================================= */
 function buildPrompt(ctx, therapistText) {
   const { edad, genero, problema } = ctx || {};
-  return `Contexto del paciente simulado:
-- Edad: ${edad ?? "N/D"}
-- Género: ${genero ?? "N/D"}
-- Motivo principal: ${problema ?? "N/D"}
-
-Terapeuta dijo: "${therapistText}"
-
-Responde como el paciente, en una o dos frases, tono natural y breve, en español.`;
+  return render(getPrompt("sim.paciente.turno"), {
+    edad: edad ?? "N/D",
+    genero: genero ?? "N/D",
+    problema: problema ?? "N/D",
+    therapistText: therapistText,
+  });
 }
 
 /* =========================================================
@@ -216,7 +215,7 @@ async function generatePatientReply({ ctx, therapistText }) {
     model,
     temperature: Number(process.env.SIM_OPENAI_TEMP || 0.7),
     messages: [
-      { role: "system", content: "Eres un paciente simulado en psicoterapia." },
+      { role: "system", content: getPrompt("sim.paciente.system") },
       { role: "user", content: prompt },
     ],
   });
@@ -830,3 +829,34 @@ function createSimWSS() {
 }
 
 module.exports = { createSimWSS };
+
+/* =========================================================
+   Prompt editable desde el panel de súper usuario
+   clave: sim.paciente.turno
+========================================================= */
+const PROMPT_SIM_PACIENTE_TURNO = `Contexto del paciente simulado:
+- Edad: {{edad}}
+- Género: {{genero}}
+- Motivo principal: {{problema}}
+
+Terapeuta dijo: "{{therapistText}}"
+
+Responde como el paciente, en una o dos frases, tono natural y breve, en español.`;
+
+registerPrompt({
+  clave: "sim.paciente.turno",
+  nombre: "Paciente simulado — Turno de conversación",
+  categoria: "Role playing IA (simulación)",
+  descripcion: "Prompt que genera cada respuesta del paciente simulado durante la sesión en vivo.",
+  variables: ['edad', 'genero', 'problema', 'therapistText'],
+  defecto: PROMPT_SIM_PACIENTE_TURNO,
+});
+
+registerPrompt({
+  clave: "sim.paciente.system",
+  nombre: "Paciente simulado — Instrucción de sistema",
+  categoria: "Role playing IA (simulación)",
+  descripcion: "Rol que asume el modelo durante toda la simulación.",
+  variables: [],
+  defecto: "Eres un paciente simulado en psicoterapia.",
+});
