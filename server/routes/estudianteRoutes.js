@@ -9,6 +9,7 @@ const multiSesionController = require("../controllers/multiSesionController");
 router.use(verifyToken, requireRole("estudiante"));
 
 router.get("/dashboard", estudianteMateriaController.dashboardResumen);
+router.get("/perfil", estudianteMateriaController.miPerfil);
 router.get("/materias",   estudianteMateriaController.listarMisMaterias);
 router.get("/materias/:id/contenido", estudianteMateriaController.obtenerContenidoMateria);
 

@@ -200,9 +200,44 @@ function normalizeTipoRole(inputTipoRole, inputTipoEjercicio) {
 
 exports.listarModulos = async (req, res) => {
   try {
-    const modulos = await Modulo.find().sort({ createdAt: -1 });
-    // ✅ Ya no devolvemos tiposModulo (campo eliminado)
-    res.json({ modulos });
+    const modulos = await Modulo.find().sort({ createdAt: -1 }).lean();
+
+    // ✅ Enriquecemos con universidad, creador y cantidad de ejercicios,
+    //    para poder separar "módulos producto" de los creados por universidades.
+    const University = require('../models/university');
+    const Usuario = require('../models/user');
+
+    const uniIds = [...new Set(modulos.map((m) => m.universidad).filter(Boolean).map(String))];
+    const userIds = [...new Set(modulos.map((m) => m.creadoPor).filter(Boolean).map(String))];
+
+    const [unis, users, conteos] = await Promise.all([
+      uniIds.length ? University.find({ _id: { $in: uniIds } }).select('nombre codigo').lean() : [],
+      userIds.length ? Usuario.find({ _id: { $in: userIds } }).select('nombre nombres apellidos email rol').lean() : [],
+      Ejercicio.aggregate([{ $group: { _id: '$modulo', total: { $sum: 1 } } }]),
+    ]);
+
+    const uniMap = new Map(unis.map((u) => [String(u._id), u]));
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+    const countMap = new Map(conteos.map((c) => [String(c._id), c.total]));
+
+    const enriquecidos = modulos.map((m) => {
+      const uni = m.universidad ? uniMap.get(String(m.universidad)) : null;
+      const creador = m.creadoPor ? userMap.get(String(m.creadoPor)) : null;
+
+      return {
+        ...m,
+        universidadNombre: uni?.nombre || '',
+        universidadCodigo: uni?.codigo || '',
+        creadoPorNombre:
+          [creador?.nombre || creador?.nombres, creador?.apellidos].filter(Boolean).join(' ') ||
+          creador?.email ||
+          '',
+        creadoPorRol: creador?.rol || '',
+        ejerciciosCount: countMap.get(String(m._id)) || 0,
+      };
+    });
+
+    res.json({ modulos: enriquecidos });
   } catch (err) {
     console.error('❌ Error listando módulos:', err);
     res.status(500).json({ message: 'Error al obtener módulos', error: err.message });
@@ -249,6 +284,121 @@ exports.obtenerModulo = async (req, res) => {
   } catch (err) {
     console.error('❌ Error obteniendo módulo:', err);
     res.status(500).json({ message: 'Error al obtener módulo', error: err.message });
+  }
+};
+
+/* =========================================================
+   CONVERTIR EN MÓDULO PRODUCTO  (solo súper usuario)
+   ---------------------------------------------------------
+   Toma un módulo creado por una universidad y lo pasa al
+   catálogo vendible. Por defecto se le emite a esa universidad
+   una licencia de cortesía para que NO pierda el acceso a lo
+   que ella misma construyó.
+========================================================= */
+exports.convertirEnProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mantenerAccesoUniversidad = true } = req.body || {};
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
+    }
+
+    const modulo = await Modulo.findById(id);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
+
+    if (modulo.esGlobal && !modulo.universidad) {
+      return res.status(409).json({ message: 'Este módulo ya es un módulo producto.' });
+    }
+
+    const universidadOrigen = modulo.universidad;
+
+    // 1) Guardamos a la universidad su acceso antes de soltar el módulo
+    let licencia = null;
+    if (mantenerAccesoUniversidad && universidadOrigen) {
+      const Universidad = require('../models/university');
+      const Licencia = require('../models/licencia');
+
+      const uni = await Universidad.findById(universidadOrigen).select('nombre').lean();
+
+      if (uni?.nombre) {
+        licencia = await Licencia.create({
+          titular: 'institucion',
+          universidad: uni.nombre,
+          universidadRef: universidadOrigen,
+          productoNombre: `Acceso a "${modulo.titulo}"`,
+          productoTipo: 'modulo',
+          modulos: [modulo._id],
+          estadoPago: 'pagado',
+          monto: 0,
+          inicia: new Date(),
+          expira: null,
+          notas: 'Acceso conservado: el módulo fue convertido en módulo producto.',
+          historial: [
+            {
+              accion: 'creada',
+              detalle: 'Licencia de cortesía por conversión a módulo producto',
+              hechoPor: req.user?.id || req.user?._id || null,
+              hechoPorNombre: 'Súper usuario',
+              fecha: new Date(),
+            },
+          ],
+        });
+      }
+    }
+
+    // 2) El módulo pasa al catálogo
+    modulo.esGlobal = true;
+    modulo.universidad = null;
+    modulo.origenUniversidad = universidadOrigen || null;
+    modulo.convertidoEn = new Date();
+    modulo.convertidoPor = req.user?.id || req.user?._id || null;
+
+    await modulo.save();
+
+    res.json({
+      message: 'El módulo ahora es un módulo producto.',
+      modulo,
+      licenciaGenerada: licencia ? String(licencia._id) : null,
+    });
+  } catch (err) {
+    console.error('❌ Error convirtiendo módulo en producto:', err);
+    res.status(500).json({ message: 'Error al convertir el módulo', error: err.message });
+  }
+};
+
+/* =========================================================
+   DEVOLVER A LA UNIVERSIDAD  (revierte la conversión)
+========================================================= */
+exports.revertirConversion = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'ID de módulo inválido.' });
+    }
+
+    const modulo = await Modulo.findById(id);
+    if (!modulo) return res.status(404).json({ message: 'Módulo no encontrado' });
+
+    if (!modulo.origenUniversidad) {
+      return res.status(409).json({
+        message: 'Este módulo no proviene de una universidad, no se puede devolver.',
+      });
+    }
+
+    modulo.esGlobal = false;
+    modulo.universidad = modulo.origenUniversidad;
+    modulo.origenUniversidad = null;
+    modulo.convertidoEn = null;
+    modulo.convertidoPor = null;
+
+    await modulo.save();
+
+    res.json({ message: 'El módulo volvió a la universidad de origen.', modulo });
+  } catch (err) {
+    console.error('❌ Error revirtiendo la conversión:', err);
+    res.status(500).json({ message: 'Error al revertir la conversión', error: err.message });
   }
 };
 

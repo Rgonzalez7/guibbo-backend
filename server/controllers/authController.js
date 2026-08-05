@@ -236,4 +236,52 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, recuperar, primerCambio, resetPassword };
+/**
+ * PUT /api/auth/cambiar-password   (requiere sesión iniciada)
+ * Body: { passwordActual, passwordNueva, passwordConfirm }
+ */
+const cambiarPassword = async (req, res) => {
+  try {
+    const { passwordActual, passwordNueva, passwordConfirm } = req.body || {};
+
+    if (!passwordActual || !passwordNueva || !passwordConfirm) {
+      return res.status(400).json({
+        message: "Ingresá tu contraseña actual, la nueva y su confirmación.",
+      });
+    }
+
+    if (passwordNueva !== passwordConfirm) {
+      return res.status(400).json({ message: "Las contraseñas nuevas no coinciden." });
+    }
+
+    if (String(passwordNueva).length < 8) {
+      return res
+        .status(400)
+        .json({ message: "La nueva contraseña debe tener al menos 8 caracteres." });
+    }
+
+    if (passwordActual === passwordNueva) {
+      return res
+        .status(400)
+        .json({ message: "La nueva contraseña debe ser distinta de la actual." });
+    }
+
+    const userId = req.user?.id || req.user?._id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const ok = await bcrypt.compare(passwordActual, user.password);
+    if (!ok) return res.status(400).json({ message: "La contraseña actual no es correcta." });
+
+    user.password = await bcrypt.hash(passwordNueva, 10);
+    user.debeCambiarPassword = false;
+    await user.save();
+
+    return res.json({ message: "Contraseña actualizada correctamente." });
+  } catch (err) {
+    console.error("❌ cambiarPassword error:", err);
+    res.status(500).json({ message: "Error en el servidor.", error: err.message });
+  }
+};
+
+module.exports = { register, login, recuperar, primerCambio, resetPassword, cambiarPassword };

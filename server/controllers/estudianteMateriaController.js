@@ -378,7 +378,7 @@ exports.listarMisMaterias = async (req, res) => {
     const estudianteId = req.user?.id || req.user?._id;
     if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
 
-    const materias = await Materia.find({ estudiantes: estudianteId, estado: "activo" })
+    const materias = await Materia.find({ estudiantes: estudianteId, estado: "activo", esPracticaLibre: { $ne: true } })
       .select("nombre codigo grupo periodoAcademico profesorNombre profesorEmail aula semestre creditos horario estado createdAt")
       .sort({ createdAt: -1 }).lean();
 
@@ -582,6 +582,43 @@ exports.buscarEjercicioEnMateria = async (req, res) => {
 /* =========================================================
    GET /estudiante/dashboard
 ========================================================= */
+/* =========================================================
+   GET /estudiante/perfil
+   Datos de la cuenta para la pantalla "Mi perfil".
+========================================================= */
+exports.miPerfil = async (req, res) => {
+  try {
+    const estudianteId = req.user?.id || req.user?._id;
+    if (!estudianteId) return res.status(401).json({ message: "No autenticado." });
+
+    const user = await Usuario.findById(estudianteId)
+      .select("nombre apellidos nombres email universidad rol foto carrera createdAt")
+      .lean();
+
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const nombreCompleto =
+      [user.nombre || user.nombres, user.apellidos].filter(Boolean).join(" ").trim() ||
+      user.nombre ||
+      "Estudiante";
+
+    res.json({
+      perfil: {
+        nombre: nombreCompleto,
+        email: user.email || "",
+        universidad: user.universidad || "",
+        carrera: user.carrera || "",
+        rol: user.rol || "estudiante",
+        avatarUrl: user.foto || "",
+        miembroDesde: user.createdAt || null,
+      },
+    });
+  } catch (err) {
+    console.error("miPerfil:", err);
+    res.status(500).json({ message: "No se pudo cargar el perfil." });
+  }
+};
+
 exports.dashboardResumen = async (req, res) => {
   try {
     const estudianteId = req.user?.id || req.user?._id;
@@ -594,6 +631,8 @@ exports.dashboardResumen = async (req, res) => {
     const emptyResponse = {
       user: {
         nombre: req.user?.nombre || "Estudiante",
+        email: req.user?.email || "",
+        universidad: req.user?.universidad || "",
         rol: req.user?.rol || "estudiante",
         avatarUrl: req.user?.foto || "",
         premiumClinicaAbierta: Boolean(req.user?.premiumClinicaAbierta),
@@ -601,6 +640,7 @@ exports.dashboardResumen = async (req, res) => {
       metrics: { simulacionesActivas: 0, horasSemana: 0, progresoGeneralPct: 0 },
       horarioHoy: [],
       modulosEvaluados: [],
+      materias: [],
       consejo: {
         titulo: "Consejo de Estudio Diario",
         texto: "Recuerda practicar mindfulness entre sesiones. Tomarte 5 minutos para respirar profundamente puede ayudarte a mantenerte centrada y presente para tus pacientes.",
@@ -694,12 +734,36 @@ exports.dashboardResumen = async (req, res) => {
 
     return res.json({
       user: {
-        nombre: req.user?.nombre || "Estudiante", rol: req.user?.rol || "estudiante",
-        avatarUrl: req.user?.foto || "", premiumClinicaAbierta: Boolean(req.user?.premiumClinicaAbierta),
+        nombre: req.user?.nombre || "Estudiante",
+        email: req.user?.email || "",
+        universidad: req.user?.universidad || "",
+        rol: req.user?.rol || "estudiante",
+        avatarUrl: req.user?.foto || "",
+        premiumClinicaAbierta: Boolean(req.user?.premiumClinicaAbierta),
       },
       metrics: { simulacionesActivas, horasSemana, progresoGeneralPct },
       horarioHoy: [],
       modulosEvaluados,
+
+      // ✅ Materias activas del estudiante (el panel las necesita)
+      materias: materias.map((m) => {
+        const ids = [...(m.modulosGlobales || []), ...(m.modulosLocales || [])].map(String);
+        const instDeMateria = modInst.filter((x) => String(x.materia) === String(m._id));
+        const completados = instDeMateria.filter(
+          (x) => String(x.estado).toLowerCase() === "completado"
+        ).length;
+
+        return {
+          _id: m._id,
+          nombre: m.nombre,
+          profesorNombre: m.profesorNombre || "",
+          horario: m.horario || "",
+          totalModulos: ids.length,
+          modulosCompletados: completados,
+          progresoPct: ids.length ? Math.round((completados / ids.length) * 100) : 0,
+        };
+      }),
+
       consejo: {
         titulo: "Consejo de Estudio Diario",
         texto: "Recuerda practicar mindfulness entre sesiones. Tomarte 5 minutos para respirar profundamente puede ayudarte a mantenerte centrada y presente para tus pacientes.",

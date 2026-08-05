@@ -96,6 +96,12 @@ const moduloSchema = new Schema(
     universidad: { type: Schema.Types.ObjectId, default: null, index: true },
     creadoPor:   { type: Schema.Types.ObjectId, default: null },
     activo:      { type: Boolean, default: true },
+
+    // ✅ Trazabilidad cuando el súper usuario convierte un módulo de una
+    //    universidad en módulo producto (queda registro de su origen).
+    origenUniversidad: { type: Schema.Types.ObjectId, default: null },
+    convertidoEn:      { type: Date, default: null },
+    convertidoPor:     { type: Schema.Types.ObjectId, default: null },
   },
   { timestamps: true }
 );

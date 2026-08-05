@@ -98,6 +98,19 @@ const materiaSchema = new mongoose.Schema(
         ref: "Modulo",
       },
     ],
+
+    // ✅ Práctica libre: materia personal creada al comprar un módulo
+    // en la tienda. No la ve ningún profesor y no aparece en "Mis materias".
+    esPracticaLibre: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    practicaInstancia: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PracticaInstancia",
+      default: null,
+    },
   },
   { timestamps: true }
 );

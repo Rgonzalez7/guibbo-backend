@@ -8,7 +8,10 @@ const {
   recuperar,
   primerCambio,
   resetPassword,
+  cambiarPassword,
 } = require("../controllers/authController");
+
+const verifyToken = require("../middlewares/verifyToken");
 
 router.post("/register", register);
 router.post("/login", login);
@@ -21,5 +24,8 @@ router.post("/primer-cambio", primerCambio);
 
 // reset por token del email
 router.post("/reset-password", resetPassword);
+
+// 🔒 Cambio de contraseña con la sesión ya iniciada
+router.put("/cambiar-password", verifyToken, cambiarPassword);
 
 module.exports = router;

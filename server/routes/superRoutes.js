@@ -12,6 +12,7 @@ const moduloController = require('../controllers/moduloController');
 const adminModuloController = require('../controllers/adminModuloController');
 const sandboxController = require('../controllers/sandboxController');
 const promptIAController = require('../controllers/promptIAController');
+const ventaInstitucionalController = require('../controllers/ventaInstitucionalController');
 
 // Middleware base: todas estas rutas requieren token + rol super
 router.use(verifyToken, requireRole('super'));
@@ -101,6 +102,8 @@ router.get('/modulos', moduloController.listarModulos);
 router.post('/modulos', moduloController.crearModulo);
 router.get('/modulos/:id', moduloController.obtenerModulo);
 router.put('/modulos/:id', moduloController.actualizarModulo);
+router.put('/modulos/:id/convertir-producto', moduloController.convertirEnProducto);
+router.put('/modulos/:id/revertir-producto', moduloController.revertirConversion);
 router.delete('/modulos/:id', moduloController.eliminarModulo);
 
 /* ----- Submódulos ----- */
@@ -210,5 +213,34 @@ router.get('/prompts/:clave', promptIAController.obtenerPrompt);
 router.put('/prompts/:clave', promptIAController.actualizarPrompt);
 router.post('/prompts/:clave/restaurar', promptIAController.restaurarPrompt);
 router.post('/prompts/:clave/vista-previa', promptIAController.vistaPrevia);
+
+/* ========== VENTA INSTITUCIONAL ========== */
+// Catálogo de productos
+router.get('/venta/productos', ventaInstitucionalController.listarProductos);
+router.post('/venta/productos', ventaInstitucionalController.crearProducto);
+router.put('/venta/productos/:id', ventaInstitucionalController.actualizarProducto);
+router.delete('/venta/productos/:id', ventaInstitucionalController.eliminarProducto);
+router.put('/venta/productos/:id/reactivar', ventaInstitucionalController.reactivarProducto);
+router.delete('/venta/productos/:id/borrar', ventaInstitucionalController.borrarProducto);
+
+// Módulos que se pueden incluir en un producto
+router.get('/venta/modulos-vendibles', ventaInstitucionalController.modulosVendibles);
+
+// Licencias
+router.get('/venta/licencias', ventaInstitucionalController.listarLicencias);
+router.post('/venta/licencias', ventaInstitucionalController.emitirLicencia);
+router.put('/venta/licencias/:id', ventaInstitucionalController.actualizarLicencia);
+router.put('/venta/licencias/:id/pago', ventaInstitucionalController.cambiarEstadoPago);
+router.put('/venta/licencias/:id/vigencia', ventaInstitucionalController.extenderVigencia);
+router.delete('/venta/licencias/:id', ventaInstitucionalController.revocarLicencia);
+router.delete('/venta/licencias/:id/eliminar', ventaInstitucionalController.eliminarLicencia);
+router.put('/venta/licencias/:id/reactivar', ventaInstitucionalController.reactivarLicencia);
+
+// Control por universidad
+router.get('/venta/universidades', ventaInstitucionalController.resumenUniversidades);
+
+// Órdenes (incluye las compras hechas desde la tienda)
+router.get('/venta/ordenes', ventaInstitucionalController.listarOrdenes);
+router.delete('/venta/ordenes/:id', ventaInstitucionalController.eliminarOrden);
 
 module.exports = router;

@@ -423,17 +423,78 @@ exports.listarModulosAdmin = async (req, res) => {
       universidadId = uniDoc ? uniDoc._id : null;
     }
 
-    const modulosGlobales = await Modulo.find({ esGlobal: true }).sort({ createdAt: -1 }).lean();
+    /* =====================================================
+       🔒 Solo se ven los módulos globales incluidos en una
+       licencia vigente (propia o de la universidad).
+       ===================================================== */
+    const { licenciasDeUsuario, permisoCreacion } = require("../utils/licencias");
+
+    const licencias = await licenciasDeUsuario(admin);
+
+    // Módulo → licencias que lo habilitan (para saber de qué paquete viene)
+    const origenPorModulo = new Map();
+    const idsPermitidos = new Set();
+
+    for (const lic of licencias) {
+      for (const m of lic.modulos || []) {
+        const k = String(m);
+        idsPermitidos.add(k);
+        if (!origenPorModulo.has(k)) origenPorModulo.set(k, []);
+        origenPorModulo.get(k).push({
+          licenciaId: String(lic._id),
+          producto: lic.productoNombre,
+          tipo: lic.productoTipo,
+          expira: lic.expira || null,
+          titular: lic.titular,
+        });
+      }
+    }
+
+    const modulosGlobales = idsPermitidos.size
+      ? await Modulo.find({ esGlobal: true, _id: { $in: Array.from(idsPermitidos) } })
+          .sort({ createdAt: -1 })
+          .lean()
+      : [];
+
     let modulosLocales = [];
     if (universidadId && mongoose.Types.ObjectId.isValid(universidadId)) {
       modulosLocales = await Modulo.find({ universidad: universidadId }).sort({ createdAt: -1 }).lean();
     }
 
+    // Paquetes / licencias vigentes, para mostrarlos en la pantalla
+    const licenciasResumen = licencias
+      .filter((l) => l.productoTipo !== "creacion")
+      .map((l) => ({
+        _id: String(l._id),
+        producto: l.productoNombre,
+        tipo: l.productoTipo,
+        modulos: (l.modulos || []).map(String),
+        cantidadModulos: (l.modulos || []).length,
+        expira: l.expira || null,
+        titular: l.titular,
+        inicia: l.inicia || null,
+      }));
+
+    // Servicio de creación (si fue comprado)
+    const creacion = await permisoCreacion(admin);
+
     return res.json({
       modulos: [
-        ...modulosGlobales.map((m) => ({ ...m, esGlobal: true })),
-        ...modulosLocales.map((m) => ({ ...m, esGlobal: false })),
+        ...modulosGlobales.map((m) => ({
+          ...m,
+          esGlobal: true,
+          origen: "licencia",
+          licencias: origenPorModulo.get(String(m._id)) || [],
+        })),
+        ...modulosLocales.map((m) => ({ ...m, esGlobal: false, origen: "propio" })),
       ],
+      licencias: licenciasResumen,
+      creacion: {
+        permitido: creacion.permitido,
+        tiposEjercicio: creacion.tiposEjercicio,
+        limite: creacion.limite,
+        creados: modulosLocales.length,
+      },
     });
   } catch (err) {
     console.error("❌ Error al obtener módulos para el admin:", err);

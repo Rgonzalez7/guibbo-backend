@@ -81,6 +81,7 @@ const historialRoutes = require("./routes/historialRoutes");
 const superRoutes = require("./routes/superRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const estudianteRoutes = require("./routes/estudianteRoutes");
+const tiendaRoutes = require("./routes/tiendaRoutes");
 const profesorRoutes = require("./routes/profesorRoutes");
 
 const testsRoutes = require("./routes/testsRoutes");
@@ -117,6 +118,9 @@ app.use("/api/admin", adminRoutes);
 
 // 🔹 estudiante
 app.use("/api/estudiante", estudianteRoutes);
+
+// 🛒 Tienda (director, profesor y estudiante)
+app.use("/api/tienda", tiendaRoutes);
 
 // 🔹 profesor
 app.use("/api/profesor", profesorRoutes);
