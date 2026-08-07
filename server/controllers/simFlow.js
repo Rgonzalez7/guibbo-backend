@@ -129,12 +129,30 @@ function resolveElevenVoiceIdFromProblema(problema) {
    ✅ Prompt
    ========================================================= */
 function buildPrompt(ctx, therapistText) {
-  const { edad, genero, problema } = ctx || {};
+  const { edad, genero, problema, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
+
+  const seg = Math.max(0, Number(segundosTranscurridos) || 0);
+  const min = Math.floor(seg / 60);
+
+  // Fase de la sesión: permite escribir reglas de ritmo en el prompt
+  // (por ejemplo, no revelar el motivo real durante la apertura).
+  const total = Number(limitSec) || 900;
+  const avance = total ? seg / total : 0;
+
+  const fase =
+    avance < 0.25 ? "apertura" : avance < 0.7 ? "desarrollo" : "cierre";
+
   return render(getPrompt("sim.paciente.turno"), {
     edad: edad ?? "N/D",
     genero: genero ?? "N/D",
     problema: problema ?? "N/D",
     therapistText: therapistText,
+
+    // ✅ Contexto temporal disponible para el prompt
+    minutosTranscurridos: String(min),
+    tiempoTranscurrido: `${String(min).padStart(2, "0")}:${String(seg % 60).padStart(2, "0")}`,
+    numeroTurno: String(numeroTurno ?? 1),
+    fase,
   });
 }
 
@@ -157,13 +175,17 @@ function createDGClientWS({ sampleRate = 16000 }) {
     model: process.env.DG_MODEL || "nova-2",
     language: "es",
     punctuate: "true",
-    interim_results: "false",
     encoding: "linear16",
     sample_rate: String(sampleRate),
     channels: "1",
 
-    // ✅ endpointing controla cuándo corta el turno
-    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 1200),
+    // ✅ Necesarios para respetar las pausas del terapeuta:
+    //    - interim_results + vad_events avisan cuando vuelve a hablar
+    //    - utterance_end_ms marca el fin real de la intervención
+    interim_results: "true",
+    vad_events: "true",
+    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 500),
+    utterance_end_ms: String(process.env.SIM_DG_UTTERANCE_END_MS || 1500),
   });
 
   const url = `wss://api.deepgram.com/v1/listen?${qs.toString()}`;
@@ -207,15 +229,21 @@ async function appendTurn({ ejercicioInstanciaId, speaker, text }) {
 /* =========================================================
    ✅ OpenAI helper (respuesta paciente)
    ========================================================= */
-async function generatePatientReply({ ctx, therapistText }) {
+async function generatePatientReply({ ctx, therapistText, historial = [] }) {
   const prompt = buildPrompt(ctx, therapistText);
   const model = process.env.SIM_OPENAI_MODEL || "gpt-4o-mini";
+
+  // ✅ El paciente recuerda la conversación: sin esto respondía cada turno
+  //    como si fuera el primero, perdiendo el hilo y repitiéndose.
+  const maxTurnos = Number(process.env.SIM_HISTORIAL_TURNOS || 20);
+  const recientes = historial.slice(-maxTurnos);
 
   const res = await openai.chat.completions.create({
     model,
     temperature: Number(process.env.SIM_OPENAI_TEMP || 0.7),
     messages: [
       { role: "system", content: getPrompt("sim.paciente.system") },
+      ...recientes,
       { role: "user", content: prompt },
     ],
   });
@@ -260,12 +288,11 @@ function createSimWSS() {
     let speaking = false;
     let droppedAudioChunks = 0;
 
-    const cooldownMs = Number(process.env.SIM_TTS_COOLDOWN_MS || 350);
+    // ✅ Memoria de la conversación (para OpenAI)
+    const historial = [];
+    let numeroTurno = 0;
 
-    // ✅ IMPORTANT: por defecto NO exigir speech_final (porque a veces no viene)
-    const REQUIRE_SPEECH_FINAL =
-      String(process.env.SIM_REQUIRE_SPEECH_FINAL || "false").toLowerCase() ===
-      "true";
+    const cooldownMs = Number(process.env.SIM_TTS_COOLDOWN_MS || 350);
 
     // debug
     let __binFrames = 0;
@@ -275,17 +302,51 @@ function createSimWSS() {
     let lastTherapistFinalAt = 0;
     const MIN_GAP_FINAL_MS = Number(process.env.SIM_MIN_GAP_FINAL_MS || 450);
 
-    // debounce final extra (opcional)
-    let pendingFinalTimer = null;
-    let pendingFinalText = "";
-    const FINAL_DEBOUNCE_MS = Number(process.env.SIM_FINAL_DEBOUNCE_MS || 0);
+    /* =========================================================
+       ✅ Acumulación de la intervención del terapeuta
+       ---------------------------------------------------------
+       Un terapeuta hace pausas: para pensar, para dar espacio o
+       simplemente para respirar. Antes, cada pausa disparaba una
+       respuesta del paciente y partía la intervención en dos.
+
+       Ahora se acumulan los tramos y solo se envía cuando hubo
+       un silencio real de SIM_TURNO_SILENCIO_MS.
+       ========================================================= */
+    let bufferTurno = "";
+    let turnoTimer = null;
+
+    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 1800);
+    const VAD_DISPONIBLE = true; // Deepgram envía UtteranceEnd / SpeechStarted
+
+    function cancelarCierreDeTurno() {
+      if (turnoTimer) {
+        clearTimeout(turnoTimer);
+        turnoTimer = null;
+      }
+    }
+
+    /** Programa el envío del turno tras la ventana de silencio. */
+    function programarCierreDeTurno() {
+      cancelarCierreDeTurno();
+
+      turnoTimer = setTimeout(() => {
+        turnoTimer = null;
+
+        const texto = bufferTurno.trim();
+        bufferTurno = "";
+
+        if (!texto) return;
+
+        log("Turno cerrado tras silencio:", `"${texto.slice(0, 80)}"`);
+        Promise.resolve().then(() => handleTherapistFinal(texto));
+      }, TURNO_SILENCIO_MS);
+    }
 
     function cleanup() {
       try {
-        if (pendingFinalTimer) clearTimeout(pendingFinalTimer);
+        cancelarCierreDeTurno();
       } catch {}
-      pendingFinalTimer = null;
-      pendingFinalText = "";
+      bufferTurno = "";
 
       try {
         if (ff?.stdin) ff.stdin.end();
@@ -385,11 +446,19 @@ function createSimWSS() {
         problemaKey: normalizeProblemaKey(problema),
       });
 
+      numeroTurno += 1;
+
       let reply = "";
       try {
         reply = await generatePatientReply({
-          ctx: { problema },
+          ctx: {
+            problema,
+            segundosTranscurridos: Math.floor((Date.now() - startMs) / 1000),
+            numeroTurno,
+            limitSec,
+          },
           therapistText: clean,
+          historial,
         });
       } catch (e) {
         log("OpenAI error:", e?.message || String(e));
@@ -398,6 +467,9 @@ function createSimWSS() {
 
       reply = String(reply || "").trim();
       if (!reply) reply = "No sé…";
+
+      historial.push({ role: "user", content: clean });
+      historial.push({ role: "assistant", content: reply });
 
       try {
         await appendTurn({
@@ -654,40 +726,55 @@ function createSimWSS() {
 
               if (payload?.type === "error" || payload?.error) {
                 log("DG PAYLOAD ERROR", payload);
+                return;
+              }
+
+              /* ==========================================================
+                 ✅ El terapeuta volvió a hablar: cancelamos el envío
+                 pendiente. Así una pausa (voluntaria o no) no corta
+                 su intervención por la mitad.
+                 ========================================================== */
+              if (payload?.type === "SpeechStarted") {
+                if (turnoTimer) {
+                  clearTimeout(turnoTimer);
+                  turnoTimer = null;
+                  log("Pausa retomada → se cancela el envío pendiente");
+                }
+                return;
+              }
+
+              /* ==========================================================
+                 ✅ Deepgram detectó el fin real de la intervención.
+                 Recién acá arrancamos la ventana de silencio.
+                 ========================================================== */
+              if (payload?.type === "UtteranceEnd") {
+                programarCierreDeTurno();
+                return;
               }
 
               const alt = payload?.channel?.alternatives?.[0];
               const transcript = String(alt?.transcript || "").trim();
               const isFinal = Boolean(payload?.is_final);
 
-              // ⚠️ speech_final a veces NO viene; por defecto no lo exigimos
-              const speechFinalRaw = payload?.speech_final;
-              const speechFinal =
-                speechFinalRaw === undefined || speechFinalRaw === null
-                  ? true
-                  : Boolean(speechFinalRaw);
+              if (!transcript) return;
 
-              // ✅ necesitamos texto final
-              if (!isFinal || !transcript) return;
-
-              // ✅ si quieres exigir speech_final, se controla con env
-              if (REQUIRE_SPEECH_FINAL && !speechFinal) return;
-
-              if (FINAL_DEBOUNCE_MS > 0) {
-                pendingFinalText = transcript;
-                try {
-                  if (pendingFinalTimer) clearTimeout(pendingFinalTimer);
-                } catch {}
-                pendingFinalTimer = setTimeout(() => {
-                  const t = pendingFinalText;
-                  pendingFinalText = "";
-                  pendingFinalTimer = null;
-                  Promise.resolve().then(() => handleTherapistFinal(t));
-                }, FINAL_DEBOUNCE_MS);
+              // Los parciales solo sirven para saber que sigue hablando
+              if (!isFinal) {
+                if (turnoTimer) {
+                  clearTimeout(turnoTimer);
+                  turnoTimer = null;
+                }
                 return;
               }
 
-              await handleTherapistFinal(transcript);
+              // ✅ Acumulamos: una intervención puede venir en varios tramos
+              bufferTurno = `${bufferTurno} ${transcript}`.trim();
+              log("Tramo acumulado:", `"${transcript.slice(0, 60)}"`);
+
+              // speech_final indica que Deepgram cerró la frase;
+              // aun así esperamos la ventana de silencio por si retoma.
+              const speechFinal = Boolean(payload?.speech_final);
+              if (speechFinal || !VAD_DISPONIBLE) programarCierreDeTurno();
             } catch (e) {
               log("DG parse message error", e?.message || String(e));
             }
@@ -711,9 +798,9 @@ function createSimWSS() {
             problema,
             problemaKey: normalizeProblemaKey(problema),
             cooldownMs,
-            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 1200),
-            finalDebounceMs: FINAL_DEBOUNCE_MS,
-            requireSpeechFinal: REQUIRE_SPEECH_FINAL,
+            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 500),
+            utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1500),
+            silencioTurnoMs: TURNO_SILENCIO_MS,
           });
 
           // pipeline audio
@@ -834,21 +921,47 @@ module.exports = { createSimWSS };
    Prompt editable desde el panel de súper usuario
    clave: sim.paciente.turno
 ========================================================= */
-const PROMPT_SIM_PACIENTE_TURNO = `Contexto del paciente simulado:
+const PROMPT_SIM_PACIENTE_TURNO = `DATOS DEL PACIENTE QUE INTERPRETÁS
 - Edad: {{edad}}
 - Género: {{genero}}
-- Motivo principal: {{problema}}
+- Lo que te trae a consulta: {{problema}}
 
-Terapeuta dijo: "{{therapistText}}"
+Ajustá tu forma de hablar a tu edad: un adolescente no habla como un adulto de 50.
 
-Responde como el paciente, en una o dos frases, tono natural y breve, en español.`;
+ESTADO DE LA SESIÓN
+- Tiempo transcurrido: {{tiempoTranscurrido}} (minuto {{minutosTranscurridos}})
+- Intervención número {{numeroTurno}}
+- Fase: {{fase}}
+
+CÓMO INFLUYE LA FASE EN LO QUE REVELÁS
+- apertura: estás tanteando. Te cuesta. Respondés corto, hablás de lo evidente o de molestias físicas. NO cuentes todavía el fondo del asunto ni lo más doloroso.
+- desarrollo: si el terapeuta generó confianza, empezás a dar detalles y a conectar con lo que sentís. Si no la generó, seguís reservado.
+- cierre: podés mostrar algo más de apertura o quedarte con la sensación de lo hablado, según cómo haya ido la sesión.
+
+Tené en cuenta todo lo que ya conversaron: no te contradigas ni repitas lo que ya contaste.
+
+EL TERAPEUTA ACABA DE DECIR:
+"{{therapistText}}"
+
+Respondé como este paciente, en voz alta, en español, en una o dos frases.`;
 
 registerPrompt({
   clave: "sim.paciente.turno",
   nombre: "Paciente simulado — Turno de conversación",
   categoria: "Role playing IA (simulación)",
-  descripcion: "Prompt que genera cada respuesta del paciente simulado durante la sesión en vivo.",
-  variables: ['edad', 'genero', 'problema', 'therapistText'],
+  descripcion: "Prompt que genera cada respuesta del paciente simulado durante la sesión en vivo. Incluye el tiempo transcurrido y la fase de la sesión, para poder dosificar qué revela el paciente y cuándo.",
+  variables: [
+    'edad',
+    'genero',
+    'problema',
+    'therapistText',
+    // ✅ Contexto temporal: permite reglas de ritmo en el prompt
+    // (por ejemplo: no revelar el motivo real durante la apertura)
+    'minutosTranscurridos',
+    'tiempoTranscurrido',
+    'numeroTurno',
+    'fase',
+  ],
   defecto: PROMPT_SIM_PACIENTE_TURNO,
 });
 
@@ -858,5 +971,41 @@ registerPrompt({
   categoria: "Role playing IA (simulación)",
   descripcion: "Rol que asume el modelo durante toda la simulación.",
   variables: [],
-  defecto: "Eres un paciente simulado en psicoterapia.",
+  defecto: `Eres un paciente en una sesión de psicoterapia. NO eres un asistente: eres una persona que está pasando por un momento difícil y que hoy vino a consulta.
+
+=== CÓMO HABLA UNA PERSONA REAL ===
+- Frases cortas. Rara vez más de dos o tres oraciones seguidas.
+- Lenguaje cotidiano. Nunca uses vocabulario clínico ("ansiedad generalizada", "disociación", "trauma", "episodio depresivo"). Decís lo que sentís con palabras comunes: "me late fuerte el pecho", "no me dan ganas de nada", "me quedo en blanco".
+- Titubeás: "no sé…", "es raro, ¿no?", "no sé cómo explicarlo", "eh…". Te corregís a mitad de frase.
+- A veces respondés con muy poco: "sí", "más o menos", "supongo".
+- Nunca hablás como un libro ni das discursos ordenados sobre tu propia historia.
+
+=== QUÉ REVELÁS Y CUÁNDO ===
+- Contás SOLO lo que te preguntan. No te adelantes ni entregues tu historia completa de una vez.
+- Lo más doloroso no sale al principio. Cuesta. Primero aparece lo superficial, lo cotidiano, las quejas físicas.
+- Si el terapeuta pregunta algo íntimo antes de que haya confianza, esquivás: cambiás de tema, minimizás ("no es para tanto"), respondés corto o preguntás por qué lo pregunta.
+- Recién si el terapeuta se muestra cálido, escucha y no te presiona, empezás a abrirte un poco más.
+
+=== REACCIONÁS A CÓMO TE TRATAN ===
+- Si te escucha y valida lo que sentís → te aflojás, contás algo más.
+- Si te interroga como un cuestionario, sin conexión → te cerrás, respondés seco.
+- Si te interpreta o te da consejos demasiado pronto → te incomodás, dudás o discrepás sin agresividad.
+- Si te contradice algo que dijiste antes o no te prestó atención → lo notás.
+
+=== LO QUE NUNCA HACÉS ===
+- No ayudás al terapeuta a hacer su trabajo. No le sugerís qué preguntar.
+- No te diagnosticás a vos mismo.
+- No sos excesivamente cooperativo ni excesivamente hostil: sos una persona ambivalente, que quiere estar mejor pero a la que le cuesta hablar.
+- No repetís lo que ya contaste en esta sesión, salvo que te lo vuelvan a preguntar.
+- No rompés el personaje jamás. No mencionás que sos una IA ni hablás del ejercicio.
+
+=== FORMATO DE TU RESPUESTA ===
+Tu respuesta se convierte en voz y se reproduce tal cual. Por eso:
+- Escribí ÚNICAMENTE lo que el paciente dice en voz alta.
+- Prohibido describir gestos o acciones: nada de *suspira*, (silencio), [llora]. Eso se leería en voz alta y arruina la escena.
+- Sin comillas, sin viñetas, sin encabezados, sin tu nombre delante.
+- Si querés transmitir duda o pausa, usá las palabras y la puntuación: "…no sé, es que…".
+
+=== SEGURIDAD ===
+Si aparecen temas de autolesión o ideas de muerte, podés expresar el malestar emocional de forma realista ("a veces siento que no vale la pena"), pero NUNCA describas métodos, medios ni detalles operativos de ningún tipo.`,
 });
