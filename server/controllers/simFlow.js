@@ -1,4 +1,8 @@
 const { registerPrompt, getPrompt, render } = require("../utils/promptStore");
+
+// ✅ Prompts de paciente por trastorno (se registran al requerirse)
+const { resolverClavePrompt } = require("../utils/promptsTrastornos");
+
 // server/controllers/simFlow.js
 const { WebSocketServer, WebSocket } = require("ws");
 const ffmpeg = require("fluent-ffmpeg");
@@ -127,6 +131,10 @@ function resolveElevenVoiceIdFromProblema(problema) {
 
 /* =========================================================
    ✅ Prompt
+   ---------------------------------------------------------
+   Cada trastorno tiene su propio prompt en utils/promptsTrastornos.
+   Si no existe uno específico (o su texto quedó vacío desde el
+   panel), se usa el genérico "sim.paciente.turno".
    ========================================================= */
 function buildPrompt(ctx, therapistText) {
   const { edad, genero, problema, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
@@ -142,7 +150,10 @@ function buildPrompt(ctx, therapistText) {
   const fase =
     avance < 0.25 ? "apertura" : avance < 0.7 ? "desarrollo" : "cierre";
 
-  return render(getPrompt("sim.paciente.turno"), {
+  // ✅ Prompt propio del trastorno (o el genérico como respaldo)
+  const clave = resolverClavePrompt(problema);
+
+  return render(getPrompt(clave), {
     edad: edad ?? "N/D",
     genero: genero ?? "N/D",
     problema: problema ?? "N/D",
@@ -655,6 +666,16 @@ function createSimWSS() {
             return;
           }
 
+          // ✅ Prompt del trastorno (o el genérico si no tiene propio)
+          const promptClave = resolverClavePrompt(problema);
+          log(
+            "PROMPT resuelto | problema =",
+            problema || "(vacío)",
+            "| clave =",
+            promptClave,
+            promptClave === "sim.paciente.turno" ? "(genérico)" : "(específico)"
+          );
+
           const sr = Number(hello.sampleRate) || 16000;
           log(
             "HELLO OK | sr =",
@@ -797,6 +818,7 @@ function createSimWSS() {
             limitSec,
             problema,
             problemaKey: normalizeProblemaKey(problema),
+            promptClave,
             cooldownMs,
             endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 500),
             utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1500),
@@ -920,6 +942,9 @@ module.exports = { createSimWSS };
 /* =========================================================
    Prompt editable desde el panel de súper usuario
    clave: sim.paciente.turno
+
+   ⚠️ Este es el prompt GENÉRICO: se usa solo cuando el trastorno
+   no tiene uno propio en utils/promptsTrastornos.
 ========================================================= */
 const PROMPT_SIM_PACIENTE_TURNO = `DATOS DEL PACIENTE QUE INTERPRETÁS
 - Edad: {{edad}}
@@ -947,9 +972,10 @@ Respondé como este paciente, en voz alta, en español, en una o dos frases.`;
 
 registerPrompt({
   clave: "sim.paciente.turno",
-  nombre: "Paciente simulado — Turno de conversación",
+  nombre: "Paciente simulado — Turno genérico (sin trastorno propio)",
   categoria: "Role playing IA (simulación)",
-  descripcion: "Prompt que genera cada respuesta del paciente simulado durante la sesión en vivo. Incluye el tiempo transcurrido y la fase de la sesión, para poder dosificar qué revela el paciente y cuándo.",
+  descripcion:
+    "Prompt de respaldo: se usa solo cuando el trastorno no tiene un prompt propio en la categoría «Pacientes simulados». Incluye el tiempo transcurrido y la fase de la sesión.",
   variables: [
     'edad',
     'genero',
@@ -969,7 +995,8 @@ registerPrompt({
   clave: "sim.paciente.system",
   nombre: "Paciente simulado — Instrucción de sistema",
   categoria: "Role playing IA (simulación)",
-  descripcion: "Rol que asume el modelo durante toda la simulación.",
+  descripcion:
+    "Reglas que aplican a TODOS los pacientes simulados, sin importar el trastorno. El prompt de cada trastorno se suma a estas reglas.",
   variables: [],
   defecto: `Eres un paciente en una sesión de psicoterapia. NO eres un asistente: eres una persona que está pasando por un momento difícil y que hoy vino a consulta.
 
