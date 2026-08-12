@@ -104,7 +104,7 @@ const TRASTORNOS = [
 ];
 
 /** Variables disponibles en todos los prompts de paciente. */
-const VARIABLES = ['edad', 'genero', 'problema', 'therapistText', 'minutosTranscurridos', 'tiempoTranscurrido', 'numeroTurno', 'fase'];
+const VARIABLES = ['problema', 'therapistText', 'minutosTranscurridos', 'tiempoTranscurrido', 'numeroTurno', 'fase'];
 
 /* ========== Registro en el panel del súper usuario ========== */
 for (const t of TRASTORNOS) {

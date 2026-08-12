@@ -117,16 +117,31 @@ function toEnvKeyFromProblema(value) {
 /* =========================================================
    ✅ Voice dinámica por agente (trastorno/problema)
    ========================================================= */
+/** Los IDs de voz de ElevenLabs son alfanuméricos de 20 caracteres. */
+function esVoiceIdValido(v) {
+  return /^[A-Za-z0-9]{20}$/.test(String(v || "").trim());
+}
+
 function resolveElevenVoiceIdFromProblema(problema) {
   const envKey = toEnvKeyFromProblema(problema);
-  const voiceId = envKey ? process.env[envKey] : "";
+  const propia = String(envKey ? process.env[envKey] : "" || "").trim();
 
-  return (
-    String(voiceId || "").trim() ||
+  const porDefecto =
     String(process.env.ELEVEN_VOICE_DEFAULT || "").trim() ||
-    String(process.env.ELEVEN_VOICE_ID || "").trim() ||
-    ""
-  );
+    String(process.env.ELEVEN_VOICE_ID || "").trim();
+
+  // Un ID mal copiado hace que ElevenLabs rechace la petición y la
+  // sesión se quede sin audio. Si no tiene forma válida, usamos el
+  // de respaldo en vez de fallar en silencio.
+  if (propia && !esVoiceIdValido(propia)) {
+    log(
+      `⚠️  ${envKey} tiene un ID inválido ("${propia}", ${propia.length} caracteres; ` +
+        "se esperan 20). Se usará la voz por defecto."
+    );
+    return porDefecto;
+  }
+
+  return propia || porDefecto || "";
 }
 
 /* =========================================================
@@ -137,7 +152,9 @@ function resolveElevenVoiceIdFromProblema(problema) {
    panel), se usa el genérico "sim.paciente.turno".
    ========================================================= */
 function buildPrompt(ctx, therapistText) {
-  const { edad, genero, problema, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
+  // La identidad del paciente (nombre, edad, etc.) la inventa la IA:
+  // no se configura desde el ejercicio.
+  const { problema, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
 
   const seg = Math.max(0, Number(segundosTranscurridos) || 0);
   const min = Math.floor(seg / 60);
@@ -154,8 +171,6 @@ function buildPrompt(ctx, therapistText) {
   const clave = resolverClavePrompt(problema);
 
   return render(getPrompt(clave), {
-    edad: edad ?? "N/D",
-    genero: genero ?? "N/D",
     problema: problema ?? "N/D",
     therapistText: therapistText,
 
@@ -195,8 +210,8 @@ function createDGClientWS({ sampleRate = 16000 }) {
     //    - utterance_end_ms marca el fin real de la intervención
     interim_results: "true",
     vad_events: "true",
-    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 500),
-    utterance_end_ms: String(process.env.SIM_DG_UTTERANCE_END_MS || 1500),
+    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 400),
+    utterance_end_ms: String(process.env.SIM_DG_UTTERANCE_END_MS || 1000),
   });
 
   const url = `wss://api.deepgram.com/v1/listen?${qs.toString()}`;
@@ -325,9 +340,14 @@ function createSimWSS() {
        ========================================================= */
     let bufferTurno = "";
     let turnoTimer = null;
+    let topeTimer = null;
 
-    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 1800);
-    const VAD_DISPONIBLE = true; // Deepgram envía UtteranceEnd / SpeechStarted
+    // Ventana de silencio antes de dar por cerrada la intervención
+    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 900);
+
+    // Tope: pase lo que pase, el turno se envía. Evita que un ruido
+    // cancele el envío una y otra vez y el paciente nunca conteste.
+    const TURNO_MAX_ESPERA_MS = Number(process.env.SIM_TURNO_MAX_ESPERA_MS || 3500);
 
     function cancelarCierreDeTurno() {
       if (turnoTimer) {
@@ -336,26 +356,49 @@ function createSimWSS() {
       }
     }
 
+    function cancelarTope() {
+      if (topeTimer) {
+        clearTimeout(topeTimer);
+        topeTimer = null;
+      }
+    }
+
+    /** Envía lo acumulado (si hay algo) y limpia el estado del turno. */
+    function cerrarTurnoAhora(motivo) {
+      cancelarCierreDeTurno();
+      cancelarTope();
+
+      const texto = bufferTurno.trim();
+      bufferTurno = "";
+
+      if (!texto) return;
+
+      log(`Turno cerrado (${motivo}):`, `"${texto.slice(0, 80)}"`);
+      Promise.resolve().then(() => handleTherapistFinal(texto));
+    }
+
     /** Programa el envío del turno tras la ventana de silencio. */
     function programarCierreDeTurno() {
       cancelarCierreDeTurno();
 
       turnoTimer = setTimeout(() => {
         turnoTimer = null;
-
-        const texto = bufferTurno.trim();
-        bufferTurno = "";
-
-        if (!texto) return;
-
-        log("Turno cerrado tras silencio:", `"${texto.slice(0, 80)}"`);
-        Promise.resolve().then(() => handleTherapistFinal(texto));
+        cerrarTurnoAhora("silencio");
       }, TURNO_SILENCIO_MS);
+
+      // El tope se arma una sola vez por turno
+      if (!topeTimer && bufferTurno.trim()) {
+        topeTimer = setTimeout(() => {
+          topeTimer = null;
+          cerrarTurnoAhora("tope de espera");
+        }, TURNO_MAX_ESPERA_MS);
+      }
     }
 
     function cleanup() {
       try {
         cancelarCierreDeTurno();
+        cancelarTope();
       } catch {}
       bufferTurno = "";
 
@@ -510,9 +553,19 @@ function createSimWSS() {
           (ttsRes && typeof ttsRes === "object" && ttsRes.mime) || "audio/mpeg";
 
         if (!audio_b64) {
-          log("TTS EMPTY (no base64)");
+          log("TTS EMPTY (no base64) | voiceId =", voiceIdResolved);
+          safeSend(ws, {
+            type: "tts_failed",
+            motivo: "sin_audio",
+            voiceId: voiceIdResolved,
+          });
         } else if (!looksLikeMp3Base64(audio_b64)) {
           log("TTS INVALID base64 (len =", audio_b64.length, ")");
+          safeSend(ws, {
+            type: "tts_failed",
+            motivo: "audio_invalido",
+            voiceId: voiceIdResolved,
+          });
         } else {
           log("TTS OK → enviando audio | bytes b64 =", audio_b64.length, "| mime =", mime);
           safeSend(ws, {
@@ -524,7 +577,13 @@ function createSimWSS() {
           });
         }
       } catch (e) {
-        log("TTS error:", e?.message || String(e));
+        log("TTS error:", e?.message || String(e), "| voiceId =", voiceIdResolved);
+        safeSend(ws, {
+          type: "tts_failed",
+          motivo: "error",
+          detalle: e?.message || String(e),
+          voiceId: voiceIdResolved,
+        });
       } finally {
         await endSpeaking();
       }
@@ -741,7 +800,6 @@ function createSimWSS() {
           dg.on("message", async (data) => {
             try {
               if (checkTimeUp()) return;
-              if (speaking) return;
 
               const payload = JSON.parse(data.toString("utf8"));
 
@@ -750,26 +808,28 @@ function createSimWSS() {
                 return;
               }
 
+              // Mientras habla el paciente ignoramos la entrada (half-duplex),
+              // pero NO descartamos lo que el terapeuta ya había dicho.
+              if (speaking) return;
+
               /* ==========================================================
-                 ✅ El terapeuta volvió a hablar: cancelamos el envío
-                 pendiente. Así una pausa (voluntaria o no) no corta
-                 su intervención por la mitad.
+                 El terapeuta retomó la palabra: postergamos el envío.
+                 Se re-arma el temporizador (no se cancela a secas) para
+                 que un ruido no deje el turno colgado sin respuesta.
                  ========================================================== */
               if (payload?.type === "SpeechStarted") {
-                if (turnoTimer) {
-                  clearTimeout(turnoTimer);
-                  turnoTimer = null;
-                  log("Pausa retomada → se cancela el envío pendiente");
+                if (bufferTurno.trim()) {
+                  programarCierreDeTurno();
+                  log("Pausa retomada → se posterga el envío");
                 }
                 return;
               }
 
               /* ==========================================================
-                 ✅ Deepgram detectó el fin real de la intervención.
-                 Recién acá arrancamos la ventana de silencio.
+                 Deepgram detectó el fin de la intervención.
                  ========================================================== */
               if (payload?.type === "UtteranceEnd") {
-                programarCierreDeTurno();
+                if (bufferTurno.trim()) programarCierreDeTurno();
                 return;
               }
 
@@ -779,23 +839,19 @@ function createSimWSS() {
 
               if (!transcript) return;
 
-              // Los parciales solo sirven para saber que sigue hablando
+              // Los parciales solo indican que sigue hablando
               if (!isFinal) {
-                if (turnoTimer) {
-                  clearTimeout(turnoTimer);
-                  turnoTimer = null;
-                }
+                if (bufferTurno.trim()) programarCierreDeTurno();
                 return;
               }
 
-              // ✅ Acumulamos: una intervención puede venir en varios tramos
+              // Acumulamos: una intervención puede venir en varios tramos
               bufferTurno = `${bufferTurno} ${transcript}`.trim();
               log("Tramo acumulado:", `"${transcript.slice(0, 60)}"`);
 
-              // speech_final indica que Deepgram cerró la frase;
-              // aun así esperamos la ventana de silencio por si retoma.
-              const speechFinal = Boolean(payload?.speech_final);
-              if (speechFinal || !VAD_DISPONIBLE) programarCierreDeTurno();
+              // Siempre dejamos programado el cierre: si no llega nada más,
+              // la ventana de silencio lo envía sola.
+              programarCierreDeTurno();
             } catch (e) {
               log("DG parse message error", e?.message || String(e));
             }
@@ -820,8 +876,8 @@ function createSimWSS() {
             problemaKey: normalizeProblemaKey(problema),
             promptClave,
             cooldownMs,
-            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 500),
-            utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1500),
+            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 400),
+            utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1000),
             silencioTurnoMs: TURNO_SILENCIO_MS,
           });
 
@@ -946,12 +1002,15 @@ module.exports = { createSimWSS };
    ⚠️ Este es el prompt GENÉRICO: se usa solo cuando el trastorno
    no tiene uno propio en utils/promptsTrastornos.
 ========================================================= */
-const PROMPT_SIM_PACIENTE_TURNO = `DATOS DEL PACIENTE QUE INTERPRETÁS
-- Edad: {{edad}}
-- Género: {{genero}}
-- Lo que te trae a consulta: {{problema}}
+const PROMPT_SIM_PACIENTE_TURNO = `QUIÉN SOS
+Lo que te trae a consulta: {{problema}}
 
-Ajustá tu forma de hablar a tu edad: un adolescente no habla como un adulto de 50.
+Vos inventás el resto de tu identidad: nombre, edad, trabajo, con quién vivís,
+tu historia. Elegila al empezar y NO la cambies durante la sesión: si ya dijiste
+tu edad o tu nombre, sostenelos. Que sea una persona verosímil y común.
+
+Si el terapeuta te pregunta algo de tu vida que todavía no definiste, respondé
+como lo haría esa persona y quedátelo para el resto de la conversación.
 
 ESTADO DE LA SESIÓN
 - Tiempo transcurrido: {{tiempoTranscurrido}} (minuto {{minutosTranscurridos}})
@@ -977,8 +1036,6 @@ registerPrompt({
   descripcion:
     "Prompt de respaldo: se usa solo cuando el trastorno no tiene un prompt propio en la categoría «Pacientes simulados». Incluye el tiempo transcurrido y la fase de la sesión.",
   variables: [
-    'edad',
-    'genero',
     'problema',
     'therapistText',
     // ✅ Contexto temporal: permite reglas de ritmo en el prompt
