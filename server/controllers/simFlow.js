@@ -154,7 +154,7 @@ function resolveElevenVoiceIdFromProblema(problema) {
 function buildPrompt(ctx, therapistText) {
   // La identidad del paciente (nombre, edad, etc.) la inventa la IA:
   // no se configura desde el ejercicio.
-  const { problema, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
+  const { problema, identidad, segundosTranscurridos, numeroTurno, limitSec } = ctx || {};
 
   const seg = Math.max(0, Number(segundosTranscurridos) || 0);
   const min = Math.floor(seg / 60);
@@ -172,6 +172,7 @@ function buildPrompt(ctx, therapistText) {
 
   return render(getPrompt(clave), {
     problema: problema ?? "N/D",
+    identidad: textoIdentidad(identidad),
     therapistText: therapistText,
 
     // ✅ Contexto temporal disponible para el prompt
@@ -253,6 +254,109 @@ async function appendTurn({ ejercicioInstanciaId, speaker, text }) {
 }
 
 /* =========================================================
+   ✅ Identidad del paciente
+   ---------------------------------------------------------
+   Se genera UNA sola vez al empezar la sesión y se inyecta en
+   cada turno como texto ya resuelto. Antes se le pedía al
+   modelo que la inventara sobre la marcha y a veces devolvía
+   un marcador ("Hola, soy {{nombre}}") en vez de un nombre.
+   ========================================================= */
+async function generarIdentidadPaciente(problema) {
+  const model = process.env.SIM_OPENAI_MODEL || "gpt-4o-mini";
+
+  const instruccion =
+    "Inventá una persona verosímil de habla hispana que hoy va a consulta psicológica " +
+    `por: ${problema || "un malestar general"}.\n\n` +
+    "Respondé SOLO con un JSON válido, sin explicaciones ni bloques de código:\n" +
+    '{"nombre":"","edad":0,"genero":"","ocupacion":"","convive":"","rasgo":""}\n\n' +
+    "nombre: nombre de pila real y común (nunca un marcador ni un campo vacío).\n" +
+    "edad: número coherente con el motivo de consulta.\n" +
+    "convive: con quién vive, en pocas palabras.\n" +
+    "rasgo: un detalle cotidiano de su vida, en una frase corta.";
+
+  const res = await openai.chat.completions.create({
+    model,
+    temperature: 1,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Creás fichas breves de personas ficticias para simulaciones clínicas. Respondés únicamente JSON.",
+      },
+      { role: "user", content: instruccion },
+    ],
+  });
+
+  const bruto = String(res?.choices?.[0]?.message?.content || "").trim();
+  const limpio = bruto.replace(/```json|```/g, "").trim();
+
+  const d = JSON.parse(limpio);
+
+  const nombre = String(d?.nombre || "").trim();
+  if (!nombre || /[{}\[\]<>]/.test(nombre)) {
+    throw new Error(`Nombre inválido devuelto por el modelo: "${nombre}"`);
+  }
+
+  return {
+    nombre,
+    edad: Number(d?.edad) || 30,
+    genero: String(d?.genero || "").trim() || "sin especificar",
+    ocupacion: String(d?.ocupacion || "").trim() || "trabaja",
+    convive: String(d?.convive || "").trim() || "vive con su familia",
+    rasgo: String(d?.rasgo || "").trim(),
+  };
+}
+
+/** Identidad de respaldo si el modelo falla: la sesión no se cae. */
+function identidadPorDefecto() {
+  const nombres = ["Lucía", "Martín", "Camila", "Andrés", "Sofía", "Diego", "Valeria", "Tomás"];
+  const nombre = nombres[Math.floor(Math.random() * nombres.length)];
+
+  return {
+    nombre,
+    edad: 28 + Math.floor(Math.random() * 15),
+    genero: "sin especificar",
+    ocupacion: "trabaja en una oficina",
+    convive: "vive con su pareja",
+    rasgo: "",
+  };
+}
+
+/** Convierte la ficha en el texto que ve el modelo en cada turno. */
+function textoIdentidad(id) {
+  if (!id) return "Sos una persona adulta que vino a consulta.";
+
+  const partes = [
+    `Te llamás ${id.nombre} y tenés ${id.edad} años.`,
+    id.ocupacion ? `Ocupación: ${id.ocupacion}.` : "",
+    id.convive ? `Convivencia: ${id.convive}.` : "",
+    id.rasgo ? `Detalle de tu vida: ${id.rasgo}` : "",
+  ].filter(Boolean);
+
+  return partes.join(" ");
+}
+
+/**
+ * Si el modelo devuelve un marcador ({{nombre}}, [nombre], <nombre>),
+ * lo reemplazamos por el dato real en vez de leerlo en voz alta.
+ */
+function limpiarMarcadores(texto, id) {
+  let t = String(texto || "");
+
+  const reemplazos = [
+    [/\{\{\s*nombre\s*\}\}|\[\s*nombre\s*\]|<\s*nombre\s*>/gi, id?.nombre || "yo"],
+    [/\{\{\s*edad\s*\}\}|\[\s*edad\s*\]|<\s*edad\s*>/gi, String(id?.edad || "")],
+  ];
+
+  for (const [re, valor] of reemplazos) t = t.replace(re, valor);
+
+  // Cualquier otro marcador que haya quedado, fuera
+  t = t.replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
+
+  return t;
+}
+
+/* =========================================================
    ✅ OpenAI helper (respuesta paciente)
    ========================================================= */
 async function generatePatientReply({ ctx, therapistText, historial = [] }) {
@@ -308,6 +412,9 @@ function createSimWSS() {
     let startMs = Date.now();
 
     let voiceIdResolved = "";
+
+    // Semilla fija: garantiza que la voz suene igual en todos los turnos
+    const seedVoz = Math.floor(Math.random() * 2147483647);
     let isSandbox = false;
 
     // half-duplex
@@ -317,6 +424,9 @@ function createSimWSS() {
     // ✅ Memoria de la conversación (para OpenAI)
     const historial = [];
     let numeroTurno = 0;
+
+    // ✅ Ficha del paciente: se genera una vez y no cambia
+    let identidad = null;
 
     const cooldownMs = Number(process.env.SIM_TTS_COOLDOWN_MS || 350);
 
@@ -399,6 +509,7 @@ function createSimWSS() {
       try {
         cancelarCierreDeTurno();
         cancelarTope();
+        resolverAudio?.();
       } catch {}
       bufferTurno = "";
 
@@ -450,6 +561,66 @@ function createSimWSS() {
     function beginSpeaking(meta = {}) {
       speaking = true;
       safeSend(ws, { type: "tts_start", ...meta });
+    }
+
+    /* =========================================================
+       Fin de la reproducción
+       ---------------------------------------------------------
+       Antes se reabría el micrófono 350 ms después de ENVIAR el
+       audio, mientras el paciente seguía hablando en los
+       parlantes. El micrófono capturaba esa voz y Deepgram
+       transcribía una mezcla: por eso llegaban frases cortadas.
+
+       Ahora esperamos el aviso del cliente ("audio_done"). Si no
+       llega, usamos una estimación por largo del texto.
+       ========================================================= */
+    let resolverAudio = null;
+
+    // ¿Este cliente avisa cuándo termina de sonar la voz?
+    // Se descubre en el primer turno; hasta entonces no lo esperamos,
+    // porque bloquear el micrófono de más deja al terapeuta sin voz.
+    let clienteAvisaAudio = false;
+
+    // Espera corta mientras no sabemos si el cliente avisa
+    const ESPERA_CORTA_MS = Number(process.env.SIM_ESPERA_AUDIO_MS || 700);
+
+    /** Duración aproximada del audio, como tope de seguridad. */
+    function estimarDuracionMs(texto) {
+      const caracteres = String(texto || "").length;
+      const ms = (caracteres / 15) * 1000; // ~15 caracteres por segundo
+      return Math.min(15000, Math.max(1200, Math.round(ms)));
+    }
+
+    function esperarFinDeReproduccion(texto) {
+      return new Promise((resolve) => {
+        let listo = false;
+
+        const terminar = (motivo) => {
+          if (listo) return;
+          listo = true;
+          resolverAudio = null;
+          clearTimeout(tope);
+          log("Micrófono reabierto:", motivo);
+          resolve();
+        };
+
+        resolverAudio = () => {
+          clienteAvisaAudio = true;
+          terminar("aviso del cliente");
+        };
+
+        // Si el cliente ya demostró que avisa, podemos esperarlo de verdad.
+        // Si no, solo una espera breve: el frontend silencia el micrófono
+        // por su cuenta durante la reproducción.
+        const limite = clienteAvisaAudio
+          ? estimarDuracionMs(texto) + 800
+          : ESPERA_CORTA_MS;
+
+        const tope = setTimeout(
+          () => terminar(clienteAvisaAudio ? "tope de seguridad" : "espera breve"),
+          limite
+        );
+      });
     }
 
     async function endSpeaking(meta = {}) {
@@ -507,6 +678,7 @@ function createSimWSS() {
         reply = await generatePatientReply({
           ctx: {
             problema,
+            identidad,
             segundosTranscurridos: Math.floor((Date.now() - startMs) / 1000),
             numeroTurno,
             limitSec,
@@ -519,7 +691,7 @@ function createSimWSS() {
         reply = "No sé… creo que sí. No estoy seguro.";
       }
 
-      reply = String(reply || "").trim();
+      reply = limpiarMarcadores(reply, identidad);
       if (!reply) reply = "No sé…";
 
       historial.push({ role: "user", content: clean });
@@ -542,10 +714,13 @@ function createSimWSS() {
 
       log("RESPUESTA paciente:", `"${String(reply || "").slice(0, 80)}"`, "| sintetizando con voiceId =", voiceIdResolved || "(NINGUNO)");
 
+      let audioEnviado = false;
+
       try {
         const ttsRes = await ttsSynthesizeBase64({
           text: reply,
           voiceId: voiceIdResolved,
+          seed: seedVoz,
         });
 
         const audio_b64 = extractB64FromTtsResult(ttsRes);
@@ -568,6 +743,7 @@ function createSimWSS() {
           });
         } else {
           log("TTS OK → enviando audio | bytes b64 =", audio_b64.length, "| mime =", mime);
+          audioEnviado = true;
           safeSend(ws, {
             type: "tts_audio",
             audio_b64,
@@ -585,6 +761,8 @@ function createSimWSS() {
           voiceId: voiceIdResolved,
         });
       } finally {
+        // Mantenemos el micrófono cerrado hasta que deje de sonar
+        if (audioEnviado) await esperarFinDeReproduccion(reply);
         await endSpeaking();
       }
     }
@@ -714,7 +892,14 @@ function createSimWSS() {
           }
 
           voiceIdResolved = resolveElevenVoiceIdFromProblema(problema);
-          log("VOZ resuelta | problema =", problema || "(vacío)", "| voiceId =", voiceIdResolved || "(NINGUNO)");
+          log(
+            "VOZ resuelta | problema =",
+            problema || "(vacío)",
+            "| voiceId =",
+            voiceIdResolved || "(NINGUNO)",
+            "| seed =",
+            seedVoz
+          );
           if (!voiceIdResolved) {
             safeSend(ws, {
               type: "error",
@@ -723,6 +908,24 @@ function createSimWSS() {
             });
             ws.close();
             return;
+          }
+
+          // ✅ Ficha del paciente: una sola vez, antes del primer turno
+          try {
+            identidad = await generarIdentidadPaciente(problema);
+            log(
+              "IDENTIDAD generada |",
+              `${identidad.nombre}, ${identidad.edad} años |`,
+              identidad.ocupacion
+            );
+          } catch (e) {
+            identidad = identidadPorDefecto();
+            log(
+              "⚠️  No se pudo generar la identidad:",
+              e?.message || String(e),
+              "→ se usa una de respaldo:",
+              identidad.nombre
+            );
           }
 
           // ✅ Prompt del trastorno (o el genérico si no tiene propio)
@@ -875,10 +1078,16 @@ function createSimWSS() {
             problema,
             problemaKey: normalizeProblemaKey(problema),
             promptClave,
+            paciente: identidad
+              ? { nombre: identidad.nombre, edad: identidad.edad }
+              : null,
             cooldownMs,
             endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 400),
             utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1000),
             silencioTurnoMs: TURNO_SILENCIO_MS,
+            // El cliente debe enviar {type:"audio_done"} al terminar de
+            // reproducir cada respuesta; si no, se usa una estimación.
+            esperaAudioDone: true,
           });
 
           // pipeline audio
@@ -952,6 +1161,17 @@ function createSimWSS() {
             try {
               ws.close();
             } catch {}
+            return;
+          }
+
+          // ✅ El cliente avisa que terminó de reproducir la voz
+          if (
+            evt?.type === "audio_done" ||
+            evt?.type === "tts_playback_ended" ||
+            evt?.type === "playback_end"
+          ) {
+            resolverAudio?.();
+            return;
           }
 
           return;
@@ -1003,14 +1223,18 @@ module.exports = { createSimWSS };
    no tiene uno propio en utils/promptsTrastornos.
 ========================================================= */
 const PROMPT_SIM_PACIENTE_TURNO = `QUIÉN SOS
+{{identidad}}
+
 Lo que te trae a consulta: {{problema}}
 
-Vos inventás el resto de tu identidad: nombre, edad, trabajo, con quién vivís,
-tu historia. Elegila al empezar y NO la cambies durante la sesión: si ya dijiste
-tu edad o tu nombre, sostenelos. Que sea una persona verosímil y común.
+Esa es tu identidad y no cambia durante la sesión. Si te preguntan tu nombre o
+tu edad, respondé con esos datos exactos, escritos como los diría una persona.
+NUNCA escribas marcadores ni campos a completar (con llaves, corchetes o
+signos de mayor y menor): se leerían en voz alta tal cual. Si te preguntan tu
+nombre, decí tu nombre.
 
-Si el terapeuta te pregunta algo de tu vida que todavía no definiste, respondé
-como lo haría esa persona y quedátelo para el resto de la conversación.
+El resto de tu vida (hermanos, estudios, dónde trabajaste antes) lo vas
+completando a medida que te preguntan, siempre coherente con lo que ya dijiste.
 
 ESTADO DE LA SESIÓN
 - Tiempo transcurrido: {{tiempoTranscurrido}} (minuto {{minutosTranscurridos}})
@@ -1036,6 +1260,7 @@ registerPrompt({
   descripcion:
     "Prompt de respaldo: se usa solo cuando el trastorno no tiene un prompt propio en la categoría «Pacientes simulados». Incluye el tiempo transcurrido y la fase de la sesión.",
   variables: [
+    'identidad',
     'problema',
     'therapistText',
     // ✅ Contexto temporal: permite reglas de ritmo en el prompt
@@ -1082,6 +1307,7 @@ registerPrompt({
 - No sos excesivamente cooperativo ni excesivamente hostil: sos una persona ambivalente, que quiere estar mejor pero a la que le cuesta hablar.
 - No repetís lo que ya contaste en esta sesión, salvo que te lo vuelvan a preguntar.
 - No rompés el personaje jamás. No mencionás que sos una IA ni hablás del ejercicio.
+- NUNCA escribís marcadores ni campos a completar: nada de {{nombre}}, [edad] o <ciudad>. Si te preguntan un dato tuyo, decís el dato.
 
 === FORMATO DE TU RESPUESTA ===
 Tu respuesta se convierte en voz y se reproduce tal cual. Por eso:

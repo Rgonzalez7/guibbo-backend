@@ -72,11 +72,36 @@ function normalizeElevenTtsResult(raw, fallbackVoiceId) {
   return { base64: "", mime: "audio/mpeg", voiceId };
 }
 
+/* =========================================================
+   Ajustes de voz
+   ---------------------------------------------------------
+   `stability` baja hace que ElevenLabs interprete cada frase de
+   forma distinta: como cada turno es una petición aparte, la voz
+   parecía cambiar de persona a mitad de sesión.
+
+   Con estabilidad alta y `style` en 0 la voz se mantiene igual
+   entre turnos. Se puede afinar desde el .env.
+   ========================================================= */
+function getVoiceSettings() {
+  const num = (v, def) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : def;
+  };
+
+  return {
+    stability: num(process.env.ELEVEN_STABILITY, 0.85),
+    similarity_boost: num(process.env.ELEVEN_SIMILARITY, 0.9),
+    style: num(process.env.ELEVEN_STYLE, 0),
+    use_speaker_boost: String(process.env.ELEVEN_SPEAKER_BOOST || "true") === "true",
+  };
+}
+
 /**
- * Acepta voiceId dinámico
- * ✅ Retorna: { base64, mime, voiceId }
+ * Acepta voiceId dinámico y una semilla opcional.
+ * La semilla se mantiene fija durante toda la sesión para que
+ * todos los turnos suenen a la misma persona.
  */
-async function ttsSynthesizeBase64({ text, voiceId } = {}) {
+async function ttsSynthesizeBase64({ text, voiceId, seed } = {}) {
   const ELEVEN_API_KEY = ensureElevenKey();
 
   const finalVoiceId = String(voiceId || "").trim() || DEFAULT_VOICE_ID;
@@ -96,8 +121,10 @@ async function ttsSynthesizeBase64({ text, voiceId } = {}) {
       url,
       {
         text: cleanText,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.5, similarity_boost: 0.8 },
+        model_id: process.env.ELEVEN_MODEL_ID || "eleven_multilingual_v2",
+        voice_settings: getVoiceSettings(),
+        // Misma semilla → misma interpretación de la voz en cada turno
+        ...(Number.isFinite(Number(seed)) ? { seed: Number(seed) } : {}),
       },
       {
         responseType: "arraybuffer",
