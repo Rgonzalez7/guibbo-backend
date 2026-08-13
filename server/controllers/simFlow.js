@@ -211,8 +211,8 @@ function createDGClientWS({ sampleRate = 16000 }) {
     //    - utterance_end_ms marca el fin real de la intervención
     interim_results: "true",
     vad_events: "true",
-    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 400),
-    utterance_end_ms: String(process.env.SIM_DG_UTTERANCE_END_MS || 1000),
+    endpointing: String(process.env.SIM_DG_ENDPOINTING_MS || 700),
+    utterance_end_ms: String(process.env.SIM_DG_UTTERANCE_END_MS || 1600),
   });
 
   const url = `wss://api.deepgram.com/v1/listen?${qs.toString()}`;
@@ -453,11 +453,45 @@ function createSimWSS() {
     let topeTimer = null;
 
     // Ventana de silencio antes de dar por cerrada la intervención
-    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 900);
+    // Silencio normal: cuando la frase ya suena terminada
+    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 1400);
+
+    // Silencio ampliado: cuando la frase quedó a medias
+    const TURNO_SILENCIO_LARGO_MS = Number(
+      process.env.SIM_TURNO_SILENCIO_LARGO_MS || 2600
+    );
+
+    /* =========================================================
+       ¿La intervención parece terminada?
+       ---------------------------------------------------------
+       Un terapeuta hace pausas para pensar, y casi siempre las
+       hace en mitad de una idea: "...y entonces, [pausa] lo que
+       pasa es que...". Si cortáramos ahí, el paciente respondería
+       a media frase.
+
+       Cuando el texto NO parece cerrado, esperamos bastante más.
+       ========================================================= */
+    const CIERRES = /[.!?…]["')\]]?\s*$/;
+
+    // Palabras con las que nadie termina una idea
+    const COLGADAS =
+      /\b(y|o|u|e|pero|porque|que|como|cuando|donde|si|entonces|además|aunque|mientras|para|por|con|sin|desde|hasta|del|de|la|el|los|las|un|una|mi|tu|su|me|te|se|lo|al|más|muy|tan|ya|no|sí)\s*$/i;
+
+    function pareceTerminado(texto) {
+      const t = String(texto || "").trim();
+      if (!t) return true;
+
+      // Muy corto: probablemente sigue hablando
+      if (t.split(/\s+/).length < 3) return false;
+
+      if (COLGADAS.test(t)) return false;
+
+      return CIERRES.test(t);
+    }
 
     // Tope: pase lo que pase, el turno se envía. Evita que un ruido
     // cancele el envío una y otra vez y el paciente nunca conteste.
-    const TURNO_MAX_ESPERA_MS = Number(process.env.SIM_TURNO_MAX_ESPERA_MS || 3500);
+    const TURNO_MAX_ESPERA_MS = Number(process.env.SIM_TURNO_MAX_ESPERA_MS || 9000);
 
     function cancelarCierreDeTurno() {
       if (turnoTimer) {
@@ -491,10 +525,13 @@ function createSimWSS() {
     function programarCierreDeTurno() {
       cancelarCierreDeTurno();
 
+      const completo = pareceTerminado(bufferTurno);
+      const espera = completo ? TURNO_SILENCIO_MS : TURNO_SILENCIO_LARGO_MS;
+
       turnoTimer = setTimeout(() => {
         turnoTimer = null;
-        cerrarTurnoAhora("silencio");
-      }, TURNO_SILENCIO_MS);
+        cerrarTurnoAhora(completo ? "frase terminada" : "pausa larga");
+      }, espera);
 
       // El tope se arma una sola vez por turno
       if (!topeTimer && bufferTurno.trim()) {
@@ -1082,9 +1119,10 @@ function createSimWSS() {
               ? { nombre: identidad.nombre, edad: identidad.edad }
               : null,
             cooldownMs,
-            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 400),
-            utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1000),
+            endpointingMs: Number(process.env.SIM_DG_ENDPOINTING_MS || 700),
+            utteranceEndMs: Number(process.env.SIM_DG_UTTERANCE_END_MS || 1600),
             silencioTurnoMs: TURNO_SILENCIO_MS,
+            silencioLargoMs: TURNO_SILENCIO_LARGO_MS,
             // El cliente debe enviar {type:"audio_done"} al terminar de
             // reproducir cada respuesta; si no, se usa una estimación.
             esperaAudioDone: true,
