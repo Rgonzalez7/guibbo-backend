@@ -156,9 +156,10 @@ exports.listarEntregasModuloProfesor = async (req, res) => {
 
     // (Opcional) Calificación/Intentos/Última desde EjercicioInstancia
 
-    const ejercicios = subIds.length
-      ? await Ejercicio.find({ modulo: oidModulo }).select("_id").lean()
-      : [];
+    // ✅ Ejercicios del módulo (antes se consultaba `subIds`, que no existe)
+    const ejercicios = await Ejercicio.find({ modulo: oidModulo })
+      .select("_id")
+      .lean();
     const ejercicioIds = ejercicios.map((e) => e._id);
 
     let instancias = [];
