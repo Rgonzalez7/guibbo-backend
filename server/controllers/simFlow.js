@@ -454,11 +454,11 @@ function createSimWSS() {
 
     // Ventana de silencio antes de dar por cerrada la intervención
     // Silencio normal: cuando la frase ya suena terminada
-    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 1400);
+    const TURNO_SILENCIO_MS = Number(process.env.SIM_TURNO_SILENCIO_MS || 1600);
 
     // Silencio ampliado: cuando la frase quedó a medias
     const TURNO_SILENCIO_LARGO_MS = Number(
-      process.env.SIM_TURNO_SILENCIO_LARGO_MS || 2600
+      process.env.SIM_TURNO_SILENCIO_LARGO_MS || 3200
     );
 
     /* =========================================================
@@ -477,9 +477,15 @@ function createSimWSS() {
     const COLGADAS =
       /\b(y|o|u|e|pero|porque|que|como|cuando|donde|si|entonces|además|aunque|mientras|para|por|con|sin|desde|hasta|del|de|la|el|los|las|un|una|mi|tu|su|me|te|se|lo|al|más|muy|tan|ya|no|sí)\s*$/i;
 
+    // Coma, dos puntos o guion: la frase sigue, sin dudas
+    const CONTINUA = /[,;:—-]\s*$/;
+
     function pareceTerminado(texto) {
       const t = String(texto || "").trim();
       if (!t) return true;
+
+      // Termina en coma: está claro que sigue hablando
+      if (CONTINUA.test(t)) return false;
 
       // Muy corto: probablemente sigue hablando
       if (t.split(/\s+/).length < 3) return false;
@@ -491,7 +497,7 @@ function createSimWSS() {
 
     // Tope: pase lo que pase, el turno se envía. Evita que un ruido
     // cancele el envío una y otra vez y el paciente nunca conteste.
-    const TURNO_MAX_ESPERA_MS = Number(process.env.SIM_TURNO_MAX_ESPERA_MS || 9000);
+    const TURNO_MAX_ESPERA_MS = Number(process.env.SIM_TURNO_MAX_ESPERA_MS || 12000);
 
     function cancelarCierreDeTurno() {
       if (turnoTimer) {
@@ -533,13 +539,23 @@ function createSimWSS() {
         cerrarTurnoAhora(completo ? "frase terminada" : "pausa larga");
       }, espera);
 
-      // El tope se arma una sola vez por turno
-      if (!topeTimer && bufferTurno.trim()) {
-        topeTimer = setTimeout(() => {
-          topeTimer = null;
-          cerrarTurnoAhora("tope de espera");
-        }, TURNO_MAX_ESPERA_MS);
-      }
+    }
+
+    /**
+     * Se llama cada vez que llegan palabras nuevas.
+     *
+     * ⚠️ El tope mide inactividad, NO la duración total del turno.
+     * Antes se armaba una sola vez y cortaba a los 9 segundos aunque
+     * el terapeuta siguiera hablando: por eso una intervención larga
+     * se partía a la mitad.
+     */
+    function registrarActividad() {
+      cancelarTope();
+
+      topeTimer = setTimeout(() => {
+        topeTimer = null;
+        cerrarTurnoAhora("sin actividad");
+      }, TURNO_MAX_ESPERA_MS);
     }
 
     function cleanup() {
@@ -1088,6 +1104,9 @@ function createSimWSS() {
               // Acumulamos: una intervención puede venir en varios tramos
               bufferTurno = `${bufferTurno} ${transcript}`.trim();
               log("Tramo acumulado:", `"${transcript.slice(0, 60)}"`);
+
+              // Mientras siga llegando voz, el turno no se corta por tiempo
+              registrarActividad();
 
               // Siempre dejamos programado el cierre: si no llega nada más,
               // la ventana de silencio lo envía sola.
