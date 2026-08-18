@@ -239,6 +239,7 @@ module.exports.analizarPraxis = async (req, res) => {
       praxisNivel,
       modeloIntervencion,
       contextoSesion,
+      data,
     });
     analisisIA = addLabelsToPraxisResult(analisisIA, { praxisNivel, contextoSesion });
 

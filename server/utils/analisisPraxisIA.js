@@ -228,19 +228,84 @@ function normalizeMetrics(rawMetrics) {
     .filter((m) => m.label);
 }
 
-function normalizeEvidence(rawEvidence) {
+/* =========================================================
+   VERIFICACIÓN DE EVIDENCIA CONTRA LA TRANSCRIPCIÓN
+   Una cita solo cuenta si aparece de verdad en la sesión.
+========================================================= */
+
+// Si se pone en true, una dimensión sin evidencia verificada no puede
+// superar NIVEL_MAX_SIN_EVIDENCIA. Déjalo en false hasta medir el impacto
+// sobre las notas ya emitidas.
+const PENALIZAR_SIN_EVIDENCIA = false;
+const NIVEL_MAX_SIN_EVIDENCIA = 3;   // escala 1–5
+const MIN_EVIDENCIAS_POR_DIMENSION = 1;
+
+function normalizarTextoParaMatch(t) {
+  return String(t || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")   // sin tildes
+    .replace(/[^a-z0-9ñ\s]/g, " ")      // sin puntuación
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Devuelve true si la cita aparece en la transcripción.
+ * Tolerante: acepta coincidencia exacta o que el 80% de las palabras
+ * significativas de la cita aparezcan en secuencia dentro del texto.
+ */
+function verificarCitaEnTranscripcion(quote, transcripcionNorm) {
+  const q = normalizarTextoParaMatch(quote);
+  if (!q || !transcripcionNorm) return false;
+  if (transcripcionNorm.includes(q)) return true;
+
+  const palabras = q.split(" ").filter((w) => w.length > 3);
+  if (palabras.length === 0) return false;
+  const encontradas = palabras.filter((w) => transcripcionNorm.includes(w)).length;
+  return encontradas / palabras.length >= 0.8;
+}
+
+/**
+ * Aplana cualquier forma de transcripción (string, array de turnos,
+ * objeto diarizado) a un solo texto normalizado para el match.
+ */
+function aplanarTranscripcion(data) {
+  if (!data) return "";
+  const partes = [];
+  const push = (v) => { if (v) partes.push(String(v)); };
+
+  if (typeof data === "string") push(data);
+  else {
+    push(data?.transcripcion);
+    const turnos = data?.transcripcionDiarizada || data?.diarizacion || data?.turnosDiarizados;
+    if (Array.isArray(turnos)) {
+      for (const t of turnos) push(t?.text || t?.texto || t?.contenido || t?.message);
+    }
+  }
+  return normalizarTextoParaMatch(partes.join(" "));
+}
+
+function normalizeEvidence(rawEvidence, transcripcionNorm = "") {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
   return evidence
-    .map((ev) => ({
-      quote: String(ev?.quote || ev?.cita || "").trim(),
-      technique: String(ev?.technique || ev?.tecnica || "").trim(),
-      why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
-    }))
+    .map((ev) => {
+      const quote = String(ev?.quote || ev?.cita || "").trim();
+      return {
+        quote,
+        technique: String(ev?.technique || ev?.tecnica || "").trim(),
+        why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
+        // null = no se pudo comprobar (sin transcripción disponible)
+        verificada: transcripcionNorm
+          ? verificarCitaEnTranscripcion(quote, transcripcionNorm)
+          : null,
+      };
+    })
     .filter((ev) => ev.quote);
 }
 
-function normalizeSimpleEvidence(rawEvidence, maxItems = 2) {
+function normalizeSimpleEvidence(rawEvidence, maxItems = 2, transcripcionNorm = "") {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
   return evidence
@@ -249,12 +314,15 @@ function normalizeSimpleEvidence(rawEvidence, maxItems = 2) {
       explanation: String(
         ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || ""
       ).trim(),
+      verificada: transcripcionNorm
+        ? verificarCitaEnTranscripcion(ev?.quote || ev?.cita, transcripcionNorm)
+        : null,
     }))
     .filter((ev) => ev.quote || ev.explanation)
     .slice(0, maxItems);
 }
 
-function normalizeStudentGuidance(rawGuidance) {
+function normalizeStudentGuidance(rawGuidance, transcripcionNorm = "") {
   const g = rawGuidance && typeof rawGuidance === "object" ? rawGuidance : {};
   const loQueHicisteBienRaw = g.loQueHicisteBien || g.goodBlock || g.strengthBlock || {};
   const loQuePodriasMejorarRaw = g.loQuePodriasMejorar || g.improveBlock || g.weaknessBlock || {};
@@ -262,11 +330,11 @@ function normalizeStudentGuidance(rawGuidance) {
   return {
     loQueHicisteBien: {
       textoBreve: String(loQueHicisteBienRaw?.textoBreve || loQueHicisteBienRaw?.text || loQueHicisteBienRaw?.summary || "").trim(),
-      evidencias: normalizeSimpleEvidence(loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence, 2),
+      evidencias: normalizeSimpleEvidence(loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence, 2, transcripcionNorm),
     },
     loQuePodriasMejorar: {
       textoBreve: String(loQuePodriasMejorarRaw?.textoBreve || loQuePodriasMejorarRaw?.text || loQuePodriasMejorarRaw?.summary || "").trim(),
-      evidencias: normalizeSimpleEvidence(loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence, 2),
+      evidencias: normalizeSimpleEvidence(loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence, 2, transcripcionNorm),
     },
     sugerenciaParaMejorar: {
       textoBreve: String(sugerenciaParaMejorarRaw?.textoBreve || sugerenciaParaMejorarRaw?.text || sugerenciaParaMejorarRaw?.summary || "").trim(),
@@ -278,17 +346,43 @@ function normalizeStudentGuidance(rawGuidance) {
   };
 }
 
-function normalizePraxisDimension(rawBlock, key, weight) {
+function normalizePraxisDimension(rawBlock, key, weight, transcripcionNorm = "") {
   const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
-  const nivel = safeLevel(base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel) ?? 1;
+  let nivel = safeLevel(base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel) ?? 1;
   const scoreRaw = base.score ?? base.porcentaje ?? base.percent ?? base.generalScore;
+  const observabilidad = normalizeObservabilidad(
+    base.observabilidad || base.observability || OBSERVABILIDAD_VALUES.OBSERVABLE
+  );
+
+  const evidence = normalizeEvidence(
+    base.evidence || base.evidencia || base.quotes,
+    transcripcionNorm
+  );
+  const verificadas = evidence.filter((e) => e.verificada === true).length;
+  const noVerificadas = evidence.filter((e) => e.verificada === false).length;
+
+  const evidenceStatus = {
+    total: evidence.length,
+    verificadas,
+    noVerificadas,
+    comprobable: Boolean(transcripcionNorm),
+    suficiente: evidence.length >= MIN_EVIDENCIAS_POR_DIMENSION,
+    // Solo exigimos citas reales cuando pudimos comprobarlas.
+    respaldada: transcripcionNorm
+      ? verificadas >= MIN_EVIDENCIAS_POR_DIMENSION
+      : evidence.length >= MIN_EVIDENCIAS_POR_DIMENSION,
+  };
+
+  // Techo por falta de evidencia (desactivado por defecto).
+  if (PENALIZAR_SIN_EVIDENCIA && !evidenceStatus.respaldada) {
+    nivel = Math.min(nivel, NIVEL_MAX_SIN_EVIDENCIA);
+  }
+
   const score =
     scoreRaw != null
       ? normalizeScoreValue(scoreRaw) ?? Math.round((nivel / 5) * 100)
       : Math.round((nivel / 5) * 100);
-  const observabilidad = normalizeObservabilidad(
-    base.observabilidad || base.observability || OBSERVABILIDAD_VALUES.OBSERVABLE
-  );
+
   return {
     key,
     label: PRAXIS_DIMENSIONS[key]?.label || key,
@@ -302,8 +396,9 @@ function normalizePraxisDimension(rawBlock, key, weight) {
     weightedScore: Number((nivel * safeWeight(weight)).toFixed(4)),
     metrics: normalizeMetrics(base.metrics || base.criterios || base.items || base.subScores),
     recommendations: normalizeRecommendations(base.recommendations || base.recomendaciones || base.tips),
-    evidence: normalizeEvidence(base.evidence || base.evidencia || base.quotes),
-    studentGuidance: normalizeStudentGuidance(base.studentGuidance),
+    evidence,
+    evidenceStatus,
+    studentGuidance: normalizeStudentGuidance(base.studentGuidance, transcripcionNorm),
   };
 }
 
@@ -1373,7 +1468,10 @@ function computePraxisIndex(dimensions, weights, contextoSesion) {
   return { indiceBruto: indicePct, indicePct };
 }
 
-function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion }) {
+function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoSesion, data }) {
+  // Si llega `data` (los datos de la sesión), podemos verificar que las citas
+  // existan de verdad. Si no llega, todo sigue funcionando igual que antes.
+  const transcripcionNorm = aplanarTranscripcion(data);
   const obj = parseRawJson(raw);
   const nivel = normalizePraxisNivel(
     obj?.praxisTH?.praxisNivel || obj?.meta?.praxisNivel || praxisNivel
@@ -1395,7 +1493,7 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
       obj?.sections?.[dimKey] ||
       obj?.[dimKey] ||
       null;
-    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey]);
+    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey], transcripcionNorm);
   }
 
   // ✅ Pasar contexto para aplicar regla de techo
@@ -1437,6 +1535,18 @@ function normalizePraxisResult(raw, { praxisNivel, modeloIntervencion, contextoS
       closingRecommendation: String(obj?.praxisTH?.studentSummary?.closingRecommendation || "").trim(),
     },
     sections: dimensions,
+    evidenciaResumen: {
+      comprobable: Boolean(transcripcionNorm),
+      dimensionesSinEvidencia: Object.values(dimensions)
+        .filter((d) => !d.evidenceStatus?.suficiente)
+        .map((d) => d.key),
+      dimensionesSinRespaldo: Object.values(dimensions)
+        .filter((d) => !d.evidenceStatus?.respaldada)
+        .map((d) => d.key),
+      citasTotales: Object.values(dimensions).reduce((a, d) => a + (d.evidenceStatus?.total || 0), 0),
+      citasVerificadas: Object.values(dimensions).reduce((a, d) => a + (d.evidenceStatus?.verificadas || 0), 0),
+      penalizacionActiva: PENALIZAR_SIN_EVIDENCIA,
+    },
     retroalimentacionGlobal: {
       fortalezas: normalizeRecommendations(obj?.praxisTH?.retroalimentacionGlobal?.fortalezas),
       areasMejora: normalizeRecommendations(obj?.praxisTH?.retroalimentacionGlobal?.areasMejora),
@@ -1529,6 +1639,8 @@ module.exports = {
   getPraxisWeights,
   computePraxisIndex,
   aplicarTechoIntervencion,
+  verificarCitaEnTranscripcion,
+  aplanarTranscripcion,
 };
 
 
@@ -1854,6 +1966,48 @@ No compensar mala intervención con buena fluidez.
 1. calidad clínica  
 2. coherencia  
 3. organización  
+
+---
+
+# 🚨 EVIDENCIA OBLIGATORIA POR DIMENSIÓN (CRÍTICO)
+
+Cada una de las cinco dimensiones (ASC, IIT, IRI, MMD, MLT) DEBE incluir
+al menos 1 y como máximo 3 entradas en su array "evidence".
+
+Cada entrada debe tener:
+
+- "quote": fragmento TEXTUAL de la transcripción, copiado literalmente,
+  de entre 5 y 40 palabras. Indica quién habla al inicio:
+  "Terapeuta: ..." o "Paciente: ..."
+- "technique": la técnica, microhabilidad o conducta concreta que ilustra
+  esa cita (ej. "pregunta abierta", "reflejo de sentimiento",
+  "consejo prematuro", "cierre de exploración")
+- "why": por qué esa cita justifica el nivel y el score asignados a ESA
+  dimensión, en una o dos frases
+
+REGLAS ESTRICTAS:
+
+1. NO inventes citas. Cada "quote" debe existir en la transcripción
+   proporcionada, palabra por palabra. Las citas se verifican
+   automáticamente contra el texto de la sesión.
+2. NO parafrasees dentro de "quote". La paráfrasis va en "why".
+3. NO reutilices la misma cita en más de una dimensión salvo que
+   ilustre aspectos distintos, y en ese caso el "why" debe ser distinto.
+4. La evidencia debe corresponder a la dimensión que evalúa:
+   - ASC, IIT, IRI, MLT → citas del TERAPEUTA
+   - MMD → citas del PACIENTE (mide cambio en el paciente, no desempeño
+     del terapeuta)
+5. Si una dimensión no es observable en esta sesión, marca
+   "observabilidad": "no_observable", asigna nivel bajo y explica en
+   "why" qué habría hecho falta observar. NO rellenes con texto genérico.
+
+PROHIBIDO:
+
+- Evaluaciones genéricas sin anclaje textual
+- Frases como "el estudiante mostró empatía" sin la cita que lo demuestra
+- Comentarios aplicables a cualquier sesión
+
+Un score sin cita que lo respalde es un score inválido.
 
 ---
 
