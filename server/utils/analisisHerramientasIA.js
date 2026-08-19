@@ -95,14 +95,65 @@ function safeInt(n) {
       .filter((m) => m.label);
   }
   
-  function normalizeEvidence(rawEvidence) {
+  /* =======================================================
+     VERIFICACIÓN DE EVIDENCIA CONTRA LO QUE LLENÓ EL ESTUDIANTE
+     Una cita solo cuenta si aparece en el texto de ESA sección.
+  ======================================================= */
+
+  // Con true, una sección sin evidencia verificada no supera SCORE_MAX_SIN_EVIDENCIA.
+  const PENALIZAR_SIN_EVIDENCIA = false;
+  const SCORE_MAX_SIN_EVIDENCIA = 70;
+  const MIN_EVIDENCIAS_POR_HERRAMIENTA = 1;
+
+  function normalizarTextoParaMatch(t) {
+    return String(t || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9ñ\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /**
+   * Aplana el payload de una herramienta (string, objeto anidado o array)
+   * a un único texto normalizado con el que contrastar las citas.
+   */
+  function aplanarPayloadHerramienta(payload) {
+    const partes = [];
+    const walk = (v) => {
+      if (v == null) return;
+      if (typeof v === "string" || typeof v === "number") { partes.push(String(v)); return; }
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (typeof v === "object") { Object.values(v).forEach(walk); return; }
+    };
+    walk(payload);
+    return normalizarTextoParaMatch(partes.join(" "));
+  }
+
+  function verificarCitaEnTexto(quote, textoNorm) {
+    const q = normalizarTextoParaMatch(quote);
+    if (!q || !textoNorm) return false;
+    if (textoNorm.includes(q)) return true;
+    const palabras = q.split(" ").filter((w) => w.length > 3);
+    if (!palabras.length) return false;
+    const hit = palabras.filter((w) => textoNorm.includes(w)).length;
+    return hit / palabras.length >= 0.8;
+  }
+
+  function normalizeEvidence(rawEvidence, textoNorm = "") {
     let evidence = rawEvidence || [];
     if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
     return evidence
-      .map((ev) => ({
-        quote: String(ev?.quote || ev?.cita || "").trim(),
-        why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
-      }))
+      .map((ev) => {
+        const quote = String(ev?.quote || ev?.cita || "").trim();
+        return {
+          quote,
+          why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
+          // null = no se pudo comprobar (sección sin contenido de referencia)
+          verificada: textoNorm ? verificarCitaEnTexto(quote, textoNorm) : null,
+        };
+      })
       .filter((ev) => ev.quote);
   }
   
@@ -126,10 +177,10 @@ function safeInt(n) {
     };
   }
   
-  function normalizeToolBlock(rawBlock, key) {
+  function normalizeToolBlock(rawBlock, key, textoNorm = "") {
     const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
     const metrics = normalizeMetrics(base.metrics || base.criterios || base.items || base.subScores);
-    const score =
+    let score =
       safeInt(base.score ?? base.generalScore ?? base.puntuacion ?? base.puntaje) ??
       (() => {
         const metricScores = metrics.map((m) => Number(m?.score)).filter((n) => Number.isFinite(n));
@@ -137,6 +188,29 @@ function safeInt(n) {
         return Math.round(metricScores.reduce((a, b) => a + b, 0) / metricScores.length);
       })();
   
+    const evidence = normalizeEvidence(
+      base.evidence || base.evidencia || base.quotes,
+      textoNorm
+    );
+    const verificadas = evidence.filter((e) => e.verificada === true).length;
+
+    const evidenceStatus = {
+      total: evidence.length,
+      verificadas,
+      noVerificadas: evidence.filter((e) => e.verificada === false).length,
+      comprobable: Boolean(textoNorm),
+      // Sin contenido en la sección no tiene sentido exigir citas.
+      seccionVacia: !textoNorm,
+      suficiente: evidence.length >= MIN_EVIDENCIAS_POR_HERRAMIENTA,
+      respaldada: textoNorm
+        ? verificadas >= MIN_EVIDENCIAS_POR_HERRAMIENTA
+        : true,
+    };
+
+    if (PENALIZAR_SIN_EVIDENCIA && !evidenceStatus.respaldada) {
+      score = Math.min(score, SCORE_MAX_SIN_EVIDENCIA);
+    }
+
     return {
       key,
       label: TOOL_LABELS[key] || key,
@@ -144,7 +218,8 @@ function safeInt(n) {
       score,
       metrics,
       recommendations: normalizeRecommendations(base.recommendations || base.recomendaciones || base.tips),
-      evidence: normalizeEvidence(base.evidence || base.evidencia || base.quotes),
+      evidence,
+      evidenceStatus,
       studentGuidance: normalizeToolStudentGuidance(base.studentGuidance),
     };
   }
@@ -205,10 +280,19 @@ function safeInt(n) {
     return obj && typeof obj === "object" ? obj : {};
   }
   
-  function normalizeHerramientasResult(raw, { herramientas }) {
+  function normalizeHerramientasResult(raw, { herramientas, data }) {
     const obj = parseRawJson(raw);
     const toolKeys = normalizeToolKeys(herramientas);
-  
+
+    // Lo que el estudiante llenó en cada herramienta. Es el texto contra el
+    // que se verifican las citas. Si no llega `data`, no se verifica nada
+    // y todo se comporta como antes.
+    const payloads = data ? buildToolPayloads(data, herramientas) : {};
+    const textosPorHerramienta = {};
+    for (const k of toolKeys) {
+      textosPorHerramienta[k] = data ? aplanarPayloadHerramienta(payloads[k]) : "";
+    }
+
     const tools = {};
     toolKeys.forEach((k) => {
       const rawTool =
@@ -217,7 +301,7 @@ function safeInt(n) {
         obj?.herramientas?.[k] ||
         obj?.[k] ||
         null;
-      tools[k] = normalizeToolBlock(rawTool, k);
+      tools[k] = normalizeToolBlock(rawTool, k, textosPorHerramienta[k] || "");
     });
   
     const toolScores = Object.values(tools).map((x) => Number(x?.score)).filter((n) => Number.isFinite(n));
@@ -238,6 +322,21 @@ function safeInt(n) {
         howToImprove: normalizeHowToImprove(obj?.evaluacionHerramientas?.studentSummary?.howToImprove),
       },
       tools,
+      evidenciaResumen: {
+        comprobable: Boolean(data),
+        herramientasSinEvidencia: Object.values(tools)
+          .filter((t) => !t.evidenceStatus?.suficiente && !t.evidenceStatus?.seccionVacia)
+          .map((t) => t.key),
+        herramientasSinRespaldo: Object.values(tools)
+          .filter((t) => !t.evidenceStatus?.respaldada)
+          .map((t) => t.key),
+        herramientasVacias: Object.values(tools)
+          .filter((t) => t.evidenceStatus?.seccionVacia)
+          .map((t) => t.key),
+        citasTotales: Object.values(tools).reduce((a, t) => a + (t.evidenceStatus?.total || 0), 0),
+        citasVerificadas: Object.values(tools).reduce((a, t) => a + (t.evidenceStatus?.verificadas || 0), 0),
+        penalizacionActiva: PENALIZAR_SIN_EVIDENCIA,
+      },
       meta: { tipo: "evaluacion_herramientas", createdAt: new Date().toISOString() },
     };
   }
@@ -267,6 +366,8 @@ function safeInt(n) {
     addLabelsToHerramientasResult,
     normalizeToolKeys,
     buildToolPayloads,
+    aplanarPayloadHerramienta,
+    verificarCitaEnTexto,
     TOOL_LABELS,
   };
   
@@ -328,6 +429,41 @@ const PROMPT_ANALISIS_HERRAMIENTAS = `
   Si una sección del expediente clínico está vacía o incompleta: indícalo en recommendations y penaliza proporcionalmente.
   Si una sección del expediente clínico está bien elaborada: reconócelo en studentGuidance.whatWentWell.
   No inventes información que no esté en los datos.
+  
+  ---
+  
+  🚨 EVIDENCIA OBLIGATORIA POR SECCIÓN (CRÍTICO)
+  
+  Cada sección evaluada DEBE incluir entre 1 y 3 entradas en "evidence".
+  
+  Cada entrada debe tener:
+  
+  - "quote": fragmento TEXTUAL de lo que el estudiante escribió en ESA
+    sección, copiado literalmente, de entre 4 y 40 palabras.
+  - "why": por qué ese fragmento justifica el score de esa sección,
+    en una o dos frases.
+  
+  REGLAS ESTRICTAS:
+  
+  1. NO inventes citas. Cada "quote" debe existir palabra por palabra en
+     el contenido de esa sección. Las citas se verifican automáticamente.
+  2. La cita debe salir de la MISMA sección que estás evaluando. No cites
+     el historial clínico para justificar el score del examen mental.
+  3. NO parafrasees dentro de "quote". La interpretación va en "why".
+  4. Cuando el problema sea una ausencia (falta un apartado, no se registró
+     un dato), cita el fragmento incompleto o mal formulado que sí existe
+     y explica en "why" qué falta.
+  5. Si la sección está COMPLETAMENTE VACÍA, deja "evidence" como array
+     vacío, asigna score bajo y explícalo en "recommendations". No inventes
+     una cita para rellenar.
+  
+  PROHIBIDO:
+  
+  - Comentarios genéricos aplicables a cualquier expediente
+  - Frases como "la redacción es adecuada" sin el fragmento que lo muestra
+  - Citar texto que no escribió el estudiante
+  
+  Un score sin cita que lo respalde es un score inválido.
   
   ---
   
