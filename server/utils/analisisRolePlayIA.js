@@ -463,13 +463,49 @@ function buildRolePlayPrompt({
   
   ---
   
-  REGLA DE EVIDENCIA
+  🚨 REGLA DE EVIDENCIA OBLIGATORIA (CRÍTICO)
   
-  No reutilices la misma frase como evidencia principal en múltiples dimensiones.
+  Cada dimensión PRAXIS (ASC, IIT, IRI, MMD, MLT) y cada herramienta evaluada
+  DEBE incluir entre 1 y 3 entradas en su array "evidence".
+  
+  Para las dimensiones PRAXIS, cada entrada debe tener:
+  
+  - "quote": fragmento TEXTUAL de la transcripción, copiado literalmente,
+    de 5 a 40 palabras, con el hablante al inicio:
+    "Terapeuta: ..." o "Paciente: ..."
+  - "technique": la microintervención o conducta concreta que ilustra
+    (reflejo emocional, paráfrasis, clarificación, pregunta abierta,
+    confrontación, síntesis, consejo prematuro, etc.)
+  - "why": por qué esa cita justifica el nivel de ESA dimensión
+  
+  Para las herramientas, cada entrada lleva "quote" y "why", y la cita debe
+  salir de lo que el estudiante escribió en ESA sección del expediente,
+  no de la transcripción.
+  
+  REGLAS ESTRICTAS:
+  
+  1. NO inventes citas. Cada "quote" debe existir palabra por palabra en el
+     texto correspondiente. Las citas se verifican automáticamente.
+  2. NO parafrasees dentro de "quote". La interpretación va en "why".
+  3. No reutilices la misma frase como evidencia principal en múltiples
+     dimensiones. Si la reutilizas, el "why" debe ser distinto y explicar
+     qué aspecto diferente ilustra.
+  4. La evidencia debe corresponder a quien evalúa la dimensión:
+     ASC, IIT, IRI y MLT → citas del TERAPEUTA.
+     MMD → citas del PACIENTE, porque mide cambio en el paciente.
+  5. Si una herramienta está vacía, deja "evidence" como array vacío y
+     explícalo en recommendations. No inventes una cita para rellenar.
+  
+  PROHIBIDO: evaluaciones genéricas aplicables a cualquier sesión, o frases
+  como "mostró empatía" sin la cita que lo demuestre.
   
   Si la sesión es corta y no hay suficiente evidencia para una dimensión:
   
-  Indica que la evidencia es limitada y no penalices automáticamente.
+  Marca "observabilidad": "no_observable", cita el fragmento más cercano que
+  sí exista, indica que la evidencia es limitada y no penalices
+  automáticamente. La ausencia de evidencia no equivale a ausencia de
+  competencia, pero sí debe quedar declarada, no disimulada con texto
+  genérico.
   
   ---
   
@@ -713,32 +749,111 @@ function normalizeRecommendations(rawRec) {
   return rec.map((x) => String(x || "").trim()).filter(Boolean);
 }
 
-function normalizeEvidence(rawEvidence, allowTechnique = true) {
+/* =========================================================
+   VERIFICACIÓN DE EVIDENCIA
+   Las citas de PRAXIS se contrastan contra la transcripción.
+   Las citas de herramientas, contra lo que el estudiante escribió
+   en ESA sección del expediente.
+========================================================= */
+
+const PENALIZAR_SIN_EVIDENCIA = false;   // ver nota en el README del módulo
+const NIVEL_MAX_SIN_EVIDENCIA = 3;       // dimensiones PRAXIS (escala 1-5)
+const SCORE_MAX_SIN_EVIDENCIA = 70;      // herramientas (escala 0-100)
+const MIN_EVIDENCIAS = 1;
+
+function normalizarTextoParaMatch(t) {
+  return String(t || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function verificarCitaEnTexto(quote, textoNorm) {
+  const q = normalizarTextoParaMatch(quote);
+  if (!q || !textoNorm) return false;
+  if (textoNorm.includes(q)) return true;
+  const palabras = q.split(" ").filter((w) => w.length > 3);
+  if (!palabras.length) return false;
+  const hit = palabras.filter((w) => textoNorm.includes(w)).length;
+  return hit / palabras.length >= 0.8;
+}
+
+function aplanarTexto(v) {
+  const partes = [];
+  const walk = (x) => {
+    if (x == null) return;
+    if (typeof x === "string" || typeof x === "number") { partes.push(String(x)); return; }
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    if (typeof x === "object") { Object.values(x).forEach(walk); return; }
+  };
+  walk(v);
+  return normalizarTextoParaMatch(partes.join(" "));
+}
+
+/** Transcripción completa (plano + diarizada) lista para el match. */
+function aplanarTranscripcion(data) {
+  if (!data) return "";
+  return aplanarTexto([
+    data?.transcripcion,
+    data?.transcripcionDiarizada || data?.diarizacion || data?.turnosDiarizados,
+  ]);
+}
+
+/** Calcula el estado de evidencia de un bloque ya normalizado. */
+function calcularEvidenceStatus(evidence, textoNorm, { permitirVacio = false } = {}) {
+  const verificadas = evidence.filter((e) => e.verificada === true).length;
+  return {
+    total: evidence.length,
+    verificadas,
+    noVerificadas: evidence.filter((e) => e.verificada === false).length,
+    comprobable: Boolean(textoNorm),
+    seccionVacia: permitirVacio && !textoNorm,
+    suficiente: evidence.length >= MIN_EVIDENCIAS,
+    respaldada: textoNorm
+      ? verificadas >= MIN_EVIDENCIAS
+      : permitirVacio
+        ? true
+        : evidence.length >= MIN_EVIDENCIAS,
+  };
+}
+
+function normalizeEvidence(rawEvidence, allowTechnique = true, textoNorm = "") {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
 
   return evidence
-    .map((ev) => ({
-      quote: String(ev?.quote || ev?.cita || "").trim(),
-      technique: allowTechnique
-        ? String(ev?.technique || ev?.tecnica || "").trim()
-        : "",
-      why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
-    }))
+    .map((ev) => {
+      const quote = String(ev?.quote || ev?.cita || "").trim();
+      return {
+        quote,
+        technique: allowTechnique
+          ? String(ev?.technique || ev?.tecnica || "").trim()
+          : "",
+        why: String(ev?.why || ev?.porque || ev?.reason || "").trim(),
+        verificada: textoNorm ? verificarCitaEnTexto(quote, textoNorm) : null,
+      };
+    })
     .filter((ev) => ev.quote);
 }
 
-function normalizeSimpleEvidence(rawEvidence, maxItems = 2) {
+function normalizeSimpleEvidence(rawEvidence, maxItems = 2, textoNorm = "") {
   let evidence = rawEvidence || [];
   if (!Array.isArray(evidence)) evidence = evidence ? [evidence] : [];
 
   return evidence
-    .map((ev) => ({
-      quote: String(ev?.quote || ev?.cita || "").trim(),
-      explanation: String(
-        ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || ""
-      ).trim(),
-    }))
+    .map((ev) => {
+      const quote = String(ev?.quote || ev?.cita || "").trim();
+      return {
+        quote,
+        explanation: String(
+          ev?.explanation || ev?.explicacion || ev?.why || ev?.porque || ""
+        ).trim(),
+        verificada: textoNorm && quote ? verificarCitaEnTexto(quote, textoNorm) : null,
+      };
+    })
     .filter((ev) => ev.quote || ev.explanation)
     .slice(0, maxItems);
 }
@@ -757,7 +872,7 @@ function normalizeHowToImprove(rawList) {
     .filter((it) => it.explanation || it.example);
 }
 
-function normalizeStudentGuidance(rawGuidance) {
+function normalizeStudentGuidance(rawGuidance, textoNorm = "") {
   const g = rawGuidance && typeof rawGuidance === "object" ? rawGuidance : {};
 
   const loQueHicisteBienRaw =
@@ -777,7 +892,8 @@ function normalizeStudentGuidance(rawGuidance) {
       ).trim(),
       evidencias: normalizeSimpleEvidence(
         loQueHicisteBienRaw?.evidencias || loQueHicisteBienRaw?.evidence,
-        2
+        2,
+        textoNorm
       ),
     },
     loQuePodriasMejorar: {
@@ -789,7 +905,8 @@ function normalizeStudentGuidance(rawGuidance) {
       ).trim(),
       evidencias: normalizeSimpleEvidence(
         loQuePodriasMejorarRaw?.evidencias || loQuePodriasMejorarRaw?.evidence,
-        2
+        2,
+        textoNorm
       ),
     },
     sugerenciaParaMejorar: {
@@ -831,11 +948,26 @@ function normalizeToolStudentGuidance(rawGuidance) {
   };
 }
 
-function normalizePraxisDimension(rawBlock, key, weight) {
+function normalizePraxisDimension(rawBlock, key, weight, textoNorm = "") {
   const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
 
-  const nivel =
+  let nivel =
     safeLevel(base.nivel ?? base.level ?? base.desempeno ?? base.dimensionLevel) ?? 1;
+
+  const evidence = normalizeEvidence(
+    base.evidence || base.evidencia || base.quotes,
+    true,
+    textoNorm
+  );
+  const evidenceStatus = calcularEvidenceStatus(evidence, textoNorm);
+
+  // Techo por falta de respaldo. Desactivado por defecto: aquí la regla
+  // vigente dice explícitamente que la ausencia de evidencia no equivale
+  // a ausencia de competencia, así que activarlo cambia la política de
+  // calificación, no solo la presentación.
+  if (PENALIZAR_SIN_EVIDENCIA && !evidenceStatus.respaldada) {
+    nivel = Math.min(nivel, NIVEL_MAX_SIN_EVIDENCIA);
+  }
 
   const score =
     safeInt(base.score ?? base.porcentaje ?? base.percent ?? base.generalScore) ??
@@ -857,22 +989,20 @@ function normalizePraxisDimension(rawBlock, key, weight) {
     recommendations: normalizeRecommendations(
       base.recommendations || base.recomendaciones || base.tips
     ),
-    evidence: normalizeEvidence(
-      base.evidence || base.evidencia || base.quotes,
-      true
-    ),
-    studentGuidance: normalizeStudentGuidance(base.studentGuidance),
+    evidence,
+    evidenceStatus,
+    studentGuidance: normalizeStudentGuidance(base.studentGuidance, textoNorm),
   };
 }
 
-function normalizeToolBlock(rawBlock, key) {
+function normalizeToolBlock(rawBlock, key, textoNorm = "") {
   const base = rawBlock && typeof rawBlock === "object" ? rawBlock : {};
 
   const metrics = normalizeMetrics(
     base.metrics || base.criterios || base.items || base.subScores
   );
 
-  const score =
+  let score =
     safeInt(base.score ?? base.generalScore ?? base.puntuacion ?? base.puntaje) ??
     (() => {
       const metricScores = metrics
@@ -884,6 +1014,20 @@ function normalizeToolBlock(rawBlock, key) {
       );
     })();
 
+  const evidence = normalizeEvidence(
+    base.evidence || base.evidencia || base.quotes,
+    false,
+    textoNorm
+  );
+  // permitirVacio: si el estudiante no llenó la sección no hay nada que citar.
+  const evidenceStatus = calcularEvidenceStatus(evidence, textoNorm, {
+    permitirVacio: true,
+  });
+
+  if (PENALIZAR_SIN_EVIDENCIA && !evidenceStatus.respaldada) {
+    score = Math.min(score, SCORE_MAX_SIN_EVIDENCIA);
+  }
+
   return {
     key,
     label: TOOL_LABELS[key] || key,
@@ -893,10 +1037,8 @@ function normalizeToolBlock(rawBlock, key) {
     recommendations: normalizeRecommendations(
       base.recommendations || base.recomendaciones || base.tips
     ),
-    evidence: normalizeEvidence(
-      base.evidence || base.evidencia || base.quotes,
-      false
-    ),
+    evidence,
+    evidenceStatus,
     studentGuidance: normalizeToolStudentGuidance(base.studentGuidance),
   };
 }
@@ -915,8 +1057,14 @@ function parseRawJson(raw) {
   return obj && typeof obj === "object" ? obj : {};
 }
 
-function normalizeAIResult(raw, { praxisNivel, modeloIntervencion, herramientas }) {
+function normalizeAIResult(raw, { praxisNivel, modeloIntervencion, herramientas, data }) {
   const obj = parseRawJson(raw);
+
+  // Textos de referencia para verificar citas. PRAXIS se contrasta contra la
+  // transcripción; cada herramienta, contra su propio contenido. Si no llega
+  // `data`, no se verifica nada y el módulo se comporta como antes.
+  const transcripcionNorm = aplanarTranscripcion(data);
+  const toolPayloadsRef = data ? buildToolPayloads(data, herramientas) : {};
 
   const nivel = normalizePraxisNivel(
     obj?.praxisTH?.praxisNivel || obj?.meta?.praxisNivel || praxisNivel
@@ -939,7 +1087,7 @@ function normalizeAIResult(raw, { praxisNivel, modeloIntervencion, herramientas 
       obj?.[dimKey] ||
       null;
 
-    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey]);
+    dimensions[dimKey] = normalizePraxisDimension(rawDim, dimKey, weights[dimKey], transcripcionNorm);
   }
 
   const indiceBrutoRaw = Object.keys(dimensions).reduce((acc, key) => {
@@ -1031,7 +1179,11 @@ function normalizeAIResult(raw, { praxisNivel, modeloIntervencion, herramientas 
       obj?.[k] ||
       null;
 
-    tools[k] = normalizeToolBlock(rawTool, k);
+    tools[k] = normalizeToolBlock(
+      rawTool,
+      k,
+      data ? aplanarTexto(toolPayloadsRef[k]) : ""
+    );
   });
 
   const toolScores = Object.values(tools)
@@ -1074,9 +1226,28 @@ function normalizeAIResult(raw, { praxisNivel, modeloIntervencion, herramientas 
     },
   };
 
+  const resumenDe = (bloques, campo) =>
+    Object.values(bloques || {}).filter((b) => !b?.evidenceStatus?.[campo]).map((b) => b.key);
+
   return {
     analisisIA,
     evaluacionHerramientas,
+    evidenciaResumen: {
+      comprobable: Boolean(data),
+      praxis: {
+        dimensionesSinEvidencia: resumenDe(dimensions, "suficiente"),
+        dimensionesSinRespaldo: resumenDe(dimensions, "respaldada"),
+        citasTotales: Object.values(dimensions).reduce((a, d) => a + (d.evidenceStatus?.total || 0), 0),
+        citasVerificadas: Object.values(dimensions).reduce((a, d) => a + (d.evidenceStatus?.verificadas || 0), 0),
+      },
+      herramientas: {
+        herramientasSinRespaldo: resumenDe(tools, "respaldada"),
+        herramientasVacias: Object.values(tools).filter((t) => t?.evidenceStatus?.seccionVacia).map((t) => t.key),
+        citasTotales: Object.values(tools).reduce((a, t) => a + (t.evidenceStatus?.total || 0), 0),
+        citasVerificadas: Object.values(tools).reduce((a, t) => a + (t.evidenceStatus?.verificadas || 0), 0),
+      },
+      penalizacionActiva: PENALIZAR_SIN_EVIDENCIA,
+    },
     meta: {
       praxisNivel: nivel,
       modeloIntervencion: modelo,
@@ -1194,6 +1365,8 @@ function addLabelsToResult(result, { herramientas }) {
 module.exports = {
   clampText,
   buildRolePlayPrompt,
+  verificarCitaEnTexto,
+  aplanarTranscripcion,
   normalizeAIResult,
   addLabelsToResult,
   extractRPDataFromInstance,

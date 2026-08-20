@@ -234,6 +234,19 @@ module.exports.analizarPraxis = async (req, res) => {
       1
     );
 
+    try {
+      const _s = typeof raw === "string" ? raw : JSON.stringify(raw);
+      const _m = _s.match(/\{[\s\S]*\}/);
+      const _o = JSON.parse(_m ? _m[0] : _s);
+      console.log("[EV]", JSON.stringify(
+        Object.entries(_o?.praxisTH?.dimensiones || {})
+          .map(([k, v]) => [k, (v?.evidence || []).length])
+      ));
+    } catch (e) {
+      console.log("[EV] no parseable:", e.message);
+    }
+
+
     // 6. Normalizar con el mismo contextoSesion resuelto
     let analisisIA = normalizePraxisResult(raw, {
       praxisNivel,
