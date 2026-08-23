@@ -339,6 +339,8 @@ function normalizeStudentGuidance(rawGuidance, transcripcionNorm = "") {
     sugerenciaParaMejorar: {
       textoBreve: String(sugerenciaParaMejorarRaw?.textoBreve || sugerenciaParaMejorarRaw?.text || sugerenciaParaMejorarRaw?.summary || "").trim(),
       ejemploIntervencion: String(sugerenciaParaMejorarRaw?.ejemploIntervencion || sugerenciaParaMejorarRaw?.example || sugerenciaParaMejorarRaw?.ejemplo || "").trim(),
+      // La cita del momento concreto donde esa sugerencia se habría aplicado.
+      evidencias: normalizeSimpleEvidence(sugerenciaParaMejorarRaw?.evidencias || sugerenciaParaMejorarRaw?.evidence, 1, transcripcionNorm),
     },
     whyThisMatters: normalizeRecommendations(
       g.whyThisMatters || g.porQueImporta || g.importancia || g.whyItMatters
@@ -1677,11 +1679,11 @@ Devuelve SOLO JSON válido con esta estructura EXACTA:
       "closingRecommendation": ""
     },
     "dimensiones": {
-      "ASC": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "IIT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "IRI": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "MMD": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } },
-      "MLT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "" }, "whyThisMatters": [""] } }
+      "ASC": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "whyThisMatters": [""] } },
+      "IIT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "whyThisMatters": [""] } },
+      "IRI": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "whyThisMatters": [""] } },
+      "MMD": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "whyThisMatters": [""] } },
+      "MLT": { "nivel": 1, "score": 0, "observabilidad": "observable", "metrics": [ { "key": "", "label": "", "score": 0 } ], "recommendations": [""], "evidence": [ { "quote": "", "technique": "", "why": "" } ], "studentGuidance": { "loQueHicisteBien": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "loQuePodriasMejorar": { "textoBreve": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "sugerenciaParaMejorar": { "textoBreve": "", "ejemploIntervencion": "", "evidencias": [ { "quote": "", "explanation": "" } ] }, "whyThisMatters": [""] } }
     },
     "retroalimentacionGlobal": {
       "fortalezas": [""],
@@ -2000,6 +2002,21 @@ REGLAS ESTRICTAS:
 5. Si una dimensión no es observable en esta sesión, marca
    "observabilidad": "no_observable", asigna nivel bajo y explica en
    "why" qué habría hecho falta observar. NO rellenes con texto genérico.
+
+6. Además del array "evidence" de la dimensión, DEBES rellenar las citas
+   de los tres bloques de "studentGuidance" de ESA misma dimensión:
+
+   - "loQueHicisteBien.evidencias": 1 o 2 citas del momento concreto
+     donde el estudiante lo hizo bien en esta dimensión.
+   - "loQuePodriasMejorar.evidencias": 1 o 2 citas del momento concreto
+     donde se ve la oportunidad de mejora.
+   - "sugerenciaParaMejorar.evidencias": 1 cita del momento exacto donde
+     la sugerencia se habría aplicado. El "ejemploIntervencion" debe ser
+     una reescritura de esa misma intervención, no un ejemplo genérico.
+
+   Cada entrada lleva "quote" (textual de la transcripción, sin
+   parafrasear) y "explanation" (qué muestra esa cita). NO dejes estos
+   arrays vacíos: una tarjeta sin cita es retroalimentación sin anclaje.
 
 PROHIBIDO:
 
