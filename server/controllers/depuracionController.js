@@ -1,4 +1,5 @@
 // server/controllers/depuracionController.js
+const mongoose = require("mongoose");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 
 /* =========================================================
@@ -89,17 +90,25 @@ function popDepHistorySnapshot(dep) {
 /* =========================================================
    Resolve instancia
 ========================================================= */
+/* El sandbox manda ids como "sandbox", que no son ObjectId. Sin este
+   filtro, findById revienta con un CastError y la petición se cae con un
+   500 en vez de responder que no hay instancia. */
+function esObjectId(v) {
+  const s = String(v || "");
+  return Boolean(s) && mongoose.isValidObjectId(s);
+}
+
 async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId }) {
-  if (instanciaId) {
+  if (esObjectId(instanciaId)) {
     const inst = await EjercicioInstancia.findById(instanciaId);
     if (inst) return inst;
   }
-  if (!userId || !ejercicioId) return null;
+  if (!userId || !esObjectId(ejercicioId)) return null;
   const q = {
     ejercicio: ejercicioId,
     $or: [{ estudiante: userId }, { usuario: userId }],
   };
-  if (moduloInstanciaId) q.moduloInstancia = moduloInstanciaId;
+  if (esObjectId(moduloInstanciaId)) q.moduloInstancia = moduloInstanciaId;
   return EjercicioInstancia.findOne(q).sort({ createdAt: -1, updatedAt: -1 });
 }
 
