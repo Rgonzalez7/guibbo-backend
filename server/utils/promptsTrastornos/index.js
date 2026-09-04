@@ -32,6 +32,7 @@ const ansiedad = require("./ansiedad");
 const pareja = require("./pareja");
 const sustancias = require("./sustancias");
 const duelo = require("./duelo");
+const estresPostraumatico = require("./estres_postraumatico");
 const agresividad = require("./agresividad");
 const culpa = require("./culpa");
 const ideacionSuicida = require("./ideacion_suicida");
@@ -77,6 +78,7 @@ const TRASTORNOS = [
   pareja,
   sustancias,
   duelo,
+  estresPostraumatico,
   agresividad,
   culpa,
   ideacionSuicida,

@@ -1,90 +1,87 @@
 // server/scripts/diagnosticoVoces.js
 // =========================================================
-// Revisa qué trastornos tienen voz de ElevenLabs configurada.
-// Un trastorno sin voz usa ELEVEN_VOICE_DEFAULT; si tampoco
-// existe, la simulación no arranca.
+// Revisa las seis voces de ElevenLabs del paciente simulado.
+//
+// La voz ya no depende del trastorno sino de la identidad que
+// inventa OpenAI: franja de edad por género. Un perfil sin voz
+// cae en ELEVEN_VOICE_DEFAULT; si tampoco existe, la simulación
+// no arranca.
 //
 //   node scripts/diagnosticoVoces.js
 // =========================================================
 require("dotenv").config();
 
-const { TRASTORNOS } = require("../utils/promptsTrastornos");
-
-function envKey(clave) {
-  return `ELEVEN_VOICE_TRANSTORNO_${String(clave).toUpperCase()}`;
-}
+const {
+  ENV_POR_PERFIL,
+  esVoiceIdValido,
+  etiquetaPerfil,
+} = require("../utils/voiceIdPorIdentidad");
 
 const porDefecto =
   String(process.env.ELEVEN_VOICE_DEFAULT || "").trim() ||
   String(process.env.ELEVEN_VOICE_ID || "").trim();
 
-/** Los IDs de ElevenLabs son alfanuméricos de 20 caracteres. */
-function esValido(v) {
-  return /^[A-Za-z0-9]{20}$/.test(String(v || "").trim());
+const filas = Object.entries(ENV_POR_PERFIL).map(([perfil, envKey]) => {
+  const voiceId = String(process.env[envKey] || "").trim();
+  const estado = !voiceId ? "falta" : !esVoiceIdValido(voiceId) ? "inválida" : "ok";
+  return { perfil, envKey, voiceId, estado };
+});
+
+const ok = filas.filter((f) => f.estado === "ok");
+const faltan = filas.filter((f) => f.estado === "falta");
+const invalidas = filas.filter((f) => f.estado === "inválida");
+
+console.log("\n=== Voces del paciente simulado ===\n");
+
+for (const f of filas) {
+  const marca = f.estado === "ok" ? "✓" : f.estado === "falta" ? "·" : "✗";
+  const valor =
+    f.estado === "ok"
+      ? f.voiceId
+      : f.estado === "falta"
+      ? "(sin definir)"
+      : `${f.voiceId} — ${f.voiceId.length} caracteres, se esperan 20`;
+  console.log(`  ${marca} ${etiquetaPerfil(f.perfil).padEnd(24)} ${f.envKey.padEnd(28)} ${valor}`);
 }
 
-const conVoz = [];
-const sinVoz = [];
-const invalidas = [];
-
-for (const t of TRASTORNOS) {
-  const k = envKey(t.trastorno);
-  const v = String(process.env[k] || "").trim();
-
-  if (!v) sinVoz.push({ ...t, envKey: k, voiceId: v });
-  else if (!esValido(v)) invalidas.push({ ...t, envKey: k, voiceId: v });
-  else conVoz.push({ ...t, envKey: k, voiceId: v });
-}
-
-/* ── Voces repetidas: dos trastornos con el mismo ID suenan igual ── */
+/* ── Voces repetidas: dos perfiles con el mismo id suenan igual ── */
 const porId = new Map();
-for (const t of conVoz) {
-  if (!porId.has(t.voiceId)) porId.set(t.voiceId, []);
-  porId.get(t.voiceId).push(t.trastorno);
+for (const f of ok) {
+  if (!porId.has(f.voiceId)) porId.set(f.voiceId, []);
+  porId.get(f.voiceId).push(etiquetaPerfil(f.perfil));
 }
 const repetidas = [...porId.entries()].filter(([, l]) => l.length > 1);
 
-console.log(`\n🔊 Voz por defecto: ${porDefecto || "❌ NO CONFIGURADA"}`);
-console.log(`\n✅ Con voz propia (${conVoz.length}):`);
-for (const t of conVoz) console.log(`   · ${t.trastorno.padEnd(26)} ${t.voiceId}`);
-
-console.log(`\n⚠️  Sin voz propia (${sinVoz.length}):`);
-for (const t of sinVoz) console.log(`   · ${t.trastorno.padEnd(26)} ${t.envKey}`);
-
-if (invalidas.length) {
-  console.log(`\n❌ IDs con formato inválido (${invalidas.length}):`);
-  for (const t of invalidas) {
-    console.log(
-      `   · ${t.trastorno.padEnd(26)} "${t.voiceId}" (${t.voiceId.length} caracteres, se esperan 20)`
-    );
-  }
-  console.log("   Estos NO generan audio: revisá el .env. Mientras tanto usan la voz por defecto.");
-}
+console.log("");
 
 if (repetidas.length) {
-  console.log(`\n🔁 Voces repetidas (${repetidas.length}):`);
-  for (const [id, lista] of repetidas) {
-    console.log(`   · ${id} → ${lista.join(", ")}`);
+  console.log("⚠️  Voces repetidas (sonarán idénticas):");
+  for (const [id, perfiles] of repetidas) {
+    console.log(`     ${id} → ${perfiles.join(", ")}`);
   }
+  console.log("");
 }
 
-if (!esValido(porDefecto) && porDefecto) {
+if (invalidas.length) {
+  console.log(`✗ ${invalidas.length} con id inválido: no sintetizan y caen en la voz por defecto.`);
+}
+
+if (faltan.length) {
   console.log(
-    `\n❌ ELEVEN_VOICE_DEFAULT también tiene formato inválido ("${porDefecto}").`
+    `· ${faltan.length} sin definir: esos perfiles usarán ${
+      porDefecto ? "ELEVEN_VOICE_DEFAULT" : "…nada, y la sesión fallará"
+    }.`
   );
 }
 
-if (sinVoz.length && !porDefecto) {
-  console.log(
-    "\n❌ PROBLEMA: hay trastornos sin voz y tampoco existe ELEVEN_VOICE_DEFAULT.\n" +
-    "   Esas simulaciones se van a cerrar apenas conectar.\n" +
-    "   Definí ELEVEN_VOICE_DEFAULT en el .env como respaldo."
-  );
-} else if (sinVoz.length) {
-  console.log(
-    `\nℹ️  Los ${sinVoz.length} trastornos sin voz propia usarán la voz por defecto.\n` +
-    "   Suenan todos igual, pero funcionan."
-  );
-} else {
-  console.log("\n🎉 Todos los trastornos tienen voz propia.");
+if (!porDefecto) {
+  console.log("✗ No hay ELEVEN_VOICE_DEFAULT ni ELEVEN_VOICE_ID: sin respaldo.");
+} else if (!esVoiceIdValido(porDefecto)) {
+  console.log(`✗ La voz por defecto tiene un id inválido: "${porDefecto}".`);
 }
+
+if (ok.length === filas.length && porDefecto && esVoiceIdValido(porDefecto) && !repetidas.length) {
+  console.log("Todo en orden: las seis voces están configuradas y son distintas.");
+}
+
+console.log("");

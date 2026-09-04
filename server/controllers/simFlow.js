@@ -14,6 +14,11 @@ const { ttsSynthesizeBase64 } = require("../utils/ttsElevenLabs");
 
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const { EjercicioRolePlay } = require("../models/modulo");
+const {
+  resolveVoiceIdPorIdentidad,
+  etiquetaPerfil,
+  normalizarGenero,
+} = require("../utils/voiceIdPorIdentidad");
 
 ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
@@ -108,41 +113,6 @@ function normalizeProblemaKey(value) {
     .replace(/^_+|_+$/g, "");
 }
 
-function toEnvKeyFromProblema(value) {
-  const key = normalizeProblemaKey(value);
-  if (!key) return "";
-  return `ELEVEN_VOICE_TRANSTORNO_${key}`;
-}
-
-/* =========================================================
-   ✅ Voice dinámica por agente (trastorno/problema)
-   ========================================================= */
-/** Los IDs de voz de ElevenLabs son alfanuméricos de 20 caracteres. */
-function esVoiceIdValido(v) {
-  return /^[A-Za-z0-9]{20}$/.test(String(v || "").trim());
-}
-
-function resolveElevenVoiceIdFromProblema(problema) {
-  const envKey = toEnvKeyFromProblema(problema);
-  const propia = String(envKey ? process.env[envKey] : "" || "").trim();
-
-  const porDefecto =
-    String(process.env.ELEVEN_VOICE_DEFAULT || "").trim() ||
-    String(process.env.ELEVEN_VOICE_ID || "").trim();
-
-  // Un ID mal copiado hace que ElevenLabs rechace la petición y la
-  // sesión se quede sin audio. Si no tiene forma válida, usamos el
-  // de respaldo en vez de fallar en silencio.
-  if (propia && !esVoiceIdValido(propia)) {
-    log(
-      `⚠️  ${envKey} tiene un ID inválido ("${propia}", ${propia.length} caracteres; ` +
-        "se esperan 20). Se usará la voz por defecto."
-    );
-    return porDefecto;
-  }
-
-  return propia || porDefecto || "";
-}
 
 /* =========================================================
    ✅ Prompt
@@ -270,7 +240,10 @@ async function generarIdentidadPaciente(problema) {
     "Respondé SOLO con un JSON válido, sin explicaciones ni bloques de código:\n" +
     '{"nombre":"","edad":0,"genero":"","ocupacion":"","convive":"","rasgo":""}\n\n' +
     "nombre: nombre de pila real y común (nunca un marcador ni un campo vacío).\n" +
-    "edad: número coherente con el motivo de consulta.\n" +
+    // La voz se elige con estos dos campos, así que no admiten ambigüedad.
+    'genero: exactamente "mujer" u "hombre". Nada más.\n' +
+    "edad: número entero entre 15 y 65, coherente con el motivo de consulta.\n" +
+    "El nombre tiene que corresponder con el género indicado.\n" +
     "convive: con quién vive, en pocas palabras.\n" +
     "rasgo: un detalle cotidiano de su vida, en una frase corta.";
 
@@ -297,10 +270,22 @@ async function generarIdentidadPaciente(problema) {
     throw new Error(`Nombre inválido devuelto por el modelo: "${nombre}"`);
   }
 
+  /* Si el modelo devuelve algo raro, se corrige aquí: más abajo estos
+     dos campos deciden qué voz suena. */
+  const edadCruda = Number(d?.edad);
+  const edad = Number.isFinite(edadCruda)
+    ? Math.min(65, Math.max(15, Math.round(edadCruda)))
+    : 30;
+
+  const generoNorm = normalizarGenero(d?.genero);
+  if (!generoNorm) {
+    throw new Error(`Género no reconocible devuelto por el modelo: "${d?.genero}"`);
+  }
+
   return {
     nombre,
-    edad: Number(d?.edad) || 30,
-    genero: String(d?.genero || "").trim() || "sin especificar",
+    edad,
+    genero: generoNorm === "f" ? "mujer" : "hombre",
     ocupacion: String(d?.ocupacion || "").trim() || "trabaja",
     convive: String(d?.convive || "").trim() || "vive con su familia",
     rasgo: String(d?.rasgo || "").trim(),
@@ -312,10 +297,12 @@ function identidadPorDefecto() {
   const nombres = ["Lucía", "Martín", "Camila", "Andrés", "Sofía", "Diego", "Valeria", "Tomás"];
   const nombre = nombres[Math.floor(Math.random() * nombres.length)];
 
+  const esMujer = ["Lucía", "Camila", "Sofía", "Valeria"].includes(nombre);
+
   return {
     nombre,
     edad: 28 + Math.floor(Math.random() * 15),
-    genero: "sin especificar",
+    genero: esMujer ? "mujer" : "hombre",
     ocupacion: "trabaja en una oficina",
     convive: "vive con su pareja",
     rasgo: "",
@@ -944,31 +931,14 @@ function createSimWSS() {
             return;
           }
 
-          voiceIdResolved = resolveElevenVoiceIdFromProblema(problema);
-          log(
-            "VOZ resuelta | problema =",
-            problema || "(vacío)",
-            "| voiceId =",
-            voiceIdResolved || "(NINGUNO)",
-            "| seed =",
-            seedVoz
-          );
-          if (!voiceIdResolved) {
-            safeSend(ws, {
-              type: "error",
-              message:
-                "No hay voiceId. Define ELEVEN_VOICE_DEFAULT o ELEVEN_VOICE_TRANSTORNO_<X>.",
-            });
-            ws.close();
-            return;
-          }
-
-          // ✅ Ficha del paciente: una sola vez, antes del primer turno
+          /* La ficha va primero: la voz se elige a partir de ella.
+             Al revés, la voz quedaba atada al trastorno y podía sonar
+             un hombre adulto para una paciente de 22 años. */
           try {
             identidad = await generarIdentidadPaciente(problema);
             log(
               "IDENTIDAD generada |",
-              `${identidad.nombre}, ${identidad.edad} años |`,
+              `${identidad.nombre}, ${identidad.edad} años, ${identidad.genero} |`,
               identidad.ocupacion
             );
           } catch (e) {
@@ -979,6 +949,33 @@ function createSimWSS() {
               "→ se usa una de respaldo:",
               identidad.nombre
             );
+          }
+
+          {
+            const voz = resolveVoiceIdPorIdentidad(identidad, log);
+            voiceIdResolved = voz.voiceId;
+            log(
+              "VOZ resuelta |",
+              etiquetaPerfil(voz.perfil),
+              "| origen =",
+              voz.motivo,
+              "| voiceId =",
+              voiceIdResolved || "(NINGUNO)",
+              "| seed =",
+              seedVoz
+            );
+          }
+
+          if (!voiceIdResolved) {
+            safeSend(ws, {
+              type: "error",
+              message:
+                "No hay voiceId. Define las seis voces por perfil " +
+                "(ELEVEN_VOICE_ADOLESCENTE_F/M, ELEVEN_VOICE_JOVEN_F/M, " +
+                "ELEVEN_VOICE_ADULTO_F/M) o al menos ELEVEN_VOICE_DEFAULT.",
+            });
+            ws.close();
+            return;
           }
 
           // ✅ Prompt del trastorno (o el genérico si no tiene propio)
