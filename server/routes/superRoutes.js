@@ -13,6 +13,7 @@ const adminModuloController = require('../controllers/adminModuloController');
 const sandboxController = require('../controllers/sandboxController');
 const promptIAController = require('../controllers/promptIAController');
 const ventaInstitucionalController = require('../controllers/ventaInstitucionalController');
+const pmController = require('../controllers/pmController');
 
 // Middleware base: todas estas rutas requieren token + rol super
 router.use(verifyToken, requireRole('super'));
@@ -67,6 +68,56 @@ router.post(
     });
   }
 );
+
+/* ========== CONTROL DE PROYECTO (PM) ========== */
+
+const pmStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // index.js sirve /uploads desde public/uploads: si se guarda en
+    // ../uploads las imágenes se suben pero devuelven 404.
+    const dest = path.join(__dirname, '../public/uploads/pm');
+    fs.mkdirSync(dest, { recursive: true });
+    cb(null, dest);
+  },
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/\s+/g, '_');
+    cb(null, Date.now() + '-' + safeName);
+  },
+});
+
+const pmUpload = multer({
+  storage: pmStorage,
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB: son capturas de pantalla
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Solo se permiten archivos de imagen.'));
+    }
+    cb(null, true);
+  },
+});
+
+router.post('/pm/uploads', pmUpload.array('imagenes', 10), (req, res) => {
+  const archivos = Array.isArray(req.files) ? req.files : [];
+  if (!archivos.length) {
+    return res.status(400).json({ message: 'No se subió ninguna imagen.' });
+  }
+  res.status(201).json({
+    message: 'Imágenes subidas correctamente',
+    adjuntos: archivos.map((f) => ({
+      url: `/uploads/pm/${f.filename}`,
+      nombre: f.originalname,
+    })),
+  });
+});
+
+router.get('/pm/tablero', pmController.tablero);
+router.get('/pm/resumen', pmController.resumen);
+router.get('/pm/tareas', pmController.listar);
+router.post('/pm/tareas', pmController.crear);
+router.get('/pm/tareas/:id', pmController.obtener);
+router.put('/pm/tareas/:id', pmController.actualizar);
+router.patch('/pm/tareas/:id/estado', pmController.mover);
+router.delete('/pm/tareas/:id', pmController.eliminar);
 
 /* ===== Universidades ===== */
 router.post('/universidades', superController.crearUniversidad);
