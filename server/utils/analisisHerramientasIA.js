@@ -55,7 +55,11 @@ function safeInt(n) {
       examen: data?.examenMental || data?.estadoMental || data?.mentalStatusExam || {},
       convergencia: data?.convergencia || [],
       hipotesis: data?.hipotesis || data?.hipotesisDiagnostica || "",
-      diagnostico: data?.diagnosticoFinal || data?.diagnostico || "",
+      diagnostico: {
+        diagnosticoEstudiante: data?.diagnosticoFinal || data?.diagnostico || "",
+        justificacion: data?.diagnosticoJustificacion || "",
+        trastornoConfigurado: data?.trastorno || "",
+      },
       pruebas: {
         pruebaTranscripcion: data?.pruebaTranscripcion || data?.transcripcionPrueba || data?.transcripcionDePrueba || "",
         pruebasRespuestas: data?.pruebasRespuestas || {},
@@ -101,6 +105,16 @@ function safeInt(n) {
   ======================================================= */
 
   // Con true, una sección sin evidencia verificada no supera SCORE_MAX_SIN_EVIDENCIA.
+  /* El diagnóstico no se puntúa como los demás instrumentos: ahí lo que
+     importa es si acertó, no cómo redactó. El modelo evaluaba las tres
+     métricas genéricas y un acierto podía quedarse en 40.
+
+     El reparto se calcula en código para que sea previsible: dos
+     estudiantes que acierten no pueden separarse 35 puntos según cómo
+     escriban. */
+  const PESO_ACIERTO_DIAGNOSTICO = 60;
+  const PESO_JUSTIFICACION_DIAGNOSTICO = 40;
+
   const PENALIZAR_SIN_EVIDENCIA = false;
   const SCORE_MAX_SIN_EVIDENCIA = 70;
   const MIN_EVIDENCIAS_POR_HERRAMIENTA = 1;
@@ -229,7 +243,7 @@ function safeInt(n) {
     const toolList = toolKeys.map((k) => ({ key: k, label: TOOL_LABELS[k] || k }));
     const toolPayloads = buildToolPayloads(data, herramientas);
   
-    return render(getPrompt("analisis.herramientas"), {
+    const base = render(getPrompt("analisis.herramientas"), {
       esquemaHerramientas: toolList
           .map(
             (t) => `
@@ -252,6 +266,7 @@ function safeInt(n) {
         }`
           )
           .join(","),
+      instruccionDiagnostico: "",
       datosHerramientasJson: JSON.stringify(
       {
         herramientas: toolPayloads,
@@ -264,6 +279,44 @@ function safeInt(n) {
       2
     ),
     }).trim();
+
+    /* La instrucción del diagnóstico se añade DESPUÉS de renderizar.
+       Si el prompt se editó desde el panel de súper usuario, la versión
+       guardada en base no tiene el marcador y la regla se perdía sin
+       que nada lo avisara. */
+    const reglaDiagnostico = toolKeys.includes("diagnostico")
+        ? `
+REGLA ESPECIAL PARA LA HERRAMIENTA "diagnostico"
+El ejercicio se configuró con un trastorno concreto que el estudiante NUNCA vio:
+tenía que deducirlo de la sesión. En el payload viene como
+herramientas.diagnostico.trastornoConfigurado.
+
+Para esa herramienta, además de los campos normales, devolvé:
+
+  "comparacionDiagnostico": {
+    "diagnosticoEstudiante": "lo que eligió el estudiante, tal cual",
+    "diagnosticoCorrecto": "el nombre clínico completo del trastorno configurado, no la clave interna",
+    "acierto": true,
+    "notaJustificacion": 0,
+    "retroalimentacion": ""
+  }
+
+- acierto es true si el diagnóstico del estudiante corresponde al trastorno
+  configurado, aunque lo haya nombrado distinto (siglas, sinónimos, el nombre
+  DSM-5 completo). Es false si señaló otro cuadro.
+- Si acertó, la retroalimentación reconoce el acierto y señala qué elementos
+  de la sesión lo sostienen, apoyándote en su justificación.
+- Si falló, explica en dos o tres frases por qué el cuadro correcto era otro:
+  qué señales de la sesión apuntaban ahí y qué lo pudo desviar. Sin reproches.
+- notaJustificacion (0 a 100) mide SOLO la calidad del razonamiento con que
+  el estudiante sostiene su diagnóstico: si conecta lo observado en la sesión
+  con criterios clínicos y si descarta otros cuadros. Una justificación vacía
+  o del tipo "porque sí" es 0. No mezcles aquí si acertó o no.
+- No devuelvas "score" para esta herramienta: la nota se calcula aparte.
+`
+        : "";
+
+    return reglaDiagnostico ? `${base}\n\n${reglaDiagnostico}` : base;
   }
   
   function parseRawJson(raw) {
@@ -302,12 +355,94 @@ function safeInt(n) {
         obj?.[k] ||
         null;
       tools[k] = normalizeToolBlock(rawTool, k, textosPorHerramienta[k] || "");
+
+      /* El diagnóstico se muestra como un cara a cara entre lo que puso el
+         estudiante y el trastorno configurado, así que su comparación se
+         guarda aparte y no como una métrica más. */
+      if (k === "diagnostico") {
+        const comp =
+          rawTool?.comparacionDiagnostico ||
+          obj?.evaluacionHerramientas?.comparacionDiagnostico ||
+          obj?.comparacionDiagnostico ||
+          null;
+
+        const puesto = String(
+          comp?.diagnosticoEstudiante ||
+            payloads?.diagnostico?.diagnosticoEstudiante ||
+            ""
+        ).trim();
+
+        const correcto = String(
+          comp?.diagnosticoCorrecto || payloads?.diagnostico?.trastornoConfigurado || ""
+        ).trim();
+
+        const justificacion = String(payloads?.diagnostico?.justificacion || "").trim();
+        // Sin diagnóstico no hay acierto posible, diga lo que diga el modelo.
+        const acierto = puesto ? Boolean(comp?.acierto) : false;
+
+        /* La calidad de la justificación sí la juzga el modelo: es lo que
+           sabe hacer. Se toma su nota y se reescala al peso que le toca. */
+        const notaJustificacion = justificacion
+          ? safeInt(
+              comp?.notaJustificacion ??
+                tools[k].metrics.find((m) => m.key === "coherencia")?.score ??
+                tools[k].score
+            ) ?? 0
+          : 0;
+
+        const puntosAcierto = acierto ? PESO_ACIERTO_DIAGNOSTICO : 0;
+        const puntosJustificacion = Math.round(
+          (notaJustificacion / 100) * PESO_JUSTIFICACION_DIAGNOSTICO
+        );
+
+        tools[k].score = Math.max(0, Math.min(100, puntosAcierto + puntosJustificacion));
+
+        // Las métricas genéricas no describen lo que se evaluó aquí.
+        tools[k].metrics = [
+          {
+            key: "acierto",
+            label: "Acierto diagnóstico",
+            score: acierto ? 100 : 0,
+            icon: null,
+          },
+          {
+            key: "justificacion",
+            label: "Justificación clínica",
+            score: notaJustificacion,
+            icon: null,
+          },
+        ];
+
+        tools[k].comparacionDiagnostico = {
+          diagnosticoEstudiante: puesto,
+          diagnosticoCorrecto: correcto,
+          acierto,
+          retroalimentacion: String(comp?.retroalimentacion || "").trim(),
+          justificacion,
+          desglose: {
+            acierto: puntosAcierto,
+            aciertoMax: PESO_ACIERTO_DIAGNOSTICO,
+            justificacion: puntosJustificacion,
+            justificacionMax: PESO_JUSTIFICACION_DIAGNOSTICO,
+          },
+        };
+      }
     });
   
-    const toolScores = Object.values(tools).map((x) => Number(x?.score)).filter((n) => Number.isFinite(n));
-    const toolGlobalScore =
-      safeInt(obj?.evaluacionHerramientas?.generalScore || obj?.evaluacionHerramientas?.general?.score) ??
-      (toolScores.length ? Math.round(toolScores.reduce((a, b) => a + b, 0) / toolScores.length) : 0);
+    /* La nota global es el promedio de las herramientas que se muestran.
+       Antes se tomaba la que devolvía el modelo, y desde que el diagnóstico
+       se recalcula en código las dos dejaron de coincidir: con una sola
+       herramienta que sacaba 60, la global salía 20. */
+    const toolScores = Object.values(tools)
+      .map((x) => Number(x?.score))
+      .filter((n) => Number.isFinite(n));
+
+    const toolGlobalScore = toolScores.length
+      ? Math.round(toolScores.reduce((a, b) => a + b, 0) / toolScores.length)
+      : safeInt(
+          obj?.evaluacionHerramientas?.generalScore ||
+            obj?.evaluacionHerramientas?.general?.score
+        ) ?? 0;
   
     return {
       tipo: "evaluacion_herramientas",
@@ -466,6 +601,8 @@ const PROMPT_ANALISIS_HERRAMIENTAS = `
   Un score sin cita que lo respalde es un score inválido.
   
   ---
+  {{instruccionDiagnostico}}
+  ---
   
   DATOS DE LAS SECCIONES DEL EXPEDIENTE CLÍNICO (JSON):
   
@@ -477,6 +614,6 @@ registerPrompt({
   nombre: "Evaluación de herramientas clínicas",
   categoria: "Análisis de expediente",
   descripcion: "Evalúa la calidad de los instrumentos del expediente clínico completados por el estudiante.",
-  variables: ['datosHerramientasJson', 'esquemaHerramientas'],
+  variables: ['datosHerramientasJson', 'esquemaHerramientas', 'instruccionDiagnostico'],
   defecto: PROMPT_ANALISIS_HERRAMIENTAS,
 });

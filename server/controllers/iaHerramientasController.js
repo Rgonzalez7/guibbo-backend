@@ -1,4 +1,5 @@
 // server/controllers/iaHerramientasController.js
+const mongoose = require("mongoose");
 const EjercicioInstancia = require("../models/ejercicioInstancia");
 const Session = require("../models/session");
 const { EjercicioRolePlay } = require("../models/modulo");
@@ -64,9 +65,15 @@ function setHerramientasInInstance(inst, evaluacionHerramientas, fuente = "real"
 
 async function resolveHerramientasConfig({ ejercicioId, herramientasRaw }) {
   let detalle = null;
-  if (ejercicioId) {
+  // "sandbox" no es un ObjectId: sin este filtro la consulta lanza y el
+  // trastorno configurado se pierde en silencio.
+  if (ejercicioId && mongoose.isValidObjectId(String(ejercicioId))) {
     try {
-      detalle = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId }).select("herramientas").lean();
+      // El trastorno configurado nunca se le muestra al estudiante: es lo
+      // que tiene que diagnosticar. Aquí sí hace falta para poder comparar.
+      detalle = await EjercicioRolePlay.findOne({ ejercicio: ejercicioId })
+        .select("herramientas trastorno")
+        .lean();
     } catch { detalle = null; }
   }
   const herramientasFromReq = normalizeHerramientasInput(herramientasRaw);
@@ -76,7 +83,7 @@ async function resolveHerramientasConfig({ ejercicioId, herramientasRaw }) {
     : hasAnyEnabledTool(herramientasFromDb)
     ? herramientasFromDb
     : {};
-  return { herramientas };
+  return { herramientas, trastornoConfigurado: String(detalle?.trastorno || "").trim() };
 }
 
 async function resolveInstancia({ instanciaId, ejercicioId, moduloInstanciaId, userId }) {
@@ -148,8 +155,21 @@ module.exports.analizarHerramientas = async (req, res) => {
       return res.status(400).json({ message: "Falta data (herramientas) o no se pudo obtener desde la instancia." });
     }
 
-    const { herramientas } = await resolveHerramientasConfig({ ejercicioId, herramientasRaw });
+    const { herramientas, trastornoConfigurado } = await resolveHerramientasConfig({
+      ejercicioId,
+      herramientasRaw,
+    });
     const toolKeys = normalizeToolKeys(herramientas);
+
+    /* El estudiante no lo ve, pero el evaluador necesita saber cuál era.
+       En sandbox no hay ejercicio en base, así que se acepta el que manda
+       el cliente. Fuera del sandbox manda siempre la base: si no, un
+       estudiante podría declarar su propio "diagnóstico correcto". */
+    if (trastornoConfigurado) {
+      resolvedData.trastorno = trastornoConfigurado;
+    } else if (esTutorial && String(req.body?.trastorno || "").trim()) {
+      resolvedData.trastorno = String(req.body.trastorno).trim();
+    }
 
     if (toolKeys.length === 0) {
       return res.status(400).json({ message: "No hay herramientas habilitadas para evaluar. Verifica la configuración del ejercicio." });
@@ -164,7 +184,12 @@ module.exports.analizarHerramientas = async (req, res) => {
       temperature: 0.2,
     }, 1);
 
-    let evaluacionHerramientas = normalizeHerramientasResult(raw, { herramientas });
+    // Sin `data` no hay con qué verificar las citas ni de dónde sacar el
+    // diagnóstico del estudiante: todo el bloque de comparación salía vacío.
+    let evaluacionHerramientas = normalizeHerramientasResult(raw, {
+      herramientas,
+      data: resolvedData,
+    });
     evaluacionHerramientas = addLabelsToHerramientasResult(evaluacionHerramientas, { herramientas });
 
     // Modo tutorial/sandbox: devolver sin persistir
