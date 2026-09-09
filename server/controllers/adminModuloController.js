@@ -148,6 +148,13 @@ function isRolePlayTipo(tipo) {
   return tipo === "Role playing persona" || tipo === "Role playing Aula" || tipo === "Role Playing IA";
 }
 
+/** Solo dos órdenes son válidos; cualquier otra cosa cae al de siempre. */
+function normalizeSecuencia(v) {
+  return String(v || "").trim() === "herramientas_primero"
+    ? "herramientas_primero"
+    : "praxis_primero";
+}
+
 function normalizeContextoSesion(raw) {
   const valid = ["exploracion_clinica","intervencion_terapeutica","aplicacion_pruebas_psicometricas","devolucion_resultados"];
   const v = String(raw || "exploracion_clinica");
@@ -794,6 +801,7 @@ exports.crearEjercicioAdmin = async (req, res) => {
         tipoConsentimiento: consentimientoBool ? tcNorm : "",
         praxisNivel:        normalizePraxisNivel(praxisNivel),
         modeloIntervencion: normalizeModeloIntervencion(modeloIntervencion),
+        secuencia:          normalizeSecuencia(req.body?.secuencia),
         herramientas:       normalizeHerramientasRolePlay(herramientas || {}),
         pruebasConfig:      normalizePruebasConfigRolePlay(pruebasConfigRolePlay),
         evaluaciones:       null,
@@ -864,7 +872,7 @@ exports.actualizarEjercicioAdmin = async (req, res) => {
     const {
       titulo, tiempo, tipoModulo, tipoEjercicio,
       tipoRole, trastorno, consentimiento, tipoConsentimiento,
-      herramientas, praxisNivel, modeloIntervencion, contextoSesion, evaluaciones,
+      herramientas, praxisNivel, modeloIntervencion, contextoSesion, secuencia, evaluaciones,
       pruebasConfig, caso, criterios, intentos, pruebas, historia, imagen,
       edad, ocupacion, motivo, historiaPersonal, tipo, respuestasFrases, texto,
     } = req.body || {};
@@ -875,7 +883,9 @@ exports.actualizarEjercicioAdmin = async (req, res) => {
 
     if (titulo     !== undefined) ejercicio.titulo  = String(titulo);
     if (tiempo     !== undefined) ejercicio.tiempo  = typeof tiempo === "number" ? tiempo : Number(tiempo) || 0;
-    if (tipoModulo !== undefined) {
+    // El formulario manda siempre el campo; vacío significa "sin cambio",
+    // no un valor inválido. Antes cualquier edición sin módulo daba 400.
+    if (tipoModulo !== undefined && String(tipoModulo).trim() !== "") {
       const norm = normalizarTipoModulo(tipoModulo);
       if (!norm) return res.status(400).json({ message: `tipoModulo inválido: ${tipoModulo}` });
       ejercicio.tipoModulo = norm;
@@ -939,6 +949,7 @@ exports.actualizarEjercicioAdmin = async (req, res) => {
       if (praxisNivel        !== undefined) detalle.praxisNivel        = normalizePraxisNivel(praxisNivel);
       if (modeloIntervencion !== undefined) detalle.modeloIntervencion = normalizeModeloIntervencion(modeloIntervencion);
       if (contextoSesion     !== undefined) detalle.contextoSesion     = normalizeContextoSesion(contextoSesion);
+      if (secuencia          !== undefined) detalle.secuencia          = normalizeSecuencia(secuencia);
       if (herramientas !== undefined) {
         detalle.herramientas = normalizeHerramientasRolePlay(herramientas || {});
         if (typeof detalle.markModified === "function") detalle.markModified("herramientas");

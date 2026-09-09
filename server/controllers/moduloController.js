@@ -678,6 +678,13 @@ exports.actualizarEjercicioInterpretacionFrases = async (req, res) => {
    EJERCICIO ESPECÍFICO: ROLE PLAYING
    =========================== */
 
+  /** Solo dos órdenes son válidos; cualquier otra cosa cae al de siempre. */
+  function normalizeSecuencia(v) {
+    return String(v || "").trim() === "herramientas_primero"
+      ? "herramientas_primero"
+      : "praxis_primero";
+  }
+
    exports.crearEjercicioRolePlay = async (req, res) => {
     try {
       const { moduloId } = req.params;
@@ -727,6 +734,7 @@ exports.actualizarEjercicioInterpretacionFrases = async (req, res) => {
         trastorno: trastorno || '',
         consentimiento: toBoolRole(consentimiento),
         tipoConsentimiento: tipoConsentimiento || '',
+        secuencia: normalizeSecuencia(req.body?.secuencia),
         herramientas: normalizeHerramientasRolePlay(herramientas || {}),
         evaluaciones: normalizeEvaluacionesRolePlay(evaluaciones || {}, null),
       });
@@ -787,6 +795,7 @@ exports.actualizarEjercicioRolePlay = async (req, res) => {
     if (trastorno !== undefined) detalle.trastorno = trastorno;
     if (consentimiento !== undefined) detalle.consentimiento = toBoolRole(consentimiento);
     if (tipoConsentimiento !== undefined) detalle.tipoConsentimiento = tipoConsentimiento;
+    if (req.body?.secuencia !== undefined) detalle.secuencia = normalizeSecuencia(req.body.secuencia);
 
     // merge herramientas + normalizar (si no viene, conserva lo actual)
     const currentTools =

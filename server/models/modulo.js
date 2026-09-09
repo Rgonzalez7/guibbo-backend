@@ -190,6 +190,18 @@ const ejercicioRolePlaySchema = new Schema(
     praxisNivel:        { type: String, enum: PRAXIS_NIVELES, default: "nivel_1", index: true },
     modeloIntervencion: { type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
     contextoSesion:     { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica", trim: true },
+
+    /* Orden del ejercicio después de la sesión.
+       - praxis_primero:       sesión → análisis PRAXIS → herramientas → análisis de herramientas
+       - herramientas_primero: sesión → herramientas → una pantalla con los dos análisis
+       El valor por defecto conserva el orden que tenían los ejercicios
+       creados antes de que esto fuera configurable. */
+    secuencia: {
+      type: String,
+      enum: ["praxis_primero", "herramientas_primero"],
+      default: "praxis_primero",
+    },
+
     herramientas: {
       manejoExpediente: { type: Boolean, default: false },
       ficha:            { type: Boolean, default: false },
@@ -310,6 +322,8 @@ const ejercicioMultiSesionSchema = new Schema(
     praxisNivel:        { type: String, enum: PRAXIS_NIVELES, default: "nivel_1", index: true },
     modeloIntervencion: { type: String, enum: ["", ...MODELOS_INTERVENCION], default: "", trim: true },
     contextoSesion:     { type: String, enum: ["", ...CONTEXTOS_SESION_ENUM], default: "exploracion_clinica", trim: true },
+
+
     herramientas: {
       manejoExpediente: { type: Boolean, default: false },
       ficha:            { type: Boolean, default: false },
