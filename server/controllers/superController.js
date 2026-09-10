@@ -215,6 +215,9 @@ async function crearUsuarioConRol(req, res, rolEsperado) {
       carrera: rolEsperado === 'estudiante' ? carrera || '' : '',
       pais: pais || '',
       foto: '',
+      // La contraseña que se pone aquí es temporal: la persona define la
+      // suya en la primera sesión. Sin esta marca, se quedaría con ella.
+      debeCambiarPassword: true,
     });
 
     res.status(201).json({
@@ -361,6 +364,59 @@ exports.actualizarUsuario = async (req, res) => {
    ELIMINAR USUARIO (GENÉRICO) + CASCADE SI ES ESTUDIANTE
    =========================== */
    
+/**
+ * POST /api/super/usuarios/:id/reset-password
+ *
+ * Asigna una contraseña temporal a cualquier usuario y lo obliga a
+ * cambiarla al entrar. Mientras el envío de correos esté fuera de
+ * servicio, este es el camino de recuperación: el súper usuario genera
+ * la temporal y se la comunica a la persona por su cuenta.
+ *
+ * Devuelve la contraseña en claro una sola vez: no se guarda en ningún
+ * sitio legible, así que si se pierde hay que generar otra.
+ */
+exports.resetPasswordUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(String(id || ""))) {
+      return res.status(400).json({ message: "Identificador de usuario inválido." });
+    }
+
+    const usuario = await User.findById(id);
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    // 10 caracteres sin los que se confunden al dictarla (l, 1, O, 0)
+    const abecedario = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let temporal = "";
+    for (let i = 0; i < 10; i++) {
+      temporal += abecedario[Math.floor(Math.random() * abecedario.length)];
+    }
+
+    usuario.password = await bcrypt.hash(temporal, 10);
+    usuario.debeCambiarPassword = true;
+    // Una cuenta desactivada por falta de acceso vuelve a quedar utilizable.
+    if (usuario.activo === false && usuario.rol !== "profesor") usuario.activo = true;
+
+    await usuario.save();
+
+    return res.json({
+      message:
+        "Contraseña temporal generada. Compártela con la persona: al iniciar sesión tendrá que definir una nueva.",
+      tempPassword: temporal,
+      usuario: {
+        id: usuario._id,
+        email: usuario.email,
+        nombre: usuario.nombre || "",
+        rol: usuario.rol,
+      },
+    });
+  } catch (err) {
+    console.error("❌ resetPasswordUsuario error:", err);
+    res.status(500).json({ message: "No se pudo generar la contraseña temporal." });
+  }
+};
+
    exports.eliminarUsuario = async (req, res) => {
      const session = await mongoose.startSession();
    

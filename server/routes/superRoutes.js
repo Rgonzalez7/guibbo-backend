@@ -141,6 +141,9 @@ router.get('/usuarios/:id', superController.obtenerUsuario);
 router.put('/usuarios/:id', superController.actualizarUsuario);
 router.delete('/usuarios/:id', superController.eliminarUsuario);
 
+/* Contraseña temporal (recuperación manual mientras el correo no funciona) */
+router.post('/usuarios/:id/reset-password', superController.resetPasswordUsuario);
+
 /* ===== Resumen para el dashboard principal ===== */
 router.get('/resumen-dashboard', superController.resumenDashboard);
 
